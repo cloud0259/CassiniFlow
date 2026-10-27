@@ -1,0 +1,48 @@
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+## Visual Studio & IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.userosv
+*.suo
+*.userprefs
+*.sln.docstates
+
+## User outputs & heavy astrophotography test data
+cassiniflow_output/
+pipp_output/
+*.ser
+*.fit
+*.fits
+*.avi
+*.mp4
+*.mov
+*.wmv
+*.cr2
+*.nef
+*.arw
+*.dng
+scratch/
+
+## OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

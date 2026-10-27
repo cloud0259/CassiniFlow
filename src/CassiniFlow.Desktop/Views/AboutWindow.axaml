@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CassiniFlow.Desktop.Views.AboutWindow"
+        Title="À propos de CassiniFlow"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Icon="/Assets/cassiniflow.ico"
+        Background="{DynamicResource AppWindowBackground}"
+        Foreground="{DynamicResource AppTextPrimary}">
+
+    <Border Padding="28,24" Background="{DynamicResource AppPanelBackground}" Margin="12" CornerRadius="10" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1">
+        <StackPanel Spacing="16" HorizontalAlignment="Stretch">
+
+            <!-- Icône officielle CassiniFlow -->
+            <Image Source="/Assets/icon_256x256.png" Width="96" Height="96" HorizontalAlignment="Center"/>
+
+            <!-- Titre et Version (orienté utilisateur astro, sans mention dev) -->
+            <StackPanel Spacing="3" HorizontalAlignment="Center">
+                <TextBlock Text="CassiniFlow" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Planetary &amp; Astro Imaging PreProcessor" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Version 1.0.0" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Card de description sobre et aérée (aucun débordement) -->
+            <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Pré-traitement, centrage et stabilisation de séquences planétaires, lunaires et solaires." FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="Formats pris en charge : SER, FITS, AVI, MP4, TIFF, PNG, BMP." FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bouton Fermer -->
+            <Button Content="Fermer" Click="OnCloseClick" HorizontalAlignment="Center" Padding="28,7" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" CornerRadius="6" Margin="0,4,0,0"/>
+
+        </StackPanel>
+    </Border>
+</Window>

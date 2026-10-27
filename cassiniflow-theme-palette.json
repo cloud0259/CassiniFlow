@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "project": "CassiniFlow",
+  "version": "1.0.0",
+  "description": "Système de couleurs officiel pour l'interface de CassiniFlow et son identité visuelle (logo).",
+
+  "uiThemes": {
+    "deepSpaceDark": {
+      "name": "Deep Space (Dark)",
+      "description": "Thème sombre par défaut, optimisé pour les sessions nocturnes et le contraste planétaire.",
+      "colors": {
+        "windowBackground": "#0F141C",
+        "panelBackground": "#18202C",
+        "panelSubtleBackground": "#121822",
+        "tableHeaderBackground": "#1E2736",
+        "borderColor": "#2A374A",
+        "textPrimary": "#F1F5F9",
+        "textSecondary": "#94A3B8",
+        "textDimmed": "#64748B",
+        "accentPrimary": "#2563EB",
+        "accentHover": "#1D4ED8",
+        "accentGlow": "rgba(37, 99, 235, 0.3)",
+        "badgeFormat": "#38BDF8",
+        "badgeAccent": "#FBBF24",
+        "statusSuccess": "#10B981",
+        "previewBackground": "#06090E"
+      }
+    },
+
+    "cleanLabLight": {
+      "name": "Clean Lab (Light)",
+      "description": "Thème clair pour le dépouillement en bureau, cours et salles lumineuses.",
+      "colors": {
+        "windowBackground": "#F1F5F9",
+        "panelBackground": "#FFFFFF",
+        "panelSubtleBackground": "#F8FAFC",
+        "tableHeaderBackground": "#E2E8F0",
+        "borderColor": "#CBD5E1",
+        "textPrimary": "#0F172A",
+        "textSecondary": "#475569",
+        "textDimmed": "#94A3B8",
+        "accentPrimary": "#2563EB",
+        "accentHover": "#1D4ED8",
+        "accentGlow": "rgba(37, 99, 235, 0.15)",
+        "badgeFormat": "#0284C7",
+        "badgeAccent": "#D97706",
+        "statusSuccess": "#059669",
+        "previewBackground": "#1E293B"
+      }
+    },
+
+    "nightVisionRed": {
+      "name": "Night Vision (Rouge Astro)",
+      "description": "Thème terrain au télescope préservant l'adaptation nocturne de la rétine.",
+      "colors": {
+        "windowBackground": "#0A0202",
+        "panelBackground": "#170505",
+        "panelSubtleBackground": "#0F0303",
+        "tableHeaderBackground": "#260909",
+        "borderColor": "#4A1010",
+        "textPrimary": "#FCA5A5",
+        "textSecondary": "#B91C1C",
+        "textDimmed": "#7F1D1D",
+        "accentPrimary": "#DC2626",
+        "accentHover": "#B91C1C",
+        "accentGlow": "rgba(220, 38, 38, 0.4)",
+        "badgeFormat": "#F87171",
+        "badgeAccent": "#EF4444",
+        "statusSuccess": "#F87171",
+        "previewBackground": "#050000"
+      }
+    }
+  },
+
+  "logoPalettes": {
+    "cassiniOrbit": {
+      "name": "Cassini Orbit (Signature)",
+      "description": "Palette signature associant le bleu spatial, l'anneau cyan et l'éclat ambré de Saturne/Titan.",
+      "colors": {
+        "spaceBackground": "#0B0F19",
+        "primaryBody": "#2563EB",
+        "ringFlow": "#38BDF8",
+        "saturnGlow": "#F59E0B",
+        "stellarWhite": "#F8FAFC"
+      }
+    },
+
+    "cosmicNebula": {
+      "name": "Cosmic Nebula (Gradient)",
+      "description": "Idéal pour un logo avec dégradé continu évoquant le traitement d'ondes et de flux (Flow).",
+      "colors": {
+        "darkBase": "#0F172A",
+        "gradientStart": "#7C3AED",
+        "gradientMiddle": "#2563EB",
+        "gradientEnd": "#06B6D4",
+        "highlight": "#FFFFFF"
+      }
+    },
+
+    "redShift": {
+      "name": "Red Shift (Monochrome Astro)",
+      "description": "Déclinaison rouge rubis pour le badge officiel et l'intégration en mode Night Vision.",
+      "colors": {
+        "darkBase": "#0A0202",
+        "deepShadow": "#7F1D1D",
+        "primaryBody": "#DC2626",
+        "ringGlow": "#F87171",
+        "focalPoint": "#FEE2E2"
+      }
+    }
+  }
+}

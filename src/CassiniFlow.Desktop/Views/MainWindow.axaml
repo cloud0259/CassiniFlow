@@ -1,0 +1,582 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+        xmlns:controls="using:CassiniFlow.Desktop.Controls"
+        xmlns:loc="using:CassiniFlow.Desktop.Localization"
+        x:Class="CassiniFlow.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{loc:Tr App.Title}"
+        Width="1340" Height="820"
+        MinWidth="1024" MinHeight="660"
+        Background="{DynamicResource AppWindowBackground}"
+        Foreground="{DynamicResource AppTextPrimary}"
+        Icon="/Assets/cassiniflow.ico"
+        DragDrop.AllowDrop="True">
+
+    <Window.Styles>
+        <Style Selector="Border.groupbox">
+            <Setter Property="Background" Value="{DynamicResource AppPanelBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.grouptitle">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,6"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
+        <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Menu Grid.Column="0" VerticalAlignment="Center">
+                    <MenuItem Header="{loc:Tr Menu.File}">
+                        <MenuItem Header="{loc:Tr Menu.AddFiles}" Click="OnAddVideoFilesClick"/>
+                        <MenuItem Header="{loc:Tr Menu.RemoveSelected}" Command="{Binding RemoveSelectedFileCommand}"/>
+                        <MenuItem Header="{loc:Tr Menu.ClearAll}" Command="{Binding ClearAllFilesCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Tr Menu.SelectOutputFolder}" Click="OnSelectOutputFolderClick"/>
+                        <MenuItem Header="{loc:Tr Menu.OpenOutputFolder}" Command="{Binding OpenOutputFolderCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Tr Menu.Exit}" Click="OnExitClick"/>
+                    </MenuItem>
+                    <MenuItem Header="{loc:Tr Menu.Preview}">
+                        <MenuItem Header="{loc:Tr Menu.FirstFrame}" Command="{Binding FirstFrameCommand}"/>
+                        <MenuItem Header="{loc:Tr Menu.LastFrame}" Command="{Binding LastFrameCommand}"/>
+                    </MenuItem>
+                    <MenuItem Header="{loc:Tr Menu.Processing}">
+                        <MenuItem Header="{loc:Tr Menu.StartProcessing}" Command="{Binding RunProcessingCommand}"/>
+                        <MenuItem Header="{loc:Tr Menu.CancelProcessing}" Command="{Binding CancelProcessingCommand}"/>
+                    </MenuItem>
+                    <MenuItem Header="{loc:Tr Menu.Settings}">
+                        <MenuItem Header="{loc:Tr Menu.Theme}">
+                            <MenuItem x:Name="DarkThemeMenuItem" Header="{loc:Tr Menu.ThemeDark}" ToggleType="Radio" GroupName="AppTheme" Click="OnSetThemeDarkClick"/>
+                            <MenuItem x:Name="LightThemeMenuItem" Header="{loc:Tr Menu.ThemeLight}" ToggleType="Radio" GroupName="AppTheme" Click="OnSetThemeLightClick"/>
+                            <MenuItem x:Name="NightVisionMenuItem" Header="{loc:Tr Menu.ThemeNightVision}" ToggleType="Radio" GroupName="AppTheme" Click="OnSetThemeNightVisionClick"/>
+                        </MenuItem>
+                        <MenuItem Header="{loc:Tr Menu.Language}">
+                            <MenuItem x:Name="FrenchMenuItem" Header="Français" ToggleType="Radio" GroupName="AppLanguage" Click="OnSetLanguageFrenchClick"/>
+                            <MenuItem x:Name="EnglishMenuItem" Header="English" ToggleType="Radio" GroupName="AppLanguage" Click="OnSetLanguageEnglishClick"/>
+                        </MenuItem>
+                    </MenuItem>
+                    <MenuItem Header="{loc:Tr Menu.Help}">
+                        <MenuItem Header="{loc:Tr Menu.About}" Click="OnAboutClick"/>
+                    </MenuItem>
+                </Menu>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" FontSize="12" Padding="10,5"/>
+                    <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ZONE PRINCIPALE : 7 ONGLETS CassiniFlow À GAUCHE / APERÇU DE LA FRAME À DROITE -->
+        <Grid Grid.Row="1" ColumnDefinitions="58*,42*">
+
+            <!-- PANNEAU GAUCHE : LES 7 ONGLETS DE CassiniFlow -->
+            <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8">
+                <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+
+                    <!-- ONGLET 1 : SOURCE FILES -->
+                    <TabItem Header="{loc:Tr Tab.SourceFiles}">
+                        <Grid RowDefinitions="Auto,*,Auto" Margin="4,8,4,4">
+
+                            <!-- Barre d'outils de la liste des fichiers -->
+                            <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="Liste des fichiers vidéos et séquences d'images à traiter :" Classes="grouptitle" VerticalAlignment="Center" Margin="0"/>
+                                <WrapPanel Grid.Row="1" Margin="0,6,0,0">
+                                    <Button Margin="0,0,6,4" Content="+ Ajouter des fichiers..." Click="OnAddVideoFilesClick" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="10,4"/>
+                                    <Button Margin="0,0,6,4" Content="📏 Mesurer les tailles" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Mesure le diamètre de la planète dans chaque fichier"/>
+                                    <Button Margin="0,0,6,4" Content="Trier ↑ taille" Command="{Binding SortFilesBySizeAscendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Trier du plus petit au plus grand objet"/>
+                                    <Button Margin="0,0,6,4" Content="Trier ↓ taille" Command="{Binding SortFilesBySizeDescendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Trier du plus grand au plus petit objet"/>
+                                    <Button Margin="0,0,6,4" Content="▲ Monter" Command="{Binding MoveSelectedFileUpCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Monter (Alt+↑)"/>
+                                    <Button Margin="0,0,6,4" Content="▼ Descendre" Command="{Binding MoveSelectedFileDownCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Descendre (Alt+↓)"/>
+                                    <Button Margin="0,0,6,4" Content="🗑 Supprimer la sélection" Command="{Binding RemoveSelectedFileCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="Supprime les fichiers cochés (ou la ligne active si aucun n'est coché) - Suppr"/>
+                                    <Button Margin="0,0,6,4" Content="Vider la liste" Command="{Binding ClearAllFilesCommand}" FontSize="12" Padding="8,4"/>
+                                </WrapPanel>
+                            </Grid>
+
+                            <!-- Tableau des fichiers sources -->
+                            <Border Grid.Row="1" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
+                                <Grid RowDefinitions="Auto,*">
+                                    <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+                                        <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*">
+                                            <Button Grid.Column="0" Content="☑" Command="{Binding ToggleCheckAllFilesCommand}" Padding="2,0" FontSize="12" Background="Transparent" ToolTip.Tip="Tout cocher / décocher"/>
+                                            <TextBlock Grid.Column="1" Text="Nom du fichier" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="2" Text="Type / Codec" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="3" Text="Frames" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="4" Text="Dimensions" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="5" Text="Cadence" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Grid.Column="6" Text="Taille" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="7" Text="Ø objet" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right" ToolTip.Tip="Diamètre apparent de la planète (médiane sur quelques frames)"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <ListBox Grid.Row="1" PointerPressed="OnFileListPointerPressed" PointerMoved="OnFileListPointerMoved" PointerReleased="OnFileListPointerReleased" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedSourceFile}" Background="Transparent" BorderThickness="0">
+                                        <ListBox.KeyBindings>
+                                            <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedFileCommand}"/>
+                                            <KeyBinding Gesture="Alt+Up" Command="{Binding MoveSelectedFileUpCommand}"/>
+                                            <KeyBinding Gesture="Alt+Down" Command="{Binding MoveSelectedFileDownCommand}"/>
+                                        </ListBox.KeyBindings>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SourceFileItem">
+                                                <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*" Margin="4,2">
+                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding FormatBadge}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Frames}" FontSize="12" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding Resolution}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="5" Text="{Binding FpsInfo}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="6" Text="{Binding FileSize}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="7" Text="{Binding PlanetSizeText}" FontSize="12" Foreground="{DynamicResource AppBadgeAccent}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+
+                            <!-- Bas de l'onglet 1 : Mode Batch/Join à gauche + "Optimise Options For" à droite (Exactement comme CassiniFlow) -->
+                            <Grid Grid.Row="2" ColumnDefinitions="*,10,*">
+                                <Border Grid.Column="0" Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Mode de Traitement &amp; Plage de Frames" Classes="grouptitle"/>
+                                        <RadioButton Content="Batch Mode (Traiter chaque fichier séparément)" IsChecked="{Binding IsBatchMode}" FontSize="12"/>
+                                        <RadioButton Content="Join Mode (Fusionner tous les fichiers en une seule sortie)" IsChecked="{Binding IsJoinMode}" FontSize="12"/>
+                                        <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+                                        <CheckBox Content="Limiter la plage de frames lues (Start / End)" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding LimitFrameRange}">
+                                            <TextBlock Text="Début :" Classes="label"/>
+                                            <NumericUpDown Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="105"/>
+                                            <TextBlock Text="Fin :" Classes="label"/>
+                                            <NumericUpDown Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="105"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Classes="groupbox">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Optimise Options For (Préréglages CassiniFlow)" Classes="grouptitle"/>
+                                        <TextBlock Text="Configure automatiquement les onglets selon le type de cible :" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,0,2"/>
+                                        <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch">
+                                            <ComboBoxItem Content="Configuration Manuelle (Pas d'optimisation automatique)"/>
+                                            <ComboBoxItem Content="Planetary (Planète sur fond noir : détection + centrage + crop)"/>
+                                            <ComboBoxItem Content="Solar / Lunar Close-up (Surface : stabilisation par ancrage AFB)"/>
+                                            <ComboBoxItem Content="Solar / Lunar Full Disc (Disque complet : centrage + histogramme)"/>
+                                            <ComboBoxItem Content="ISS / Satellite (Détection haute sensibilité + luminosité totale)"/>
+                                            <ComboBoxItem Content="Planetary Animation (Vidéo fluide MP4 / AVI centrée)"/>
+                                        </ComboBox>
+                                        <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+                                        <Grid ColumnDefinitions="Auto,10,*,10,Auto">
+                                            <TextBlock Grid.Column="0" Text="Plafond CPU (%) :" Classes="label"/>
+                                            <Slider Grid.Column="2" Minimum="20" Maximum="90" Value="{Binding MaxCpuUsagePercent}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveCpuThreadsText}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                        </Grid>
+                    </TabItem>
+
+                    <!-- ONGLET 2 : INPUT OPTIONS -->
+                    <TabItem Header="{loc:Tr Tab.InputOptions}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="10" Margin="4,8,4,4">
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Dématriçage des Fichiers Brut / Caméra Astro (Colour Debayering)" Classes="grouptitle"/>
+                                        <CheckBox Content="Débayeriser les vidéos monochromes brutes (RAW Bayer)" IsChecked="{Binding DebayerEnabled}" FontSize="12"/>
+                                        <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding DebayerEnabled}">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="Motif de la matrice de Bayer :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedBayerPatternIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="GBRG"/>
+                                                    <ComboBoxItem Content="BGGR"/>
+                                                    <ComboBoxItem Content="RGGB"/>
+                                                    <ComboBoxItem Content="GRBG"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4">
+                                                <TextBlock Text="Algorithme d'interpolation :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedDebayerAlgoIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="Bilinear"/>
+                                                    <ComboBoxItem Content="HQ Linear"/>
+                                                    <ComboBoxItem Content="Smooth Hue"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Binning d'Entrée &amp; Calibration" Classes="grouptitle"/>
+                                        <Grid ColumnDefinitions="*,12,*">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="Binning spatial des pixels :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedBinningIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="Désactivé (1×1)"/>
+                                                    <ComboBoxItem Content="Binning 2×2"/>
+                                                    <ComboBoxItem Content="Binning 3×3"/>
+                                                    <ComboBoxItem Content="Binning 4×4"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4">
+                                                <CheckBox Content="Correction des pixels chauds (Hot Pixels)" IsChecked="{Binding DarkSubtractEnabled}" FontSize="12"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding DarkSubtractEnabled}">
+                                                    <TextBlock Text="Seuil (%) :" Classes="label"/>
+                                                    <NumericUpDown Value="{Binding HotPixelThreshold}" Minimum="1" Maximum="100" FormatString="0" Width="110"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- ONGLET 3 : PROCESSING OPTIONS -->
+                    <TabItem Header="{loc:Tr Tab.ProcessingOptions}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="10" Margin="4,8,4,4">
+
+                                <!-- Stabilisation Mode -->
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Mode de Stabilisation (Frame Stabilisation Mode)" Classes="grouptitle"/>
+                                        <ComboBox SelectedIndex="{Binding SelectedStabilisationModeIndex}" HorizontalAlignment="Stretch">
+                                            <ComboBoxItem Content="Aucune stabilisation (Conserver l'alignement d'origine de la vidéo)"/>
+                                            <ComboBoxItem Content="Détection et Centrage d'Objet / Planète (Object / Planetary Detection)"/>
+                                            <ComboBoxItem Content="Stabilisation de Surface par Boîte d'Ancrage (Surface Feature Stabilisation)"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Object Detection & Surface Anchor -->
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Détection d'Objet &amp; Centrage" Classes="grouptitle"/>
+                                        <WrapPanel Orientation="Horizontal">
+                                            <CheckBox Content="Rejeter les frames sans objet détecté" IsChecked="{Binding CheckObjectPresent}" Margin="0,0,18,0" FontSize="12"/>
+                                            <CheckBox Content="Centrer l'objet détecté dans la frame" IsChecked="{Binding CentreObjectInFrame}" Margin="0,0,18,0" FontSize="12"/>
+                                            <CheckBox Content="Seuil de détection automatique" IsChecked="{Binding AutoThreshold}" FontSize="12"/>
+                                        </WrapPanel>
+
+                                        <Grid ColumnDefinitions="*,12,*">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Seuil manuel (1–250) :" Classes="label"/>
+                                                    <NumericUpDown Value="{Binding DetectionThreshold}" Minimum="1" Maximum="250" FormatString="0" Width="110" IsEnabled="{Binding !AutoThreshold}"/>
+                                                </StackPanel>
+                                                <CheckBox Content="Afficher les pixels détectés en rouge dans l'aperçu" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Spacing="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Taille min. objet (px) :" Classes="label"/>
+                                                    <NumericUpDown Value="{Binding MinObjectSizePixels}" Minimum="2" Maximum="2000" FormatString="0" Width="110"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Taille Boîte AFB (Surface) :" Classes="label"/>
+                                                    <NumericUpDown Value="{Binding AfbSize}" Minimum="16" Maximum="256" Increment="8" FormatString="0" Width="105"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Cropping (NumericUpDown jusqu'à 8192 px, largeur/hauteur indépendantes) -->
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="Recadrage de l'Image (Cropping)" Classes="grouptitle" Margin="0"/>
+                                            <CheckBox Grid.Column="1" Content="Activer le recadrage (Enable Cropping)" IsChecked="{Binding EnableCropping}" FontSize="12"/>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,*,*,*" IsEnabled="{Binding EnableCropping}">
+                                            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                                <TextBlock Text="Largeur (Width px) :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding CropWidth}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
+                                                <TextBlock Text="Hauteur (Height px) :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding CropHeight}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4" Margin="0,0,8,0">
+                                                <TextBlock Text="Décalage X (Offset X) :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding CropOffsetX}" Minimum="-4096" Maximum="4096" FormatString="0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Spacing="4">
+                                                <TextBlock Text="Décalage Y (Offset Y) :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding CropOffsetY}" Minimum="-4096" Maximum="4096" FormatString="0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Gain, Gamma, Histogram, Monochrome, Rotation -->
+                                <Border Classes="groupbox">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Gain, Gamma, Histogramme &amp; Géométrie" Classes="grouptitle"/>
+                                        <Grid ColumnDefinitions="*,*,*">
+                                            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                                <TextBlock Text="Gain d'entrée :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding InputGain}" Minimum="0.10" Maximum="10.00" Increment="0.05" FormatString="0.00"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
+                                                <TextBlock Text="Correction Gamma :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding Gamma}" Minimum="0.10" Maximum="5.00" Increment="0.05" FormatString="0.00"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4">
+                                                <TextBlock Text="Rotation :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedRotationIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="Aucune"/>
+                                                    <ComboBoxItem Content="90° Horaire"/>
+                                                    <ComboBoxItem Content="90° Anti-horaire"/>
+                                                    <ComboBoxItem Content="180°"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <CheckBox Content="Étirer l'histogramme (% blanc) :" IsChecked="{Binding HistogramStretchEnabled}" Margin="0,0,8,0" FontSize="12"/>
+                                            <NumericUpDown Value="{Binding HistogramStretchPercent}" Minimum="10" Maximum="100" FormatString="0" Width="95" IsEnabled="{Binding HistogramStretchEnabled}" Margin="0,0,16,0"/>
+                                            <CheckBox Content="Convertir en Monochrome" IsChecked="{Binding ConvertToMono}" Margin="0,0,16,0" FontSize="12"/>
+                                            <CheckBox Content="Miroir Horizontal" IsChecked="{Binding FlipHorizontal}" Margin="0,0,16,0" FontSize="12"/>
+                                            <CheckBox Content="Miroir Vertical" IsChecked="{Binding FlipVertical}" FontSize="12"/>
+                                            <CheckBox Content="Rotation auto (aligner l'orientation des anneaux entre fichiers)" IsChecked="{Binding AutoRotateAlign}" Margin="16,0,0,0" FontSize="12" ToolTip.Tip="Détecte l'angle de l'objet (ex. anneaux de Saturne) dans chaque fichier et fait pivoter automatiquement les frames pour les aligner sur le premier fichier de la liste. Utile en Join Mode avec des vidéos prises à des angles différents."/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- ONGLET 4 : QUALITY OPTIONS -->
+                    <TabItem Header="{loc:Tr Tab.QualityOptions}">
+                        <StackPanel Spacing="10" Margin="4,8,4,4">
+                            <Border Classes="groupbox">
+                                <StackPanel Spacing="10">
+                                    <CheckBox Content="Activer l'Estimation et la Sélection par Qualité (Enable Quality Estimation)" IsChecked="{Binding EnableQuality}" FontWeight="SemiBold" FontSize="13"/>
+
+                                    <StackPanel Spacing="10" IsEnabled="{Binding EnableQuality}">
+                                        <Grid ColumnDefinitions="*,12,*">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="Algorithme d'évaluation de la netteté :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedQualityAlgoIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="Default CassiniFlow Quality (Gradients locaux)"/>
+                                                    <ComboBoxItem Content="Original Ninox Quality"/>
+                                                    <ComboBoxItem Content="Peak Histogram (Disque Solaire / Lunaire)"/>
+                                                    <ComboBoxItem Content="Total Brightness (ISS)"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Bottom">
+                                                <CheckBox Content="Réordonner les frames de la meilleure à la moins bonne" IsChecked="{Binding ReorderByQuality}" IsEnabled="{Binding !IsJoinMode}" FontSize="12" ToolTip.Tip="Désactivé en Join Mode : les vidéos sont fusionnées l'une après l'autre, dans l'ordre de la liste"/>
+                                                <CheckBox Content="Pondérer les meilleures frames (Quality Weighting)" IsChecked="{Binding EnableQualityWeighting}" FontSize="12"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                                        <CheckBox Content="Limiter le nombre de meilleures frames conservées" IsChecked="{Binding LimitQualityFrames}" FontSize="12"/>
+                                        <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding LimitQualityFrames}">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="Mode de limitation :" Classes="label"/>
+                                                <ComboBox SelectedIndex="{Binding SelectedQualityLimitModeIndex}" HorizontalAlignment="Stretch">
+                                                    <ComboBoxItem Content="Conserver un nombre fixe de frames (Number of Frames)"/>
+                                                    <ComboBoxItem Content="Conserver un pourcentage des meilleures frames (Percentage %)"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="4">
+                                                <TextBlock Text="Valeur à conserver :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding QualityKeepValue}" Minimum="1" Maximum="999999" FormatString="0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- ONGLET 5 : ANIMATION OPTIONS -->
+                    <TabItem Header="{loc:Tr Tab.AnimationOptions}">
+                        <StackPanel Spacing="10" Margin="4,8,4,4">
+                            <Border Classes="groupbox">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Séquence de Lecture et Boucle d'Animation" Classes="grouptitle"/>
+                                    <CheckBox Content="Jouer les frames dans l'ordre chronologique direct (Forward Play)" IsChecked="{Binding AnimationForward}" FontSize="12"/>
+                                    <CheckBox Content="Jouer les frames en sens inverse après la lecture directe (Reverse / Aller-Retour)" IsChecked="{Binding AnimationReverse}" FontSize="12"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="Nombre de répétitions de la séquence complète :" Classes="label"/>
+                                        <NumericUpDown Value="{Binding AnimationRepeatCount}" Minimum="1" Maximum="50" FormatString="0" Width="110"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- ONGLET 6 : OUTPUT OPTIONS -->
+                    <TabItem Header="{loc:Tr Tab.OutputOptions}">
+                        <StackPanel Spacing="10" Margin="4,8,4,4">
+                            <Border Classes="groupbox">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Format du Fichier de Sortie (Output Format)" Classes="grouptitle"/>
+                                    <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
+                                        <ComboBoxItem Content="AVI — Vidéo standard compatible VLC, AutoStakkert! et RegiStax"/>
+                                        <ComboBoxItem Content="MP4 — Vidéo MPEG-4 universelle compatible VLC et tous lecteurs"/>
+                                        <ComboBoxItem Content="SER — Format astronomique 8/16-bit sans perte (SER Player / AutoStakkert!)"/>
+                                        <ComboBoxItem Content="BMP — Image / Séquence 24-bit"/>
+                                        <ComboBoxItem Content="PNG — Image sans perte"/>
+                                        <ComboBoxItem Content="TIFF — Image 8/16-bit"/>
+                                        <ComboBoxItem Content="FITS — Format scientifique astronomique"/>
+                                    </ComboBox>
+
+                                    <Grid ColumnDefinitions="*,12,*">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <CheckBox Content="Conserver la cadence (FPS) de la vidéo source" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding !MatchInputFps}">
+                                                <TextBlock Text="FPS personnalisé :" Classes="label"/>
+                                                <NumericUpDown Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="110"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="Suffixe fichier :" Classes="label"/>
+                                                <TextBox Text="{Binding OutputSuffix}" Width="120"/>
+                                            </StackPanel>
+                                            <CheckBox Content="Nommage compatible WinJUPOS" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="groupbox">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Dossier de Destination" Classes="grouptitle"/>
+                                    <TextBlock Text="Par défaut, un sous-dossier 'CassiniFlow_YYYYMMDD_HHMMss' est créé à côté de votre vidéo source." FontSize="12" Foreground="{DynamicResource AppTextDimmed}"/>
+                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                        <TextBox Grid.Column="0" Text="{Binding CustomOutputDirectory}" Watermark="Laisser vide pour créer le dossier à côté du fichier source..." Margin="0,0,8,0"/>
+                                        <Button Grid.Column="1" Content="Parcourir..." Click="OnSelectOutputFolderClick" Margin="0,0,6,0"/>
+                                        <Button Grid.Column="2" Content="Ouvrir le dossier" Command="{Binding OpenOutputFolderCommand}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- ONGLET 7 : DO PROCESSING -->
+                    <TabItem Header="{loc:Tr Tab.DoProcessing}">
+                        <Grid RowDefinitions="Auto,Auto,*" Margin="4,8,4,4">
+
+                            <Border Grid.Row="0" Classes="groupbox" Margin="0,0,0,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Exécution du Traitement" Classes="grouptitle" Margin="0"/>
+                                        <TextBlock Text="{Binding ProcessingStageText}" FontSize="13" Foreground="{DynamicResource AppBadgeFormat}"/>
+                                        <TextBlock Text="{Binding SummaryStatsText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Content="▶ Start Processing" Command="{Binding RunProcessingCommand}" IsEnabled="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" Padding="16,8"/>
+                                        <Button Content="Annuler" Command="{Binding CancelProcessingCommand}" IsEnabled="{Binding IsProcessing}" Padding="12,8"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Classes="groupbox" Margin="0,0,0,10">
+                                <StackPanel Spacing="8">
+                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProcessingProgress}" Height="14"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasCompletedOutput}">
+                                        <Button Content="▶ Lire la vidéo générée (VLC / Lecteur par défaut)" Command="{Binding PlayLastOutputVideoCommand}" Background="#16a34a" Foreground="White" FontWeight="SemiBold" Padding="12,6"/>
+                                        <Button Content="📂 Ouvrir le dossier de sortie" Command="{Binding OpenOutputFolderCommand}" Padding="12,6"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2" Classes="groupbox">
+                                <Grid RowDefinitions="Auto,*">
+                                    <TextBlock Grid.Row="0" Text="Journal d'exécution :" Classes="grouptitle"/>
+                                    <TextBox Grid.Row="1" Text="{Binding ConsoleLogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas, Monospace" FontSize="12" Background="{DynamicResource AppConsoleLogBg}" Foreground="{DynamicResource AppTextPrimary}"/>
+                                </Grid>
+                            </Border>
+
+                        </Grid>
+                    </TabItem>
+
+                </TabControl>
+            </Border>
+
+            <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
+            <Border Grid.Column="1" Background="{DynamicResource AppWindowBackground}" Padding="10">
+                <Grid RowDefinitions="Auto,*,Auto">
+
+                    <!-- En-tête de la visionneuse -->
+                    <Border Grid.Row="0" Classes="groupbox" Padding="10,8" Margin="0,0,0,8">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding ViewerTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="1" Text="{Binding FrameDimensionsText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="8,0,0,0"/>
+                            </Grid>
+                            <WrapPanel Orientation="Horizontal">
+                                <CheckBox Content="Afficher le résultat recadré (Output)" IsChecked="{Binding PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
+                                <CheckBox Content="Afficher cadre Crop / AFB" IsChecked="{Binding ShowOverlayBoxes}" IsEnabled="{Binding !PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
+                                <CheckBox Content="Tester seuil (Rouge)" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Canvas d'aperçu avec respect du ratio d'aspect -->
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" Margin="0,0,0,8">
+                        <controls:AstroViewerControl />
+                    </Border>
+
+                    <!-- Contrôles de navigation Frame par Frame -->
+                    <Border Grid.Row="2" Classes="groupbox" Padding="10,8">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                                <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0"/>
+                                <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3" Margin="0,0,8,0"/>
+                                <Slider Grid.Column="2" Minimum="1" Maximum="{Binding MaxFrameCount}" Value="{Binding CurrentFrameIndex}" VerticalAlignment="Center"/>
+                                <Button Grid.Column="3" Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3" Margin="8,0,4,0"/>
+                                <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+            </Border>
+
+        </Grid>
+
+        <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
+        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="12,4">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding ViewerStatusText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding ProcessingStageText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="ThemeQuickToggleButton" Content="🌙" Click="OnToggleThemeClick" Background="Transparent" BorderThickness="0" Padding="6,2" FontSize="13" ToolTip.Tip="{loc:Tr Menu.ThemeToggleTip}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

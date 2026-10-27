@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CassiniFlow.Application/CassiniFlow.Application.csproj" />
+    <Project Path="src/CassiniFlow.Cli/CassiniFlow.Cli.csproj" />
+    <Project Path="src/CassiniFlow.Desktop/CassiniFlow.Desktop.csproj" />
+    <Project Path="src/CassiniFlow.Domain/CassiniFlow.Domain.csproj" />
+    <Project Path="src/CassiniFlow.Infrastructure/CassiniFlow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CassiniFlow.Tests/CassiniFlow.Tests.csproj" />
+  </Folder>
+</Solution>

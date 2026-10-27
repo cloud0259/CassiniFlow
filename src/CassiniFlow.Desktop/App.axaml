@@ -1,0 +1,72 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:CassiniFlow.Desktop.Theme"
+             x:Class="CassiniFlow.Desktop.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- THÈME SOMBRE : DEEP SPACE (Défaut) -->
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppWindowBackground" Color="#0F141C"/>
+                    <SolidColorBrush x:Key="AppPanelBackground" Color="#18202C"/>
+                    <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#121822"/>
+                    <SolidColorBrush x:Key="AppTableHeaderBackground" Color="#1E2736"/>
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#2A374A"/>
+                    <SolidColorBrush x:Key="AppTextPrimary" Color="#F1F5F9"/>
+                    <SolidColorBrush x:Key="AppTextSecondary" Color="#94A3B8"/>
+                    <SolidColorBrush x:Key="AppTextDimmed" Color="#64748B"/>
+                    <SolidColorBrush x:Key="AppAccent" Color="#2563EB"/>
+                    <SolidColorBrush x:Key="AppAccentHover" Color="#1D4ED8"/>
+                    <SolidColorBrush x:Key="AppBadgeFormat" Color="#38BDF8"/>
+                    <SolidColorBrush x:Key="AppBadgeAccent" Color="#FBBF24"/>
+                    <SolidColorBrush x:Key="AppStatusSuccess" Color="#10B981"/>
+                    <SolidColorBrush x:Key="AppConsoleLogBg" Color="#0B0F19"/>
+                    <SolidColorBrush x:Key="AppListSelectionBg" Color="#1E3A8A"/>
+                </ResourceDictionary>
+
+                <!-- THÈME CLAIR : CLEAN LAB (LIGHT) -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppWindowBackground" Color="#F1F5F9"/>
+                    <SolidColorBrush x:Key="AppPanelBackground" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#F8FAFC"/>
+                    <SolidColorBrush x:Key="AppTableHeaderBackground" Color="#E2E8F0"/>
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#CBD5E1"/>
+                    <SolidColorBrush x:Key="AppTextPrimary" Color="#0F172A"/>
+                    <SolidColorBrush x:Key="AppTextSecondary" Color="#475569"/>
+                    <SolidColorBrush x:Key="AppTextDimmed" Color="#94A3B8"/>
+                    <SolidColorBrush x:Key="AppAccent" Color="#2563EB"/>
+                    <SolidColorBrush x:Key="AppAccentHover" Color="#1D4ED8"/>
+                    <SolidColorBrush x:Key="AppBadgeFormat" Color="#0284C7"/>
+                    <SolidColorBrush x:Key="AppBadgeAccent" Color="#D97706"/>
+                    <SolidColorBrush x:Key="AppStatusSuccess" Color="#059669"/>
+                    <SolidColorBrush x:Key="AppConsoleLogBg" Color="#F8FAFC"/>
+                    <SolidColorBrush x:Key="AppListSelectionBg" Color="#DBEAFE"/>
+                </ResourceDictionary>
+
+                <!-- THÈME ROUGE ASTRO : NIGHT VISION -->
+                <ResourceDictionary x:Key="{x:Static theme:ThemeManager.NightVisionVariant}">
+                    <SolidColorBrush x:Key="AppWindowBackground" Color="#0A0202"/>
+                    <SolidColorBrush x:Key="AppPanelBackground" Color="#170505"/>
+                    <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#0F0303"/>
+                    <SolidColorBrush x:Key="AppTableHeaderBackground" Color="#260909"/>
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#4A1010"/>
+                    <SolidColorBrush x:Key="AppTextPrimary" Color="#FCA5A5"/>
+                    <SolidColorBrush x:Key="AppTextSecondary" Color="#B91C1C"/>
+                    <SolidColorBrush x:Key="AppTextDimmed" Color="#7F1D1D"/>
+                    <SolidColorBrush x:Key="AppAccent" Color="#DC2626"/>
+                    <SolidColorBrush x:Key="AppAccentHover" Color="#B91C1C"/>
+                    <SolidColorBrush x:Key="AppBadgeFormat" Color="#F87171"/>
+                    <SolidColorBrush x:Key="AppBadgeAccent" Color="#EF4444"/>
+                    <SolidColorBrush x:Key="AppStatusSuccess" Color="#F87171"/>
+                    <SolidColorBrush x:Key="AppConsoleLogBg" Color="#050000"/>
+                    <SolidColorBrush x:Key="AppListSelectionBg" Color="#450A0A"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
