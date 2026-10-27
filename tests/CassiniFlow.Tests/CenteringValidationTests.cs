@@ -1,7 +1,10 @@
 using System;
+using System.IO;
+using System.Linq;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Adapters;
+using CassiniFlow.Infrastructure.Codecs;
 using CassiniFlow.Infrastructure.Synthetic;
 using Xunit;
 
@@ -52,7 +55,6 @@ public class CenteringValidationTests
             maxOverexposedPixels: 0);
 
         Assert.True(det.Accepted);
-        // Centre théorique : X=400, Y=300 -> centré au pixel près !
         Assert.InRange(det.CentroidX, 399, 401);
         Assert.InRange(det.CentroidY, 299, 301);
     }
@@ -114,5 +116,70 @@ public class CenteringValidationTests
         Assert.Equal(60000, cropNormal.Data[50 * 100 + 50]);
         // Shifted: (50 + 10, 50 + 10) = (60, 60)
         Assert.Equal(60000, cropShifted.Data[60 * 100 + 60]);
+    }
+
+    [Fact]
+    public void DetectPlanet_WithGalileanMoons_IgnoresMoonsAndLocksOnDiscCenter()
+    {
+        int w = 1000, h = 800;
+        var frame = new AstroFrame(w, h, 3, 16);
+        int trueCx = 500, trueCy = 400, planetRadius = 70;
+
+        // Draw planet disc
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - trueCx;
+                int dy = y - trueCy;
+                int idx = (y * w + x) * 3;
+                if (dx * dx + dy * dy <= planetRadius * planetRadius)
+                {
+                    double normDist = Math.Sqrt(dx * dx + dy * dy) / planetRadius;
+                    double limb = 1.0 - normDist * 0.4;
+                    ushort v = (ushort)(42000 * limb);
+                    frame.Data[idx] = v;
+                    frame.Data[idx + 1] = v;
+                    frame.Data[idx + 2] = v;
+                }
+            }
+        }
+
+        // Add 3 Galilean moons (e.g. Io at +120px, Europa at -150px, Ganymede at +220px)
+        int[] moonOffsetsX = [-150, 120, 220];
+        int[] moonOffsetsY = [15, -10, 25];
+        for (int m = 0; m < 3; m++)
+        {
+            int mx = trueCx + moonOffsetsX[m];
+            int my = trueCy + moonOffsetsY[m];
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                for (int dx = -2; dx <= 2; dx++)
+                {
+                    if (dx * dx + dy * dy <= 4)
+                    {
+                        int idx = ((my + dy) * w + (mx + dx)) * 3;
+                        frame.Data[idx] = 30000;
+                        frame.Data[idx + 1] = 30000;
+                        frame.Data[idx + 2] = 30000;
+                    }
+                }
+            }
+        }
+
+        var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
+            frame,
+            checkObject: true,
+            autoThreshold: true,
+            manualThreshold8Bit: 40,
+            minObjectSizePixels: 20,
+            shadowEdge: LunarShadowEdge.None,
+            checkOverexposed: false,
+            maxOverexposedPixels: 0);
+
+        Assert.True(det.Accepted);
+        // Centering must remain locked on the planetary disc center regardless of moons
+        Assert.InRange(det.CentroidX, trueCx - 1, trueCx + 1);
+        Assert.InRange(det.CentroidY, trueCy - 1, trueCy + 1);
     }
 }

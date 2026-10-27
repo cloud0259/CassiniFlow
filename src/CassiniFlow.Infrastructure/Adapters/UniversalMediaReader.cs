@@ -401,18 +401,17 @@ public static class UniversalMediaReader
         byte* pBase = (byte*)mat.Data;
         int minArea = Math.Max(4, (int)(Math.PI * (minObjectSizePixels * 0.5) * (minObjectSizePixels * 0.5)) / 2);
 
-        // 1. Try fast local 480x480 tracking window around previous frame's centroid (8 microseconds!)
+        // 1. Try fast local tracking window around previous frame's centroid (8 microseconds!)
         if (hintX >= 0 && hintY >= 0 && cachedThreshold8 > 0)
         {
-            const int radius = 240;
+            int radius = Math.Clamp(Math.Max(minObjectSizePixels * 3, 96), 96, 180);
             int rx0 = Math.Max(0, hintX - radius);
             int ry0 = Math.Max(0, hintY - radius);
             int rx1 = Math.Min(w, hintX + radius);
             int ry1 = Math.Min(h, hintY + radius);
             const int localStep = 4;
 
-            long lSumX = 0, lSumY = 0;
-            long lCount = 0;
+            long lSumX = 0, lSumY = 0, lWeight = 0;
             int lDet = 0;
             int thresh = cachedThreshold8;
             int lMinX = rx1, lMaxX = rx0, lMinY = ry1, lMaxY = ry0;
@@ -428,9 +427,10 @@ public static class UniversalMediaReader
                         if (lum >= thresh)
                         {
                             lDet += localStep * localStep;
-                            lSumX += x;
-                            lSumY += y;
-                            lCount++;
+                            long wt = lum - thresh + 1;
+                            lSumX += (long)x * wt;
+                            lSumY += (long)y * wt;
+                            lWeight += wt;
                             if (x < lMinX) lMinX = x;
                             if (x > lMaxX) lMaxX = x;
                             if (y < lMinY) lMinY = y;
@@ -448,9 +448,10 @@ public static class UniversalMediaReader
                         if (lum >= thresh)
                         {
                             lDet += localStep * localStep;
-                            lSumX += x;
-                            lSumY += y;
-                            lCount++;
+                            long wt = lum - thresh + 1;
+                            lSumX += (long)x * wt;
+                            lSumY += (long)y * wt;
+                            lWeight += wt;
                             if (x < lMinX) lMinX = x;
                             if (x > lMaxX) lMaxX = x;
                             if (y < lMinY) lMinY = y;
@@ -460,14 +461,23 @@ public static class UniversalMediaReader
                 }
             }
 
-            if (lDet >= minArea && lCount > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
+            if (lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
             {
-                int geomX = (lMinX + lMaxX) / 2;
-                int geomY = (lMinY + lMaxY) / 2;
-                int binX = (int)(lSumX / lCount);
-                int binY = (int)(lSumY / lCount);
-                int lcx = geomX;
-                int lcy = geomY;
+                int lbaryX = (int)(lSumX / lWeight);
+                int lbaryY = (int)(lSumY / lWeight);
+                int lestRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(lDet / Math.PI));
+                int ldiscRadius = (int)(lestRadius * 1.35) + 6;
+
+                int ldiscMinX = Math.Max(lMinX, lbaryX - ldiscRadius);
+                int ldiscMaxX = Math.Min(lMaxX, lbaryX + ldiscRadius);
+                int ldiscMinY = Math.Max(lMinY, lbaryY - ldiscRadius);
+                int ldiscMaxY = Math.Min(lMaxY, lbaryY + ldiscRadius);
+
+                int lgeomX = (ldiscMinX <= ldiscMaxX) ? (ldiscMinX + ldiscMaxX) / 2 : lbaryX;
+                int lgeomY = (ldiscMinY <= ldiscMaxY) ? (ldiscMinY + ldiscMaxY) / 2 : lbaryY;
+
+                int lcx = (Math.Abs(lgeomX - lbaryX) <= lestRadius / 2) ? lgeomX : lbaryX;
+                int lcy = (Math.Abs(lgeomY - lbaryY) <= lestRadius / 2) ? lgeomY : lbaryY;
                 hintX = lcx;
                 hintY = lcy;
                 return new DetectionResult(true, null, lcx, lcy, lDet, 0, thresh);
@@ -522,9 +532,10 @@ public static class UniversalMediaReader
                     if (lum >= threshold8)
                     {
                         detectedPixels += step * step;
-                        sumX += x;
-                        sumY += y;
-                        totalWeight++;
+                        long wt = lum - threshold8 + 1;
+                        sumX += (long)x * wt;
+                        sumY += (long)y * wt;
+                        totalWeight += wt;
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
                         if (y < minY) minY = y;
@@ -542,9 +553,10 @@ public static class UniversalMediaReader
                     if (lum >= threshold8)
                     {
                         detectedPixels += step * step;
-                        sumX += x;
-                        sumY += y;
-                        totalWeight++;
+                        long wt = lum - threshold8 + 1;
+                        sumX += (long)x * wt;
+                        sumY += (long)y * wt;
+                        totalWeight += wt;
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
                         if (y < minY) minY = y;
@@ -554,12 +566,21 @@ public static class UniversalMediaReader
             }
         }
 
-        int geomCenterX = (minX <= maxX) ? (minX + maxX) / 2 : w / 2;
-        int geomCenterY = (minY <= maxY) ? (minY + maxY) / 2 : h / 2;
-        int binCenterX = totalWeight > 0 ? (int)(sumX / totalWeight) : geomCenterX;
-        int binCenterY = totalWeight > 0 ? (int)(sumY / totalWeight) : geomCenterY;
-        int cx = geomCenterX;
-        int cy = geomCenterY;
+        int baryX = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
+        int baryY = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
+        int estRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(detectedPixels / Math.PI));
+        int discRadius = (int)(estRadius * 1.35) + 6;
+
+        int discMinX = Math.Max(minX, baryX - discRadius);
+        int discMaxX = Math.Min(maxX, baryX + discRadius);
+        int discMinY = Math.Max(minY, baryY - discRadius);
+        int discMaxY = Math.Min(maxY, baryY + discRadius);
+
+        int geomX = (discMinX <= discMaxX) ? (discMinX + discMaxX) / 2 : baryX;
+        int geomY = (discMinY <= discMaxY) ? (discMinY + discMaxY) / 2 : baryY;
+
+        int cx = (Math.Abs(geomX - baryX) <= estRadius / 2) ? geomX : baryX;
+        int cy = (Math.Abs(geomY - baryY) <= estRadius / 2) ? geomY : baryY;
 
         if (!checkObject)
         {

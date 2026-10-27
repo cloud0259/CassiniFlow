@@ -518,6 +518,7 @@ public static class FfmpegCliBackend
                 long lSumX = 0, lSumY = 0, lWeight = 0;
                 int lDet = 0;
                 int thresh = cachedThreshold8;
+                int lMinX = rx1, lMaxX = rx0, lMinY = ry1, lMaxY = ry0;
 
                 for (int y = ry0; y < ry1; y += localStep)
                 {
@@ -531,17 +532,34 @@ public static class FfmpegCliBackend
                         {
                             lDet += localStep * localStep;
                             long wt = lum - thresh + 1;
-                            lSumX += x * wt;
-                            lSumY += y * wt;
+                            lSumX += (long)x * wt;
+                            lSumY += (long)y * wt;
                             lWeight += wt;
+                            if (x < lMinX) lMinX = x;
+                            if (x > lMaxX) lMaxX = x;
+                            if (y < lMinY) lMinY = y;
+                            if (y > lMaxY) lMaxY = y;
                         }
                     }
                 }
 
-                if (lDet >= minArea && lWeight > 0)
+                if (lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
                 {
-                    int lcx = (int)(lSumX / lWeight);
-                    int lcy = (int)(lSumY / lWeight);
+                    int lbaryX = (int)(lSumX / lWeight);
+                    int lbaryY = (int)(lSumY / lWeight);
+                    int lestRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(lDet / Math.PI));
+                    int ldiscRadius = (int)(lestRadius * 1.35) + 6;
+
+                    int ldiscMinX = Math.Max(lMinX, lbaryX - ldiscRadius);
+                    int ldiscMaxX = Math.Min(lMaxX, lbaryX + ldiscRadius);
+                    int ldiscMinY = Math.Max(lMinY, lbaryY - ldiscRadius);
+                    int ldiscMaxY = Math.Min(lMaxY, lbaryY + ldiscRadius);
+
+                    int lgeomX = (ldiscMinX <= ldiscMaxX) ? (ldiscMinX + ldiscMaxX) / 2 : lbaryX;
+                    int lgeomY = (ldiscMinY <= ldiscMaxY) ? (ldiscMinY + ldiscMaxY) / 2 : lbaryY;
+
+                    int lcx = (Math.Abs(lgeomX - lbaryX) <= lestRadius / 2) ? lgeomX : lbaryX;
+                    int lcy = (Math.Abs(lgeomY - lbaryY) <= lestRadius / 2) ? lgeomY : lbaryY;
                     hintX = lcx;
                     hintY = lcy;
                     return new DetectionResult(true, null, lcx, lcy, lDet, 0, thresh);
@@ -570,7 +588,7 @@ public static class FfmpegCliBackend
                             if (lum > maxVal) maxVal = lum;
                         }
                     }
-                    threshold8 = Math.Clamp((int)(maxVal * 0.28), 12, 220);
+                    threshold8 = Math.Clamp((int)(maxVal * 0.14), 8, 180);
                     cachedThreshold8 = threshold8;
                 }
             }
@@ -581,6 +599,7 @@ public static class FfmpegCliBackend
 
             long sumX = 0, sumY = 0, totalWeight = 0;
             int detectedPixels = 0;
+            int minX = w, maxX = 0, minY = h, maxY = 0;
 
             for (int y = 0; y < h; y += step)
             {
@@ -594,15 +613,32 @@ public static class FfmpegCliBackend
                     {
                         detectedPixels += step * step;
                         long weight = lum - threshold8 + 1;
-                        sumX += x * weight;
-                        sumY += y * weight;
+                        sumX += (long)x * weight;
+                        sumY += (long)y * weight;
                         totalWeight += weight;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
                     }
                 }
             }
 
-            int cx = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
-            int cy = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
+            int baryX = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
+            int baryY = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
+            int estRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(detectedPixels / Math.PI));
+            int discRadius = (int)(estRadius * 1.35) + 6;
+
+            int discMinX = Math.Max(minX, baryX - discRadius);
+            int discMaxX = Math.Min(maxX, baryX + discRadius);
+            int discMinY = Math.Max(minY, baryY - discRadius);
+            int discMaxY = Math.Min(maxY, baryY + discRadius);
+
+            int geomX = (discMinX <= discMaxX) ? (discMinX + discMaxX) / 2 : baryX;
+            int geomY = (discMinY <= discMaxY) ? (discMinY + discMaxY) / 2 : baryY;
+
+            int cx = (Math.Abs(geomX - baryX) <= estRadius / 2) ? geomX : baryX;
+            int cy = (Math.Abs(geomY - baryY) <= estRadius / 2) ? geomY : baryY;
 
             if (!checkObject)
             {
@@ -620,7 +656,6 @@ public static class FfmpegCliBackend
             return new DetectionResult(accepted, accepted ? null : "No object detected", cx, cy, detectedPixels, 0, threshold8);
         }
     }
-
     private static unsafe double ComputeQualityOnRgb24RoiFast(
         byte[] rgbBuf,
         int srcW,

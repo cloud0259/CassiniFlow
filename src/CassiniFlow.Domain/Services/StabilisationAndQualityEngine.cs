@@ -75,9 +75,10 @@ public static class StabilisationAndQualityEngine
                         rowCounts[y]++;
                         colCounts[x]++;
 
-                        sumX += x;
-                        sumY += y;
-                        totalWeight++;
+                        long wt = lum - threshold16 + 1;
+                        sumX += (long)x * wt;
+                        sumY += (long)y * wt;
+                        totalWeight += wt;
 
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
@@ -93,11 +94,12 @@ public static class StabilisationAndQualityEngine
             return new DetectionResult(false, "Overexposed pixels exceeded threshold", w / 2, h / 2, detectedPixels, overexposedCount, threshold8);
         }
 
+        int baryX = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
+        int baryY = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
+
         if (!checkObject)
         {
-            int cx = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
-            int cy = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
-            return new DetectionResult(true, null, cx, cy, detectedPixels, overexposedCount, threshold8);
+            return new DetectionResult(true, null, baryX, baryY, detectedPixels, overexposedCount, threshold8);
         }
 
         int minArea = (int)(Math.PI * (minObjectSizePixels * 0.5) * (minObjectSizePixels * 0.5));
@@ -106,23 +108,32 @@ public static class StabilisationAndQualityEngine
             return new DetectionResult(false, "No planet/object detected above threshold", w / 2, h / 2, detectedPixels, overexposedCount, threshold8);
         }
 
-        // Noise-filtered bounding box via marginal profiles (discards isolated hot pixels/sky noise)
-        int minChord = Math.Clamp(minObjectSizePixels / (step * 4), 3, 16);
+        int estRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(detectedPixels / Math.PI));
+        int searchRadius = (int)(estRadius * 1.45) + 8;
         int lastStepY = ((h - 1) / step) * step;
         int lastStepX = ((w - 1) / step) * step;
-        int cleanMinY = 0; while (cleanMinY <= lastStepY && rowCounts[cleanMinY] < minChord) cleanMinY += step;
-        int cleanMaxY = lastStepY; while (cleanMaxY >= 0 && rowCounts[cleanMaxY] < minChord) cleanMaxY -= step;
 
-        int cleanMinX = 0; while (cleanMinX <= lastStepX && colCounts[cleanMinX] < minChord) cleanMinX += step;
-        int cleanMaxX = lastStepX; while (cleanMaxX >= 0 && colCounts[cleanMaxX] < minChord) cleanMaxX -= step;
+        bool spansWholeScene = detectedPixels > (w * h / 3) && ((maxX - minX) > (w * 3 / 4) || (maxY - minY) > (h * 3 / 4));
+        int searchMinX = spansWholeScene ? 0 : Math.Max(0, baryX - searchRadius);
+        int searchMaxX = spansWholeScene ? lastStepX : Math.Min(lastStepX, baryX + searchRadius);
+        int searchMinY = spansWholeScene ? 0 : Math.Max(0, baryY - searchRadius);
+        int searchMaxY = spansWholeScene ? lastStepY : Math.Min(lastStepY, baryY + searchRadius);
 
-        int finalMinX = (cleanMinX <= cleanMaxX) ? cleanMinX : minX;
-        int finalMaxX = (cleanMinX <= cleanMaxX) ? cleanMaxX : maxX;
-        int finalMinY = (cleanMinY <= cleanMaxY) ? cleanMinY : minY;
-        int finalMaxY = (cleanMinY <= cleanMaxY) ? cleanMaxY : maxY;
+        // Noise-filtered bounding box via marginal profiles (discards isolated hot pixels/sky noise & distant moons)
+        int minChord = Math.Clamp(minObjectSizePixels / (step * 4), 3, 16);
+        int cleanMinY = searchMinY; while (cleanMinY <= searchMaxY && rowCounts[cleanMinY] < minChord) cleanMinY += step;
+        int cleanMaxY = searchMaxY; while (cleanMaxY >= searchMinY && rowCounts[cleanMaxY] < minChord) cleanMaxY -= step;
+
+        int cleanMinX = searchMinX; while (cleanMinX <= searchMaxX && colCounts[cleanMinX] < minChord) cleanMinX += step;
+        int cleanMaxX = searchMaxX; while (cleanMaxX >= searchMinX && colCounts[cleanMaxX] < minChord) cleanMaxX -= step;
+
+        int finalMinX = (cleanMinX <= cleanMaxX) ? cleanMinX : Math.Max(minX, searchMinX);
+        int finalMaxX = (cleanMinX <= cleanMaxX) ? cleanMaxX : Math.Min(maxX, searchMaxX);
+        int finalMinY = (cleanMinY <= cleanMaxY) ? cleanMinY : Math.Max(minY, searchMinY);
+        int finalMaxY = (cleanMinY <= cleanMaxY) ? cleanMaxY : Math.Min(maxY, searchMaxY);
 
         // Only reject border-clipped objects if explicitly enabled and the bright area does not span the whole scene
-        bool spansWholeScene = (finalMaxX - finalMinX) > (w * 3 / 4) || (finalMaxY - finalMinY) > (h * 3 / 4);
+        spansWholeScene = (finalMaxX - finalMinX) > (w * 3 / 4) || (finalMaxY - finalMinY) > (h * 3 / 4);
         if (rejectClippedObjects && !spansWholeScene)
         {
             const int margin = 2;
@@ -137,28 +148,28 @@ public static class StabilisationAndQualityEngine
             }
         }
 
+
         int geomCenterX = (finalMinX + finalMaxX) / 2;
         int geomCenterY = (finalMinY + finalMaxY) / 2;
 
-        int centerX = geomCenterX;
-        int centerY = geomCenterY;
-
+        int centerX = (Math.Abs(geomCenterX - baryX) <= estRadius / 2) ? geomCenterX : baryX;
+        int centerY = (Math.Abs(geomCenterY - baryY) <= estRadius / 2) ? geomCenterY : baryY;
         if (shadowEdge != LunarShadowEdge.None)
         {
             int radiusX = (finalMaxX - finalMinX) / 2;
             int radiusY = (finalMaxY - finalMinY) / 2;
-            int estRadius = Math.Max(radiusX, radiusY);
+            int shadowEstRadius = Math.Max(radiusX, radiusY);
 
             centerX = shadowEdge switch
             {
-                LunarShadowEdge.Left or LunarShadowEdge.TopLeft or LunarShadowEdge.BottomLeft => finalMaxX - estRadius,
-                LunarShadowEdge.Right or LunarShadowEdge.TopRight or LunarShadowEdge.BottomRight => finalMinX + estRadius,
+                LunarShadowEdge.Left or LunarShadowEdge.TopLeft or LunarShadowEdge.BottomLeft => finalMaxX - shadowEstRadius,
+                LunarShadowEdge.Right or LunarShadowEdge.TopRight or LunarShadowEdge.BottomRight => finalMinX + shadowEstRadius,
                 _ => centerX
             };
             centerY = shadowEdge switch
             {
-                LunarShadowEdge.Top or LunarShadowEdge.TopLeft or LunarShadowEdge.TopRight => finalMaxY - estRadius,
-                LunarShadowEdge.Bottom or LunarShadowEdge.BottomLeft or LunarShadowEdge.BottomRight => finalMinY + estRadius,
+                LunarShadowEdge.Top or LunarShadowEdge.TopLeft or LunarShadowEdge.TopRight => finalMaxY - shadowEstRadius,
+                LunarShadowEdge.Bottom or LunarShadowEdge.BottomLeft or LunarShadowEdge.BottomRight => finalMinY + shadowEstRadius,
                 _ => centerY
             };
         }
