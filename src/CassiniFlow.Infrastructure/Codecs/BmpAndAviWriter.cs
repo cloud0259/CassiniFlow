@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Text;
 using CassiniFlow.Domain.Models;
 
@@ -100,6 +100,65 @@ public static class BmpAndAviWriter
         }
 
         return frame;
+    }
+
+    /// <summary>
+    /// Fast header inspection for standard AVI RIFF files to extract dimensions, frame count, and FPS without external codecs.
+    /// </summary>
+    public static bool TryReadAviHeader(string filePath, out int width, out int height, out int frameCount, out double fps)
+    {
+        width = 0;
+        height = 0;
+        frameCount = 0;
+        fps = 30.0;
+        try
+        {
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (fs.Length < 64) return false;
+            Span<byte> buf = stackalloc byte[64];
+            int read = fs.Read(buf);
+            if (read < 64) return false;
+            if (buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' ||
+                buf[8] != 'A' || buf[9] != 'V' || buf[10] != 'I' || buf[11] != ' ')
+                return false;
+
+            fs.Seek(12, SeekOrigin.Begin);
+            int searchLength = (int)Math.Min(4096L, fs.Length - 12);
+            byte[] searchBuf = new byte[searchLength];
+            fs.ReadExactly(searchBuf);
+
+            int idx = -1;
+            for (int i = 0; i <= searchBuf.Length - 48; i++)
+            {
+                if (searchBuf[i] == 'a' && searchBuf[i + 1] == 'v' && searchBuf[i + 2] == 'i' && searchBuf[i + 3] == 'h')
+                {
+                    idx = i + 8; // skip 'avih' (4 bytes) + chunk length (4 bytes)
+                    break;
+                }
+            }
+
+            if (idx >= 0 && idx + 40 <= searchBuf.Length)
+            {
+                int usPerFrame = BinaryPrimitives.ReadInt32LittleEndian(searchBuf.AsSpan(idx, 4));
+                int totalFrames = BinaryPrimitives.ReadInt32LittleEndian(searchBuf.AsSpan(idx + 16, 4));
+                int w = BinaryPrimitives.ReadInt32LittleEndian(searchBuf.AsSpan(idx + 32, 4));
+                int h = BinaryPrimitives.ReadInt32LittleEndian(searchBuf.AsSpan(idx + 36, 4));
+                if (w > 0 && h > 0 && totalFrames > 0)
+                {
+                    width = w;
+                    height = h;
+                    frameCount = totalFrames;
+                    if (usPerFrame > 0) fps = 1_000_000.0 / usPerFrame;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

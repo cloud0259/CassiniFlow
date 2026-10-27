@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -51,12 +51,20 @@ public static class FfmpegCliBackend
         double fps = 30.0;
         string codec = ext.TrimStart('.').ToUpperInvariant();
 
+        if (ext == ".avi" && BmpAndAviWriter.TryReadAviHeader(filePath, out int aviW, out int aviH, out int aviFrames, out double aviFps))
+        {
+            width = aviW;
+            height = aviH;
+            frames = aviFrames;
+            fps = aviFps;
+        }
+
         try
         {
             using var p = Process.Start(new ProcessStartInfo
             {
                 FileName = "ffprobe",
-                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames,codec_name:stream_tags=rotate:stream_side_data=rotation -show_entries format=duration -of json \"{filePath}\"",
+                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames,duration,codec_name:stream_tags=rotate:stream_side_data=rotation -show_entries format=duration -of json \"{filePath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -83,6 +91,12 @@ public static class FfmpegCliBackend
                     if (s.TryGetProperty("width", out var wEl)) width = Math.Max(1, wEl.GetInt32());
                     if (s.TryGetProperty("height", out var hEl)) height = Math.Max(1, hEl.GetInt32());
                     if (s.TryGetProperty("codec_name", out var cEl)) codec = (cEl.GetString() ?? codec).ToUpperInvariant();
+                    if (durationSec <= 0 && s.TryGetProperty("duration", out var sDurEl) &&
+                        double.TryParse(sDurEl.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double streamDurVal) &&
+                        streamDurVal > 0)
+                    {
+                        durationSec = streamDurVal;
+                    }
 
                     int rotationDeg = 0;
                     if (s.TryGetProperty("tags", out var tags) &&
