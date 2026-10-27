@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
              xmlns:loc="using:CassiniFlow.Desktop.Localization"
              x:Class="CassiniFlow.Desktop.Views.DoProcessingView"
              x:DataType="vm:MainWindowViewModel">
@@ -16,15 +17,18 @@
                         <TextBlock Text="{Binding SummaryStatsText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Button Content="{loc:Tr DoProcessing.StartProcessing}" Command="{Binding RunProcessingCommand}" IsEnabled="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" Padding="16,8"/>
-                        <Button Content="{loc:Tr DoProcessing.Cancel}" Command="{Binding CancelProcessingCommand}" IsEnabled="{Binding IsProcessing}" Padding="12,8"/>
+                        <Button Content="{loc:Tr DoProcessing.StartProcessing}" Command="{Binding RunProcessingCommand}" IsVisible="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" Padding="16,8"/>
+                        <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="20,8" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="110" HorizontalContentAlignment="Center">
+                            <controls:EllipsisBounceLoader DotBrush="White" DotSize="7"/>
+                        </Button>
+                        <Button Content="{loc:Tr DoProcessing.Cancel}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Classes="secondary-cancel" Padding="14,8"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <Border Grid.Row="1" Classes="groupbox" Margin="0,0,0,10">
                 <StackPanel Spacing="8">
-                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProcessingProgress}" Height="14"/>
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProcessingProgress}" Height="8" CornerRadius="4"/>
                     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasCompletedOutput}">
                         <Button Content="{loc:Tr DoProcessing.PlayGenerated}" Command="{Binding PlayLastOutputVideoCommand}" Background="#16a34a" Foreground="White" FontWeight="SemiBold" Padding="12,6"/>
                         <Button Content="{loc:Tr DoProcessing.OpenOutput}" Command="{Binding OpenOutputFolderCommand}" Padding="12,6"/>

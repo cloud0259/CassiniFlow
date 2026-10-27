@@ -860,7 +860,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var filesToRun = SourceFiles.Select(f => f.FullPath).ToList();
-            string modeLabel = IsJoinMode ? Loc.Pick("Join Mode (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Batch Mode (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
+            string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
             ConsoleLogText = Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Démarrage du traitement ({filesToRun.Count} fichier(s), {modeLabel})...", $"[{DateTime.Now:HH:mm:ss}] Starting processing ({filesToRun.Count} file(s), {modeLabel})...");
 
             var summary = await PipelineRunner.ExecuteFilesAsync(
