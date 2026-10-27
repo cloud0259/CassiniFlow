@@ -18,7 +18,7 @@
     "CancelProcessing": "Cancel processing",
     "Settings": "_Settings",
     "OpenSettings": "Preferences...",
-    "Language": "Language / Langue",
+    "Language": "Language",
     "French": "Français",
     "English": "English",
     "Theme": "Theme",
@@ -84,8 +84,8 @@
     "CpuLimit": "CPU limit (%):"
   },
   "InputOptions": {
-    "DebayerTitle": "Raw File / Astro Camera Demosaicing (Colour Debayering)",
-    "DebayerEnable": "Debayer raw monochrome videos (RAW Bayer)",
+    "DebayerTitle": "Raw File / Astro Camera Demosaicing",
+    "DebayerEnable": "Debayer raw monochrome videos",
     "BayerPattern": "Bayer matrix pattern:",
     "InterpolationAlgo": "Interpolation algorithm:",
     "BinningTitle": "Input Binning & Calibration",
@@ -94,7 +94,7 @@
     "Binning2x2": "Binning 2×2",
     "Binning3x3": "Binning 3×3",
     "Binning4x4": "Binning 4×4",
-    "HotPixels": "Hot Pixel Correction (Hot Pixels)",
+    "HotPixels": "Hot pixel correction",
     "Threshold": "Threshold (%):"
   },
   "ProcessingOptions": {
@@ -149,12 +149,12 @@
   },
   "AnimationOptions": {
     "PlaybackTitle": "Playback Sequence and Animation Loop",
-    "ForwardPlay": "Play frames in forward chronological order (Forward Play)",
-    "ReversePlay": "Play frames in reverse after forward playback (Reverse / Back-and-forth)",
+    "ForwardPlay": "Play frames in forward chronological order",
+    "ReversePlay": "Play frames in reverse after forward playback (Back-and-forth)",
     "RepeatCount": "Number of repetitions of the complete sequence:"
   },
   "OutputOptions": {
-    "FormatTitle": "Output File Format (Output Format)",
+    "FormatTitle": "Output File Format",
     "FormatAvi": "AVI - Standard video compatible with VLC, AutoStakkert! and RegiStax",
     "FormatMp4": "MP4 - Universal MPEG-4 video compatible with VLC and all players",
     "FormatSer": "SER - Lossless 8/16-bit astronomy format (SER Player / AutoStakkert!)",
@@ -181,7 +181,7 @@
     "ExecutionLog": "Execution log:"
   },
   "Viewer": {
-    "ShowCropped": "Show cropped result (Output)",
+    "ShowCropped": "Show cropped result",
     "ShowOverlay": "Show Crop / AFB frame",
     "TestThreshold": "Test threshold (Red)",
     "First": "|<",

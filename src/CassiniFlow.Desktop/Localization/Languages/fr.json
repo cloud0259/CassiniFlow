@@ -14,14 +14,14 @@
     "FirstFrame": "Première frame",
     "LastFrame": "Dernière frame",
     "Processing": "_Traitement",
-    "StartProcessing": "Lancer le traitement (Start Processing)",
+    "StartProcessing": "Lancer le traitement",
     "CancelProcessing": "Annuler le traitement",
     "Settings": "_Paramètres",
     "OpenSettings": "Préférences...",
-    "Language": "Langue / Language",
+    "Language": "Langue",
     "French": "Français",
     "English": "English",
-    "Theme": "Thème / Theme",
+    "Theme": "Thème",
     "ThemeDark": "🌙 Deep Space (Sombre)",
     "ThemeLight": "☀️ Clean Lab (Clair)",
     "ThemeNightVision": "🔴 Vision Nocturne (Rouge)",
@@ -84,8 +84,8 @@
     "CpuLimit": "Plafond CPU (%) :"
   },
   "InputOptions": {
-    "DebayerTitle": "Dématriçage des Fichiers Bruts / Caméra Astro (Débayerisation)",
-    "DebayerEnable": "Débayeriser les vidéos monochromes brutes (RAW Bayer)",
+    "DebayerTitle": "Dématriçage des Fichiers Bruts / Caméra Astro",
+    "DebayerEnable": "Débayeriser les vidéos monochromes brutes",
     "BayerPattern": "Motif de la matrice de Bayer :",
     "InterpolationAlgo": "Algorithme d'interpolation :",
     "BinningTitle": "Binning d'Entrée & Calibration",
@@ -94,7 +94,7 @@
     "Binning2x2": "Binning 2×2",
     "Binning3x3": "Binning 3×3",
     "Binning4x4": "Binning 4×4",
-    "HotPixels": "Correction des pixels chauds (Soustraction Dark)",
+    "HotPixels": "Correction des pixels chauds",
     "Threshold": "Seuil (%) :"
   },
   "ProcessingOptions": {
@@ -149,12 +149,12 @@
   },
   "AnimationOptions": {
     "PlaybackTitle": "Séquence de Lecture et Boucle d'Animation",
-    "ForwardPlay": "Jouer les frames dans l'ordre chronologique direct (Forward Play)",
-    "ReversePlay": "Jouer les frames en sens inverse après la lecture directe (Reverse / Aller-Retour)",
+    "ForwardPlay": "Jouer les frames dans l'ordre chronologique direct",
+    "ReversePlay": "Jouer les frames en sens inverse après la lecture directe (Aller-retour)",
     "RepeatCount": "Nombre de répétitions de la séquence complète :"
   },
   "OutputOptions": {
-    "FormatTitle": "Format du Fichier de Sortie (Output Format)",
+    "FormatTitle": "Format du Fichier de Sortie",
     "FormatAvi": "AVI — Vidéo standard compatible VLC, AutoStakkert! et RegiStax",
     "FormatMp4": "MP4 — Vidéo MPEG-4 universelle compatible VLC et tous lecteurs",
     "FormatSer": "SER — Format astronomique 8/16-bit sans perte (SER Player / AutoStakkert!)",
@@ -181,7 +181,7 @@
     "ExecutionLog": "Journal d'exécution :"
   },
   "Viewer": {
-    "ShowCropped": "Afficher le résultat recadré (Output)",
+    "ShowCropped": "Afficher le résultat recadré",
     "ShowOverlay": "Afficher cadre Crop / AFB",
     "TestThreshold": "Tester seuil (Rouge)",
     "First": "|<",
@@ -210,8 +210,8 @@
     "ObjectSize": "Taille de l'objet : {0:F0} px.",
     "ObjectSizeUndetectable": "Taille de l'objet non détectable dans les fichiers (vérifiez le seuil / la présence de la planète).",
     "AddSourceFilesFirst": "Veuillez d'abord ajouter au moins un fichier vidéo ou image dans l'onglet '1. Fichiers sources'.",
-    "JoinModeLabel": "Join Mode (fusion en 1 fichier)",
-    "BatchModeLabel": "Batch Mode (1 fichier de sortie par source)",
+    "JoinModeLabel": "Mode Fusion (fusion en 1 fichier)",
+    "BatchModeLabel": "Mode Lot (1 fichier de sortie par source)",
     "StartingProcessing": "[{0:HH:mm:ss}] Démarrage du traitement ({1} fichier(s), {2})...",
     "SummaryStats": "Frames lues : {0} | Frames écrites : {1} | Rejetées : {2} | Durée : {3:F2}s ({4:F1} fps)",
     "FinishedLog": "\n[{0:HH:mm:ss}] Traitement terminé.\nDernier fichier généré : {1}",
@@ -243,7 +243,7 @@
     "ThemeDark": "Deep Space (Sombre - Défaut)",
     "ThemeLight": "Clean Lab (Clair)",
     "ThemeNightVision": "Vision Nocturne (Rouge Astro)",
-    "LanguageGroupTitle": "Langue de l'Application (Language)",
+    "LanguageGroupTitle": "Langue de l'Application",
     "LanguageGroupDesc": "Sélectionnez la langue de l'interface graphique. La modification est immédiate.",
     "SaveSettings": "Enregistrer les préférences",
     "AutoSaveNote": "✓ Vos préférences sont automatiquement sauvegardées dans votre profil utilisateur.",
