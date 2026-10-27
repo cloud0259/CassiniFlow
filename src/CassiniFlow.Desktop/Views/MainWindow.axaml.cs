@@ -138,6 +138,12 @@ public partial class MainWindow : Window
 
     private void OnWindowDragOver(object? sender, DragEventArgs e)
     {
+        if (DataContext is MainWindowViewModel { IsProcessing: true })
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
         e.DragEffects = e.Data.Contains(DataFormats.Files)
             ? DragDropEffects.Copy
             : DragDropEffects.None;
@@ -145,7 +151,7 @@ public partial class MainWindow : Window
 
     private async void OnWindowDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing) return;
 
         var files = e.Data.GetFiles();
         if (files is null) return;

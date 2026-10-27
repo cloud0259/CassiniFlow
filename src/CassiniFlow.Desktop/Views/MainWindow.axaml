@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
         xmlns:views="using:CassiniFlow.Desktop.Views"
+        xmlns:controls="using:CassiniFlow.Desktop.Controls"
         xmlns:loc="using:CassiniFlow.Desktop.Localization"
         x:Class="CassiniFlow.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -25,7 +26,7 @@
         <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
         <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <Menu Grid.Column="0" VerticalAlignment="Center">
+                <Menu Grid.Column="0" VerticalAlignment="Center" IsEnabled="{Binding !IsProcessing}">
                     <MenuItem Header="{loc:Tr Menu.File}">
                         <MenuItem Header="{loc:Tr Menu.AddFiles}" Click="OnAddVideoFilesClick"/>
                         <MenuItem Header="{loc:Tr Menu.RemoveSelected}" Command="{Binding RemoveSelectedFileCommand}"/>
@@ -63,8 +64,18 @@
                 </Menu>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" FontSize="12" Padding="10,5"/>
-                    <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
+                    <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding !IsProcessing}" FontSize="12" Padding="10,5"/>
+                    
+                    <!-- Bouton Lancer le traitement (quand inactif) -->
+                    <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" IsVisible="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
+
+                    <!-- Bouton avec loader linéaire Ellipsis Bounce (quand actif) -->
+                    <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="16,6" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="90" HorizontalContentAlignment="Center">
+                        <controls:EllipsisBounceLoader DotBrush="White" DotSize="6"/>
+                    </Button>
+
+                    <!-- Bouton Annuler le traitement en cours (style sobre) -->
+                    <Button Content="{loc:Tr Toolbar.CancelProcessing}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Classes="secondary-cancel" Padding="12,5"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -84,32 +95,32 @@
                     </TabControl.ItemsPanel>
 
                     <!-- ONGLET 1 : SOURCE FILES -->
-                    <TabItem Header="{loc:Tr Tab.SourceFiles}">
+                    <TabItem Header="{loc:Tr Tab.SourceFiles}" IsEnabled="{Binding !IsProcessing}">
                         <views:SourceFilesView />
                     </TabItem>
 
                     <!-- ONGLET 2 : INPUT OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.InputOptions}">
+                    <TabItem Header="{loc:Tr Tab.InputOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:InputOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 3 : PROCESSING OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.ProcessingOptions}">
+                    <TabItem Header="{loc:Tr Tab.ProcessingOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:ProcessingOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 4 : QUALITY OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.QualityOptions}">
+                    <TabItem Header="{loc:Tr Tab.QualityOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:QualityOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 5 : ANIMATION OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.AnimationOptions}">
+                    <TabItem Header="{loc:Tr Tab.AnimationOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:AnimationOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 6 : OUTPUT OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.OutputOptions}">
+                    <TabItem Header="{loc:Tr Tab.OutputOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:OutputOptionsView />
                     </TabItem>
 
@@ -122,7 +133,7 @@
             </Border>
 
             <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
-            <Border Grid.Column="1" Background="{DynamicResource AppWindowBackground}" Padding="10">
+            <Border Grid.Column="1" Background="{DynamicResource AppWindowBackground}" Padding="10" IsEnabled="{Binding !IsProcessing}">
                 <views:FrameViewerView />
             </Border>
 

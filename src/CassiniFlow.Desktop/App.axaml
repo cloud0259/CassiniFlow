@@ -4,7 +4,12 @@
              x:Class="CassiniFlow.Desktop.App"
              RequestedThemeVariant="Dark">
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Dark" Accent="#2563EB" />
+                <ColorPaletteResources x:Key="Light" Accent="#2563EB" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
         <Style Selector="Border.groupbox">
             <Setter Property="Background" Value="{DynamicResource AppPanelBackground}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
@@ -22,6 +27,47 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- LOADER CIRCULAIRE ANIMÉ -->
+        <Style Selector="Path.spinner">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="RenderTransform">
+                <RotateTransform Angle="0"/>
+            </Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:0.85" IterationCount="Infinite">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- BOUTON SECONDAIRE / ANNULER SOMBRE ÉLÉGANT -->
+        <Style Selector="Button.secondary-cancel">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.secondary-cancel:pointerover">
+            <Setter Property="Background" Value="#25EF4444"/>
+            <Setter Property="BorderBrush" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="#FCA5A5"/>
         </Style>
     </Application.Styles>
 
