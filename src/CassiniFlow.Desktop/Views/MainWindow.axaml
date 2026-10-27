@@ -68,16 +68,21 @@
                     <!-- Bouton Lancer le traitement (quand inactif) -->
                     <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" IsVisible="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
 
-                    <!-- Bouton avec indicateur de chargement (quand actif) -->
-                    <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="12,5">
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <ProgressBar Width="16" Height="16" IsIndeterminate="True" VerticalAlignment="Center"/>
-                            <TextBlock Text="{loc:Tr Toolbar.ProcessingInProgress}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                    <!-- Bouton avec spinner circulaire remplaçant le texte (quand actif) -->
+                    <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="16,5" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="90" HorizontalContentAlignment="Center">
+                        <Path Classes="spinner"
+                              Data="M 10 2 A 8 8 0 1 1 2 10"
+                              Stroke="White"
+                              StrokeThickness="2"
+                              StrokeLineCap="Round"
+                              Width="14"
+                              Height="14"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
                     </Button>
 
-                    <!-- Bouton Annuler le traitement en cours -->
-                    <Button Content="{loc:Tr Toolbar.CancelProcessing}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Background="#DC2626" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
+                    <!-- Bouton Annuler le traitement en cours (style sobre) -->
+                    <Button Content="{loc:Tr Toolbar.CancelProcessing}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Classes="secondary-cancel" Padding="12,5"/>
                 </StackPanel>
             </Grid>
         </Border>
