@@ -73,12 +73,12 @@
                         <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="12"/>
                         <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
                         <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding LimitFrameRange}">
-                            <TextBlock Text="{loc:Tr SourceFiles.Start}" Classes="label"/>
-                            <controls:NumberStepper Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="120"/>
-                            <TextBlock Text="{loc:Tr SourceFiles.End}" Classes="label"/>
-                            <controls:NumberStepper Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="120"/>
-                        </StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto,*" IsEnabled="{Binding LimitFrameRange}">
+                            <TextBlock Grid.Column="0" Text="{loc:Tr SourceFiles.Start}" Classes="label" Margin="0,0,6,0"/>
+                            <controls:NumberStepper Grid.Column="1" Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="50"/>
+                            <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.End}" Classes="label" Margin="10,0,6,0"/>
+                            <controls:NumberStepper Grid.Column="3" Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="50"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
