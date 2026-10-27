@@ -1,6 +1,6 @@
 # CassiniFlow 🪐
 
-[![CI & Build Pipeline](https://github.com/your-username/CassiniFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/CassiniFlow/actions/workflows/ci.yml)
+[![CI & Build Pipeline](https://github.com/cloud0259/CassiniFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud0259/CassiniFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue)](#prerequisites)
