@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
         xmlns:views="using:CassiniFlow.Desktop.Views"
+        xmlns:controls="using:CassiniFlow.Desktop.Controls"
         xmlns:loc="using:CassiniFlow.Desktop.Localization"
         x:Class="CassiniFlow.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -68,17 +69,9 @@
                     <!-- Bouton Lancer le traitement (quand inactif) -->
                     <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" IsVisible="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>
 
-                    <!-- Bouton avec spinner circulaire remplaçant le texte (quand actif) -->
-                    <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="16,5" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="90" HorizontalContentAlignment="Center">
-                        <Path Classes="spinner"
-                              Data="M 10 2 A 8 8 0 1 1 2 10"
-                              Stroke="White"
-                              StrokeThickness="2"
-                              StrokeLineCap="Round"
-                              Width="14"
-                              Height="14"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"/>
+                    <!-- Bouton avec loader linéaire Ellipsis Bounce (quand actif) -->
+                    <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="16,6" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="90" HorizontalContentAlignment="Center">
+                        <controls:EllipsisBounceLoader DotBrush="White" DotSize="6"/>
                     </Button>
 
                     <!-- Bouton Annuler le traitement en cours (style sobre) -->
