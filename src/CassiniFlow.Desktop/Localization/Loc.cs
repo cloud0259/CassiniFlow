@@ -115,26 +115,14 @@ public sealed class Loc : INotifyPropertyChanged
         return EnToFr.TryGetValue(current, out var fr) ? fr : current;
     }
 
-    private static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CassiniFlow", "settings.json");
-
-    private sealed class SettingsFile
-    {
-        public string Language { get; set; } = "fr";
-        public string? Theme { get; set; }
-    }
-
     public static void LoadSettings()
     {
         try
         {
-            if (File.Exists(SettingsPath))
-            {
-                var s = JsonSerializer.Deserialize<SettingsFile>(File.ReadAllText(SettingsPath));
-                SetLanguage(string.Equals(s?.Language, "en", StringComparison.OrdinalIgnoreCase)
-                    ? AppLanguage.English
-                    : AppLanguage.French, save: false);
-            }
+            CassiniFlow.Desktop.Services.UserSettingsService.Load();
+            SetLanguage(string.Equals(CassiniFlow.Desktop.Services.UserSettingsService.Current.Language, "en", StringComparison.OrdinalIgnoreCase)
+                ? AppLanguage.English
+                : AppLanguage.French, save: false);
         }
         catch
         {
@@ -154,28 +142,7 @@ public sealed class Loc : INotifyPropertyChanged
 
         if (save)
         {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-                SettingsFile settings = new();
-                if (File.Exists(SettingsPath))
-                {
-                    try
-                    {
-                        settings = JsonSerializer.Deserialize<SettingsFile>(File.ReadAllText(SettingsPath)) ?? new();
-                    }
-                    catch
-                    {
-                        settings = new();
-                    }
-                }
-                settings.Language = lang == AppLanguage.English ? "en" : "fr";
-                File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            catch
-            {
-                // dossier non accessible
-            }
+            CassiniFlow.Desktop.Services.UserSettingsService.UpdateLanguage(lang == AppLanguage.English ? "en" : "fr");
         }
 
         // Notifier les liaisons XAML indexées

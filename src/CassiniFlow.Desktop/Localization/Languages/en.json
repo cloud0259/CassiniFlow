@@ -17,6 +17,7 @@
     "StartProcessing": "Start Processing",
     "CancelProcessing": "Cancel processing",
     "Settings": "_Settings",
+    "OpenSettings": "Preferences...",
     "Language": "Language / Langue",
     "French": "Français",
     "English": "English",
@@ -39,7 +40,7 @@
     "QualityOptions": "4. Quality Options",
     "AnimationOptions": "5. Animation Options",
     "OutputOptions": "6. Output Options",
-    "DoProcessing": "7. Do Processing"
+    "DoProcessing": "7. Run Processing"
   },
   "SourceFiles": {
     "Header": "Video files and image sequences to process:",
@@ -226,5 +227,26 @@
     "NoStabilisation": "No stabilisation",
     "PreviewError": "Preview error: {0}",
     "MaxPixelStats": "Max: {0} (R:{1} G:{2} B:{3}) | Detection threshold: {4}"
+  },
+  "Settings": {
+    "WindowTitle": "Settings — CassiniFlow",
+    "Close": "Close",
+    "CpuGroupTitle": "CPU Performance & Worker Threads",
+    "CpuGroupDesc": "Configure CPU thread allocation for multi-core decoding and encoding. You can allow CassiniFlow to utilize all threads of your processor.",
+    "MaxCpuLabel": "Allocated CPU cap:",
+    "WarningThresholdLabel": "CPU alert threshold:",
+    "WarningThresholdDesc": "Displays a visual warning when the CPU allocation exceeds this threshold to prevent overheating and system unresponsiveness.",
+    "CpuWarningTitle": "High CPU load",
+    "CpuInfoBox": "CassiniFlow uses an optimized zero-allocation streaming engine. Utilizing all threads delivers maximum speed but generates increased thermal load.",
+    "ThemeGroupTitle": "Theme & Graphical Interface",
+    "ThemeGroupDesc": "Choose CassiniFlow's default appearance. The Night Vision Red theme preserves night-adapted vision during telescope observation sessions.",
+    "ThemeDark": "Deep Space (Dark - Default)",
+    "ThemeLight": "Clean Lab (Light)",
+    "ThemeNightVision": "Night Vision (Astro Red)",
+    "LanguageGroupTitle": "Application Language",
+    "LanguageGroupDesc": "Select the user interface language. Changes take effect immediately.",
+    "SaveSettings": "Save Preferences",
+    "AutoSaveNote": "✓ Your preferences are automatically saved to your user profile.",
+    "TotalCoresDetected": "Detected processor: {0} logical cores"
   }
 }

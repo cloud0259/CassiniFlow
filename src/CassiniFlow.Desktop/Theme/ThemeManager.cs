@@ -1,8 +1,7 @@
 using System;
-using System.IO;
-using System.Text.Json;
 using Avalonia;
 using Avalonia.Styling;
+using CassiniFlow.Desktop.Services;
 
 namespace CassiniFlow.Desktop.Theme;
 
@@ -20,53 +19,41 @@ public static class ThemeManager
 
     public static readonly ThemeVariant NightVisionVariant = new("NightVision", ThemeVariant.Dark);
 
-    private static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CassiniFlow", "settings.json");
-
-    private sealed class SettingsFile
-    {
-        public string? Language { get; set; }
-        public string? Theme { get; set; }
-    }
-
     public static void Initialize()
     {
-        try
+        UserSettingsService.Load();
+        var theme = UserSettingsService.Current.Theme?.ToLowerInvariant() switch
         {
-            if (File.Exists(SettingsPath))
-            {
-                var json = File.ReadAllText(SettingsPath);
-                var settings = JsonSerializer.Deserialize<SettingsFile>(json);
-                var theme = settings?.Theme?.ToLowerInvariant() switch
-                {
-                    "light" => AppTheme.CleanLabLight,
-                    "night_vision" or "nightvision" or "red" => AppTheme.NightVision,
-                    _ => AppTheme.DeepSpaceDark
-                };
-                ApplyTheme(theme, save: false);
-                return;
-            }
-        }
-        catch
-        {
-            // fallback
-        }
-
-        ApplyTheme(AppTheme.DeepSpaceDark, save: false);
+            "light" => AppTheme.CleanLabLight,
+            "night_vision" or "nightvision" or "red" => AppTheme.NightVision,
+            _ => AppTheme.DeepSpaceDark
+        };
+        ApplyTheme(theme, save: false);
     }
 
     public static void ApplyTheme(AppTheme theme, bool save = true)
     {
+        var targetVariant = theme switch
+        {
+            AppTheme.CleanLabLight => ThemeVariant.Light,
+            AppTheme.NightVision => NightVisionVariant,
+            _ => ThemeVariant.Dark
+        };
+
+        if (CurrentTheme == theme && Avalonia.Application.Current?.RequestedThemeVariant == targetVariant)
+        {
+            if (save)
+            {
+                SaveTheme(theme);
+            }
+            return;
+        }
+
         CurrentTheme = theme;
 
         if (Avalonia.Application.Current != null)
         {
-            Avalonia.Application.Current.RequestedThemeVariant = theme switch
-            {
-                AppTheme.CleanLabLight => ThemeVariant.Light,
-                AppTheme.NightVision => NightVisionVariant,
-                _ => ThemeVariant.Dark
-            };
+            Avalonia.Application.Current.RequestedThemeVariant = targetVariant;
         }
 
         if (save)
@@ -90,34 +77,12 @@ public static class ThemeManager
 
     private static void SaveTheme(AppTheme theme)
     {
-        try
+        string themeStr = theme switch
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            SettingsFile settings = new();
-            if (File.Exists(SettingsPath))
-            {
-                try
-                {
-                    settings = JsonSerializer.Deserialize<SettingsFile>(File.ReadAllText(SettingsPath)) ?? new();
-                }
-                catch
-                {
-                    settings = new();
-                }
-            }
-
-            settings.Theme = theme switch
-            {
-                AppTheme.CleanLabLight => "light",
-                AppTheme.NightVision => "night_vision",
-                _ => "dark"
-            };
-
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch
-        {
-            // Dossier non accessible ou lock
-        }
+            AppTheme.CleanLabLight => "light",
+            AppTheme.NightVision => "night_vision",
+            _ => "dark"
+        };
+        UserSettingsService.UpdateTheme(themeStr);
     }
 }

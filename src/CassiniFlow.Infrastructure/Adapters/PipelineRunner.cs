@@ -234,19 +234,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
     }
 
     /// <summary>
-    /// Computes the safe number of worker threads for any processor (from 1-core/2-core laptops up to 64-core desktops, x64 or ARM64),
-    /// ensuring CPU usage respects options.MaxCpuUsagePercent (default 70%) and never saturates 100% of logical cores.
+    /// Computes the worker thread count according to options.MaxCpuUsagePercent (10% to 100%).
+    /// Allows utilizing all logical threads if requested by the user.
     /// </summary>
     public static int GetSafeWorkerThreadCount(ProcessingOptions options)
     {
         int totalCores = Math.Max(1, Environment.ProcessorCount);
         if (totalCores == 1) return 1;
 
-        int pct = Math.Clamp(options.MaxCpuUsagePercent, 10, 95);
-        int byPercent = Math.Max(1, (int)Math.Floor(totalCores * (pct / 100.0)));
-        int reserveCores = totalCores >= 8 ? 3 : (totalCores >= 4 ? 2 : 1);
-        int maxSafe = Math.Max(1, totalCores - reserveCores);
-        return Math.Clamp(byPercent, 1, maxSafe);
+        int pct = Math.Clamp(options.MaxCpuUsagePercent, 10, 100);
+        int byPercent = Math.Max(1, (int)Math.Round(totalCores * (pct / 100.0)));
+        return Math.Clamp(byPercent, 1, totalCores);
     }
 
     public static async Task<PipelineRunSummary> ExecuteFilesAsync(

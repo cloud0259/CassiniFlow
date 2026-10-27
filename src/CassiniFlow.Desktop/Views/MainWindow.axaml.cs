@@ -19,13 +19,31 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnWindowDrop);
+        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
+
+        Loaded += (_, _) => UpdateMenuCheckStates();
         Opened += (_, _) =>
         {
             ApplyLanguage();
-            UpdateThemeMenuItems();
+            UpdateMenuCheckStates();
         };
-        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
-        ThemeManager.ThemeChanged += UpdateThemeMenuItems;
+
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.RequestOpenSettings += OpenSettingsDialog;
+            }
+        };
+
+        ThemeManager.ThemeChanged += UpdateMenuCheckStates;
+        Loc.LanguageChanged += () =>
+        {
+            Loc.LocalizeTree(this);
+            UpdateMenuCheckStates();
+        };
+
+        UpdateMenuCheckStates();
     }
 
     // --- Réordonnancement des fichiers sources à la souris (glisser les lignes) ---
@@ -88,9 +106,57 @@ public partial class MainWindow : Window
     private void ApplyLanguage()
     {
         Loc.LocalizeTree(this);
-        FrenchMenuItem.IsChecked = !Loc.IsEnglish;
-        EnglishMenuItem.IsChecked = Loc.IsEnglish;
+        UpdateMenuCheckStates();
         (DataContext as MainWindowViewModel)?.RefreshLocalizedTexts();
+    }
+
+    private void UpdateMenuCheckStates()
+    {
+        if (FrenchMenuItem != null)
+        {
+            FrenchMenuItem.IsChecked = !Loc.IsEnglish;
+        }
+        if (EnglishMenuItem != null)
+        {
+            EnglishMenuItem.IsChecked = Loc.IsEnglish;
+        }
+
+        if (DarkThemeMenuItem != null)
+        {
+            DarkThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.DeepSpaceDark;
+        }
+        if (LightThemeMenuItem != null)
+        {
+            LightThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.CleanLabLight;
+        }
+        if (NightVisionMenuItem != null)
+        {
+            NightVisionMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.NightVision;
+        }
+
+        if (ThemeQuickToggleButton != null)
+        {
+            ThemeQuickToggleButton.Content = ThemeManager.CurrentTheme switch
+            {
+                AppTheme.CleanLabLight => "☀️",
+                AppTheme.NightVision => "🔴",
+                _ => "🌙"
+            };
+        }
+    }
+
+    private void OnOpenSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        OpenSettingsDialog();
+    }
+
+    private void OpenSettingsDialog()
+    {
+        var settingsWin = new SettingsWindow
+        {
+            DataContext = this.DataContext
+        };
+        settingsWin.ShowDialog(this);
     }
 
     private void OnSetLanguageFrenchClick(object? sender, RoutedEventArgs e)
@@ -105,36 +171,22 @@ public partial class MainWindow : Window
         ApplyLanguage();
     }
 
-    private void UpdateThemeMenuItems()
-    {
-        if (DarkThemeMenuItem != null) DarkThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.DeepSpaceDark;
-        if (LightThemeMenuItem != null) LightThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.CleanLabLight;
-        if (NightVisionMenuItem != null) NightVisionMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.NightVision;
-
-        if (ThemeQuickToggleButton != null)
-        {
-            ThemeQuickToggleButton.Content = ThemeManager.CurrentTheme switch
-            {
-                AppTheme.CleanLabLight => "☀️",
-                AppTheme.NightVision => "🔴",
-                _ => "🌙"
-            };
-        }
-    }
-
     private void OnSetThemeDarkClick(object? sender, RoutedEventArgs e)
     {
         ThemeManager.ApplyTheme(AppTheme.DeepSpaceDark);
+        UpdateMenuCheckStates();
     }
 
     private void OnSetThemeLightClick(object? sender, RoutedEventArgs e)
     {
         ThemeManager.ApplyTheme(AppTheme.CleanLabLight);
+        UpdateMenuCheckStates();
     }
 
     private void OnSetThemeNightVisionClick(object? sender, RoutedEventArgs e)
     {
         ThemeManager.ApplyTheme(AppTheme.NightVision);
+        UpdateMenuCheckStates();
     }
 
     private void OnToggleThemeClick(object? sender, RoutedEventArgs e)

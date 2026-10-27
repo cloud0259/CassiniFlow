@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CassiniFlow.Desktop.Controls.NumberStepper"
+             Height="28"
+             MinWidth="100">
+
+    <UserControl.Styles>
+        <Style Selector="RepeatButton">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="RepeatButton">
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Background="{TemplateBinding Background}"
+                                      BorderBrush="{TemplateBinding BorderBrush}"
+                                      BorderThickness="{TemplateBinding BorderThickness}"
+                                      CornerRadius="{TemplateBinding CornerRadius}"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalContentAlignment="Center"
+                                      VerticalContentAlignment="Center"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RepeatButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppBorderBrush}"/>
+        </Style>
+        <Style Selector="RepeatButton:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TextBox">
+                    <Panel VerticalAlignment="Stretch">
+                        <TextPresenter x:Name="PART_TextPresenter"
+                                       Text="{TemplateBinding Text, Mode=TwoWay}"
+                                       CaretIndex="{TemplateBinding CaretIndex}"
+                                       SelectionStart="{TemplateBinding SelectionStart}"
+                                       SelectionEnd="{TemplateBinding SelectionEnd}"
+                                       TextAlignment="{TemplateBinding TextAlignment}"
+                                       TextWrapping="{TemplateBinding TextWrapping}"
+                                       SelectionBrush="{TemplateBinding SelectionBrush}"
+                                       SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                       CaretBrush="{TemplateBinding CaretBrush}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Stretch"/>
+                    </Panel>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <Border x:Name="RootBorder"
+            Background="{DynamicResource AppPanelSubtleBackground}"
+            BorderBrush="{DynamicResource AppBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="4"
+            ClipToBounds="True">
+        <Grid ColumnDefinitions="26,1,*,1,26">
+
+            <!-- Bouton Décrémenter (-) -->
+            <RepeatButton Grid.Column="0"
+                          x:Name="DecrementButton"
+                          Content="−"
+                          Click="OnDecrementClick"
+                          Foreground="{DynamicResource AppTextPrimary}"
+                          FontWeight="Bold"
+                          FontSize="14"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Interval="80"
+                          Delay="350"/>
+
+            <!-- Séparateur vertical gauche -->
+            <Rectangle Grid.Column="1" Fill="{DynamicResource AppBorderBrush}" Width="1"/>
+
+            <!-- Champ texte central -->
+            <TextBox Grid.Column="2"
+                     x:Name="ValueTextBox"
+                     TextAlignment="Center"
+                     VerticalAlignment="Stretch"
+                     HorizontalAlignment="Stretch"
+                     Foreground="{DynamicResource AppTextPrimary}"
+                     FontSize="12"
+                     LostFocus="OnTextBoxLostFocus"
+                     KeyDown="OnTextBoxKeyDown"/>
+
+            <!-- Séparateur vertical droit -->
+            <Rectangle Grid.Column="3" Fill="{DynamicResource AppBorderBrush}" Width="1"/>
+
+            <!-- Bouton Incrémenter (+) -->
+            <RepeatButton Grid.Column="4"
+                          x:Name="IncrementButton"
+                          Content="+"
+                          Click="OnIncrementClick"
+                          Foreground="{DynamicResource AppTextPrimary}"
+                          FontWeight="Bold"
+                          FontSize="14"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Interval="80"
+                          Delay="350"/>
+        </Grid>
+    </Border>
+</UserControl>

@@ -10,6 +10,8 @@ using CassiniFlow.Infrastructure.Adapters;
 using CassiniFlow.Infrastructure.Serialization;
 using CassiniFlow.Infrastructure.WinJupos;
 using CassiniFlow.Desktop.Localization;
+using CassiniFlow.Desktop.Services;
+using CassiniFlow.Desktop.Theme;
 
 namespace CassiniFlow.Desktop.ViewModels;
 
@@ -67,7 +69,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _currentFrameIndex = 1;
     [ObservableProperty] private int _maxFrameCount = 1;
     [ObservableProperty] private string _viewerTitle = Loc.Tr("Aucun fichier sélectionné", "No file selected");
-    [ObservableProperty] private string _viewerStatusText = Loc.Tr("Chargez une vidéo ou des images dans l'onglet '1. Source Files'", "Load a video or images in the '1. Source Files' tab");
+    [ObservableProperty] private string _viewerStatusText = Loc.Get("Viewer.LoadVideoPrompt");
     [ObservableProperty] private string _frameDimensionsText = "—";
     [ObservableProperty] private string _maxPixelStatsText = "Max Pixel : —";
     [ObservableProperty] private string _qualityScoreText = Loc.Tr("Qualité : -", "Quality: -");
@@ -82,20 +84,102 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
     [ObservableProperty] private int _selectedPresetIndex = 0;
-    [ObservableProperty] private int _maxCpuUsagePercent = 70;
-    [ObservableProperty] private string _activeCpuThreadsText = FormatCpuThreadsText(70);
+    [ObservableProperty] private int _maxCpuUsagePercent = 80;
+    [ObservableProperty] private int _cpuWarningThresholdPercent = 85;
+    [ObservableProperty] private bool _isCpuWarningActive;
+    [ObservableProperty] private string _cpuWarningTitle = string.Empty;
+    [ObservableProperty] private string _cpuWarningMessage = string.Empty;
+    [ObservableProperty] private string _activeCpuThreadsBadge = string.Empty;
+    [ObservableProperty] private string _activeCpuThreadsText = string.Empty;
+    [ObservableProperty] private int _totalLogicalCores = Math.Max(1, Environment.ProcessorCount);
+    [ObservableProperty] private string _totalCoresDetectedText = string.Empty;
+    [ObservableProperty] private int _selectedThemeIndex = 0;
+    [ObservableProperty] private int _selectedLanguageIndex = 0;
+    [ObservableProperty] private bool _isSettingsSavedFeedbackVisible;
 
-    private static string FormatCpuThreadsText(int pct)
+    public MainWindowViewModel()
     {
-        int total = Math.Max(1, Environment.ProcessorCount);
-        var tmp = new ProcessingOptions { MaxCpuUsagePercent = pct };
-        int used = PipelineRunner.GetSafeWorkerThreadCount(tmp);
-        return Loc.Pick($"{used} / {total} threads actifs (évite les 100% CPU)", $"{used} / {total} active threads (avoids 100% CPU)");
+        _maxCpuUsagePercent = UserSettingsService.Current.MaxCpuUsagePercent;
+        _cpuWarningThresholdPercent = UserSettingsService.Current.CpuWarningThresholdPercent;
+        _selectedThemeIndex = UserSettingsService.Current.Theme?.ToLowerInvariant() switch
+        {
+            "light" => 1,
+            "night_vision" or "nightvision" or "red" => 2,
+            _ => 0
+        };
+        _selectedLanguageIndex = string.Equals(UserSettingsService.Current.Language, "en", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+
+        Loc.LanguageChanged += RefreshLocalizedTexts;
+        ThemeManager.ThemeChanged += OnThemeChanged;
+
+        UpdateCpuStatus();
     }
 
     partial void OnMaxCpuUsagePercentChanged(int value)
     {
-        ActiveCpuThreadsText = FormatCpuThreadsText(value);
+        UpdateCpuStatus();
+        UserSettingsService.UpdateCpuSettings(value, CpuWarningThresholdPercent);
+    }
+
+    partial void OnCpuWarningThresholdPercentChanged(int value)
+    {
+        UpdateCpuStatus();
+        UserSettingsService.UpdateCpuSettings(MaxCpuUsagePercent, value);
+    }
+
+    partial void OnSelectedThemeIndexChanged(int value)
+    {
+        var theme = value switch
+        {
+            1 => AppTheme.CleanLabLight,
+            2 => AppTheme.NightVision,
+            _ => AppTheme.DeepSpaceDark
+        };
+        ThemeManager.ApplyTheme(theme, save: true);
+    }
+
+    partial void OnSelectedLanguageIndexChanged(int value)
+    {
+        var lang = value == 1 ? AppLanguage.English : AppLanguage.French;
+        Loc.SetLanguage(lang, save: true);
+    }
+
+    private void OnThemeChanged()
+    {
+        int targetIdx = ThemeManager.CurrentTheme switch
+        {
+            AppTheme.CleanLabLight => 1,
+            AppTheme.NightVision => 2,
+            _ => 0
+        };
+        if (SelectedThemeIndex != targetIdx)
+        {
+            SelectedThemeIndex = targetIdx;
+        }
+    }
+
+    private void UpdateCpuStatus()
+    {
+        int total = Math.Max(1, Environment.ProcessorCount);
+        TotalLogicalCores = total;
+        TotalCoresDetectedText = Loc.Format("Settings.TotalCoresDetected", total);
+
+        var tmp = new ProcessingOptions { MaxCpuUsagePercent = MaxCpuUsagePercent };
+        int used = PipelineRunner.GetSafeWorkerThreadCount(tmp);
+
+        IsCpuWarningActive = MaxCpuUsagePercent >= CpuWarningThresholdPercent;
+
+        ActiveCpuThreadsBadge = $"{used} / {total} threads ({MaxCpuUsagePercent} %)";
+
+        ActiveCpuThreadsText = used == total
+            ? Loc.Pick($"{used} threads alloués sur {total} cœurs (Pleine puissance)", $"{used} threads allocated on {total} cores (Full power)")
+            : Loc.Pick($"{used} threads alloués ({total - used} cœur(s) réservé(s) pour le système)", $"{used} threads allocated ({total - used} core(s) reserved for OS)");
+
+        CpuWarningTitle = Loc.Get("Settings.CpuWarningTitle");
+
+        CpuWarningMessage = Loc.Pick(
+            $"L'allocation de {MaxCpuUsagePercent}% ({used} threads) atteint ou dépasse votre seuil d'avertissement ({CpuWarningThresholdPercent}%). Les autres applications ouvertes risquent de ralentir pendant le traitement.",
+            $"Allocating {MaxCpuUsagePercent}% ({used} threads) reaches or exceeds your alert threshold ({CpuWarningThresholdPercent}%). Background applications may become less responsive during processing.");
     }
 
     // 2. Input Options
@@ -506,9 +590,26 @@ public partial class MainWindowViewModel : ObservableObject
         ProcessingStageText = Loc.Retranslate(ProcessingStageText);
         SummaryStatsText = Loc.Retranslate(SummaryStatsText);
         ConsoleLogText = Loc.Retranslate(ConsoleLogText);
-        ActiveCpuThreadsText = FormatCpuThreadsText(MaxCpuUsagePercent);
+        UpdateCpuStatus();
         foreach (var f in SourceFiles) f.RefreshLocalizedText();
         if (SelectedSourceFile is not null) RequestPreviewUpdate(reloadFromDisk: false);
+    }
+
+    public event Action? RequestOpenSettings;
+
+    [RelayCommand]
+    public void OpenSettings() => RequestOpenSettings?.Invoke();
+
+    [RelayCommand]
+    public void OpenSettingsTab() => RequestOpenSettings?.Invoke();
+
+    [RelayCommand]
+    public async Task SaveUserSettings()
+    {
+        UserSettingsService.UpdateCpuSettings(MaxCpuUsagePercent, CpuWarningThresholdPercent);
+        IsSettingsSavedFeedbackVisible = true;
+        await Task.Delay(2500);
+        IsSettingsSavedFeedbackVisible = false;
     }
 
 
@@ -717,7 +818,7 @@ public partial class MainWindowViewModel : ObservableObject
         Options.AviFpsValue = Math.Max(1, OutputFps);
         Options.OutputFilenameSuffix = OutputSuffix;
         Options.GenerateWinJuposFilenames = WinJuposNaming;
-        Options.MaxCpuUsagePercent = Math.Clamp(MaxCpuUsagePercent, 15, 95);
+        Options.MaxCpuUsagePercent = Math.Clamp(MaxCpuUsagePercent, 10, 100);
     }
 
 
