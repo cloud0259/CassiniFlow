@@ -31,7 +31,9 @@
   },
   "Toolbar": {
     "AddSourceFiles": "+ Add Source Files...",
-    "StartProcessing": "▶ Start Processing"
+    "StartProcessing": "▶ Start Processing",
+    "ProcessingInProgress": "Processing in progress...",
+    "CancelProcessing": "✕ Cancel"
   },
   "Tab": {
     "SourceFiles": "1. Source Files",
