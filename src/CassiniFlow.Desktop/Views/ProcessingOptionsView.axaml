@@ -62,20 +62,20 @@
                         <CheckBox Grid.Column="1" Content="{loc:Tr ProcessingOptions.EnableCropping}" IsChecked="{Binding EnableCropping}" FontSize="12"/>
                     </Grid>
 
-                    <Grid ColumnDefinitions="*,*,*,*" IsEnabled="{Binding EnableCropping}">
-                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                    <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto" IsEnabled="{Binding EnableCropping}">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,0,8">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropWidth}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropWidth}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
+                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,0,8">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropHeight}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropHeight}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4" Margin="0,0,8,0">
+                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetX}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropOffsetX}" Minimum="-4096" Maximum="4096" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="3" Spacing="4">
+                        <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetY}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropOffsetY}" Minimum="-4096" Maximum="4096" FormatString="0"/>
                         </StackPanel>

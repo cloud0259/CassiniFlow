@@ -7,7 +7,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="{loc:Tr App.Title}"
         Width="1340" Height="820"
-        MinWidth="900" MinHeight="580"
+        MinWidth="1040" MinHeight="620"
         Background="{DynamicResource AppWindowBackground}"
         Foreground="{DynamicResource AppTextPrimary}"
         Icon="/Assets/cassiniflow.ico"
@@ -70,10 +70,10 @@
         </Border>
 
         <!-- ZONE PRINCIPALE : LES ONGLETS MODULAIRES À GAUCHE / APERÇU DE LA FRAME À DROITE -->
-        <Grid Grid.Row="1" ColumnDefinitions="58*,42*">
+        <Grid Grid.Row="1" ColumnDefinitions="58*,Auto,42*">
 
             <!-- PANNEAU GAUCHE : LES ONGLETS -->
-            <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8">
+            <Border Grid.Column="0" MinWidth="480" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8">
                 <TabControl SelectedIndex="{Binding SelectedTabIndex}">
 
                     <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand la fenêtre est réduite -->
@@ -121,8 +121,11 @@
                 </TabControl>
             </Border>
 
+            <!-- SPLITTER DE REDIMENSIONNEMENT DES VOLETS -->
+            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns" />
+
             <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
-            <Border Grid.Column="1" Background="{DynamicResource AppWindowBackground}" Padding="10">
+            <Border Grid.Column="2" MinWidth="380" Background="{DynamicResource AppWindowBackground}" Padding="10">
                 <views:FrameViewerView />
             </Border>
 
