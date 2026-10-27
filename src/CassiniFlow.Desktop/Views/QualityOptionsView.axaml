@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.QualityOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="10" Margin="4,8,4,4">
+            <Border Classes="groupbox">
+                <StackPanel Spacing="10">
+                    <CheckBox Content="{loc:Tr QualityOptions.EnableQuality}" IsChecked="{Binding EnableQuality}" FontWeight="SemiBold" FontSize="13"/>
+
+                    <StackPanel Spacing="10" IsEnabled="{Binding EnableQuality}">
+                        <Grid ColumnDefinitions="*,12,*">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{loc:Tr QualityOptions.SharpnessAlgo}" Classes="label"/>
+                                <ComboBox SelectedIndex="{Binding SelectedQualityAlgoIndex}" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoDefault}"/>
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoNinox}"/>
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoPeak}"/>
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoTotal}"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Bottom">
+                                <CheckBox Content="{loc:Tr QualityOptions.ReorderFrames}" IsChecked="{Binding ReorderByQuality}" IsEnabled="{Binding !IsJoinMode}" FontSize="12" ToolTip.Tip="{loc:Tr QualityOptions.ReorderFramesTip}"/>
+                                <CheckBox Content="{loc:Tr QualityOptions.QualityWeighting}" IsChecked="{Binding EnableQualityWeighting}" FontSize="12"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                        <CheckBox Content="{loc:Tr QualityOptions.LimitBestFrames}" IsChecked="{Binding LimitQualityFrames}" FontSize="12"/>
+                        <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding LimitQualityFrames}">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{loc:Tr QualityOptions.LimitingMode}" Classes="label"/>
+                                <ComboBox SelectedIndex="{Binding SelectedQualityLimitModeIndex}" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.LimitFixed}"/>
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.LimitPercent}"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="{loc:Tr QualityOptions.ValueToKeep}" Classes="label"/>
+                                <controls:NumberStepper Value="{Binding QualityKeepValue}" Minimum="1" Maximum="999999" FormatString="0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

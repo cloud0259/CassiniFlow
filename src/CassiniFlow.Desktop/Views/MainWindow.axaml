@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
-        xmlns:controls="using:CassiniFlow.Desktop.Controls"
+        xmlns:views="using:CassiniFlow.Desktop.Views"
         xmlns:loc="using:CassiniFlow.Desktop.Localization"
         x:Class="CassiniFlow.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -14,24 +14,6 @@
         DragDrop.AllowDrop="True">
 
     <Window.Styles>
-        <Style Selector="Border.groupbox">
-            <Setter Property="Background" Value="{DynamicResource AppPanelBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="12"/>
-        </Style>
-        <Style Selector="TextBlock.grouptitle">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
-        </Style>
-        <Style Selector="TextBlock.label">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="10,6"/>
@@ -87,7 +69,7 @@
             </Grid>
         </Border>
 
-        <!-- ZONE PRINCIPALE : LES ONGLETS À GAUCHE / APERÇU DE LA FRAME À DROITE -->
+        <!-- ZONE PRINCIPALE : LES ONGLETS MODULAIRES À GAUCHE / APERÇU DE LA FRAME À DROITE -->
         <Grid Grid.Row="1" ColumnDefinitions="58*,42*">
 
             <!-- PANNEAU GAUCHE : LES ONGLETS -->
@@ -103,434 +85,37 @@
 
                     <!-- ONGLET 1 : SOURCE FILES -->
                     <TabItem Header="{loc:Tr Tab.SourceFiles}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <Grid RowDefinitions="Auto,*,Auto" Margin="4,8,4,4">
-
-                                <!-- Barre d'outils de la liste des fichiers -->
-                                <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
-                                    <TextBlock Text="{loc:Tr SourceFiles.Header}" Classes="grouptitle" VerticalAlignment="Center" Margin="0"/>
-                                    <WrapPanel Grid.Row="1" Margin="0,6,0,0">
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.AddFiles}" Click="OnAddVideoFilesClick" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="10,4"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MeasureSizes}" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MeasureSizesTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.SortAsc}" Command="{Binding SortFilesBySizeAscendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.SortAscTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.SortDesc}" Command="{Binding SortFilesBySizeDescendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.SortDescTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MoveUp}" Command="{Binding MoveSelectedFileUpCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveUpTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MoveDown}" Command="{Binding MoveSelectedFileDownCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveDownTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.DeleteSelection}" Command="{Binding RemoveSelectedFileCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.DeleteSelectionTip}"/>
-                                        <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.ClearList}" Command="{Binding ClearAllFilesCommand}" FontSize="12" Padding="8,4"/>
-                                    </WrapPanel>
-                                </Grid>
-
-                                <!-- Tableau des fichiers sources -->
-                                <Border Grid.Row="1" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="140" Margin="0,0,0,10">
-                                    <Grid RowDefinitions="Auto,*">
-                                        <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
-                                            <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*">
-                                                <Button Grid.Column="0" Content="☑" Command="{Binding ToggleCheckAllFilesCommand}" Padding="2,0" FontSize="12" Background="Transparent" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
-                                                <TextBlock Grid.Column="1" Text="{loc:Tr SourceFiles.ColFileName}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.ColType}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Grid.Column="3" Text="{loc:Tr SourceFiles.ColFrames}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Grid.Column="4" Text="{loc:Tr SourceFiles.ColDimensions}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Grid.Column="5" Text="{loc:Tr SourceFiles.ColFps}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Grid.Column="6" Text="{loc:Tr SourceFiles.ColSize}" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right"/>
-                                                <TextBlock Grid.Column="7" Text="{loc:Tr SourceFiles.ColDiameter}" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right" ToolTip.Tip="{loc:Tr SourceFiles.ColDiameterTip}"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <ListBox Grid.Row="1" PointerPressed="OnFileListPointerPressed" PointerMoved="OnFileListPointerMoved" PointerReleased="OnFileListPointerReleased" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedSourceFile}" Background="Transparent" BorderThickness="0">
-                                            <ListBox.KeyBindings>
-                                                <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedFileCommand}"/>
-                                                <KeyBinding Gesture="Alt+Up" Command="{Binding MoveSelectedFileUpCommand}"/>
-                                                <KeyBinding Gesture="Alt+Down" Command="{Binding MoveSelectedFileDownCommand}"/>
-                                            </ListBox.KeyBindings>
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:SourceFileItem">
-                                                    <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*" Margin="4,2">
-                                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Grid.Column="2" Text="{Binding FormatBadge}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" Text="{Binding Frames}" FontSize="12" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="4" Text="{Binding Resolution}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="5" Text="{Binding FpsInfo}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="6" Text="{Binding FileSize}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="7" Text="{Binding PlanetSizeText}" FontSize="12" Foreground="{DynamicResource AppBadgeAccent}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </Grid>
-                                </Border>
-
-                                <!-- Bas de l'onglet 1 : Mode Batch/Join à gauche + "Optimise Options For" à droite -->
-                                <Grid Grid.Row="2" ColumnDefinitions="*,10,*">
-                                    <Border Grid.Column="0" Classes="groupbox">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock Text="{loc:Tr SourceFiles.ModeTitle}" Classes="grouptitle"/>
-                                            <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="12"/>
-                                            <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="12"/>
-                                            <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
-                                            <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding LimitFrameRange}">
-                                                <TextBlock Text="{loc:Tr SourceFiles.Start}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="120"/>
-                                                <TextBlock Text="{loc:Tr SourceFiles.End}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" Width="120"/>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <Border Grid.Column="2" Classes="groupbox">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="{loc:Tr SourceFiles.PresetsTitle}" Classes="grouptitle"/>
-                                            <TextBlock Text="{loc:Tr SourceFiles.PresetsSubtitle}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,0,2"/>
-                                            <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch">
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/>
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetIss}"/>
-                                                <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/>
-                                            </ComboBox>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-
-                            </Grid>
-                        </ScrollViewer>
+                        <views:SourceFilesView />
                     </TabItem>
 
                     <!-- ONGLET 2 : INPUT OPTIONS -->
                     <TabItem Header="{loc:Tr Tab.InputOptions}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="10" Margin="4,8,4,4">
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr InputOptions.DebayerTitle}" Classes="grouptitle"/>
-                                        <CheckBox Content="{loc:Tr InputOptions.DebayerEnable}" IsChecked="{Binding DebayerEnabled}" FontSize="12"/>
-                                        <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding DebayerEnabled}">
-                                            <StackPanel Grid.Column="0" Spacing="4">
-                                                <TextBlock Text="{loc:Tr InputOptions.BayerPattern}" Classes="label"/>
-                                                <ComboBox SelectedIndex="{Binding SelectedBayerPatternIndex}" HorizontalAlignment="Stretch">
-                                                    <ComboBoxItem Content="GBRG"/>
-                                                    <ComboBoxItem Content="BGGR"/>
-                                                    <ComboBoxItem Content="RGGB"/>
-                                                    <ComboBoxItem Content="GRBG"/>
-                                                </ComboBox>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Spacing="4">
-                                                <TextBlock Text="{loc:Tr InputOptions.InterpolationAlgo}" Classes="label"/>
-                                                <ComboBox SelectedIndex="{Binding SelectedDebayerAlgoIndex}" HorizontalAlignment="Stretch">
-                                                    <ComboBoxItem Content="Bilinear"/>
-                                                    <ComboBoxItem Content="HQ Linear"/>
-                                                    <ComboBoxItem Content="Smooth Hue"/>
-                                                </ComboBox>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr InputOptions.BinningTitle}" Classes="grouptitle"/>
-                                        <Grid ColumnDefinitions="*,12,*">
-                                            <StackPanel Grid.Column="0" Spacing="4">
-                                                <TextBlock Text="{loc:Tr InputOptions.BinningPixels}" Classes="label"/>
-                                                <ComboBox SelectedIndex="{Binding SelectedBinningIndex}" HorizontalAlignment="Stretch">
-                                                    <ComboBoxItem Content="{loc:Tr InputOptions.BinningDisabled}"/>
-                                                    <ComboBoxItem Content="{loc:Tr InputOptions.Binning2x2}"/>
-                                                    <ComboBoxItem Content="{loc:Tr InputOptions.Binning3x3}"/>
-                                                    <ComboBoxItem Content="{loc:Tr InputOptions.Binning4x4}"/>
-                                                </ComboBox>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Spacing="4">
-                                                <CheckBox Content="{loc:Tr InputOptions.HotPixels}" IsChecked="{Binding DarkSubtractEnabled}" FontSize="12"/>
-                                                <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding DarkSubtractEnabled}">
-                                                    <TextBlock Text="{loc:Tr InputOptions.Threshold}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding HotPixelThreshold}" Minimum="1" Maximum="100" FormatString="0" Width="120"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <views:InputOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 3 : PROCESSING OPTIONS -->
                     <TabItem Header="{loc:Tr Tab.ProcessingOptions}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="10" Margin="4,8,4,4">
-
-                                <!-- Stabilisation Mode -->
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr ProcessingOptions.StabilisationModeTitle}" Classes="grouptitle"/>
-                                        <ComboBox SelectedIndex="{Binding SelectedStabilisationModeIndex}" HorizontalAlignment="Stretch">
-                                            <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabNone}"/>
-                                            <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabObject}"/>
-                                            <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabSurface}"/>
-                                        </ComboBox>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Object Detection & Surface Anchor -->
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr ProcessingOptions.DetectionTitle}" Classes="grouptitle"/>
-                                        <WrapPanel Orientation="Horizontal">
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.RejectNoObject}" IsChecked="{Binding CheckObjectPresent}" Margin="0,0,18,0" FontSize="12"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.CenterObject}" IsChecked="{Binding CentreObjectInFrame}" Margin="0,0,18,0" FontSize="12"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.AutoThreshold}" IsChecked="{Binding AutoThreshold}" FontSize="12"/>
-                                        </WrapPanel>
-
-                                        <Grid ColumnDefinitions="*,12,*">
-                                            <StackPanel Grid.Column="0" Spacing="4">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <TextBlock Text="{loc:Tr ProcessingOptions.ManualThreshold}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding DetectionThreshold}" Minimum="1" Maximum="250" FormatString="0" Width="120" IsEnabled="{Binding !AutoThreshold}"/>
-                                                </StackPanel>
-                                                <CheckBox Content="{loc:Tr ProcessingOptions.ShowDetectedRed}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="2" Spacing="4">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <TextBlock Text="{loc:Tr ProcessingOptions.MinObjectSize}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding MinObjectSizePixels}" Minimum="2" Maximum="2000" FormatString="0" Width="120"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <TextBlock Text="{loc:Tr ProcessingOptions.AfbBoxSize}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding AfbSize}" Minimum="16" Maximum="256" Increment="8" FormatString="0" Width="120"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Cropping -->
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="{loc:Tr ProcessingOptions.CroppingTitle}" Classes="grouptitle" Margin="0"/>
-                                            <CheckBox Grid.Column="1" Content="{loc:Tr ProcessingOptions.EnableCropping}" IsChecked="{Binding EnableCropping}" FontSize="12"/>
-                                        </Grid>
-
-                                        <Grid ColumnDefinitions="*,*,*,*" IsEnabled="{Binding EnableCropping}">
-                                            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.CropWidth}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding CropWidth}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.CropHeight}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding CropHeight}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Spacing="4" Margin="0,0,8,0">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetX}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding CropOffsetX}" Minimum="-4096" Maximum="4096" FormatString="0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" Spacing="4">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetY}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding CropOffsetY}" Minimum="-4096" Maximum="4096" FormatString="0"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Gain, Gamma, Histogram, Monochrome, Rotation -->
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr ProcessingOptions.GainTitle}" Classes="grouptitle"/>
-                                        <Grid ColumnDefinitions="*,*,*">
-                                            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.InputGain}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding InputGain}" Minimum="0.10" Maximum="10.00" Increment="0.05" FormatString="0.00"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.Gamma}" Classes="label"/>
-                                                <controls:NumberStepper Value="{Binding Gamma}" Minimum="0.10" Maximum="5.00" Increment="0.05" FormatString="0.00"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Spacing="4">
-                                                <TextBlock Text="{loc:Tr ProcessingOptions.Rotation}" Classes="label"/>
-                                                <ComboBox SelectedIndex="{Binding SelectedRotationIndex}" HorizontalAlignment="Stretch">
-                                                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.RotNone}"/>
-                                                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Cw}"/>
-                                                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Ccw}"/>
-                                                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot180}"/>
-                                                </ComboBox>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.StretchHistogram}" IsChecked="{Binding HistogramStretchEnabled}" Margin="0,0,8,0" FontSize="12"/>
-                                            <controls:NumberStepper Value="{Binding HistogramStretchPercent}" Minimum="10" Maximum="100" FormatString="0" Width="110" IsEnabled="{Binding HistogramStretchEnabled}" Margin="0,0,16,0"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.ConvertToMono}" IsChecked="{Binding ConvertToMono}" Margin="0,0,16,0" FontSize="12"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.FlipHorizontal}" IsChecked="{Binding FlipHorizontal}" Margin="0,0,16,0" FontSize="12"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.FlipVertical}" IsChecked="{Binding FlipVertical}" FontSize="12"/>
-                                            <CheckBox Content="{loc:Tr ProcessingOptions.AutoRotate}" IsChecked="{Binding AutoRotateAlign}" Margin="16,0,0,0" FontSize="12" ToolTip.Tip="{loc:Tr ProcessingOptions.AutoRotateTip}"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
-                            </StackPanel>
-                        </ScrollViewer>
+                        <views:ProcessingOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 4 : QUALITY OPTIONS -->
                     <TabItem Header="{loc:Tr Tab.QualityOptions}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="10" Margin="4,8,4,4">
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="10">
-                                        <CheckBox Content="{loc:Tr QualityOptions.EnableQuality}" IsChecked="{Binding EnableQuality}" FontWeight="SemiBold" FontSize="13"/>
-
-                                        <StackPanel Spacing="10" IsEnabled="{Binding EnableQuality}">
-                                            <Grid ColumnDefinitions="*,12,*">
-                                                <StackPanel Grid.Column="0" Spacing="4">
-                                                    <TextBlock Text="{loc:Tr QualityOptions.SharpnessAlgo}" Classes="label"/>
-                                                    <ComboBox SelectedIndex="{Binding SelectedQualityAlgoIndex}" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoDefault}"/>
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoNinox}"/>
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoPeak}"/>
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoTotal}"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Bottom">
-                                                    <CheckBox Content="{loc:Tr QualityOptions.ReorderFrames}" IsChecked="{Binding ReorderByQuality}" IsEnabled="{Binding !IsJoinMode}" FontSize="12" ToolTip.Tip="{loc:Tr QualityOptions.ReorderFramesTip}"/>
-                                                    <CheckBox Content="{loc:Tr QualityOptions.QualityWeighting}" IsChecked="{Binding EnableQualityWeighting}" FontSize="12"/>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <Separator Background="{DynamicResource AppBorderBrush}"/>
-
-                                            <CheckBox Content="{loc:Tr QualityOptions.LimitBestFrames}" IsChecked="{Binding LimitQualityFrames}" FontSize="12"/>
-                                            <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding LimitQualityFrames}">
-                                                <StackPanel Grid.Column="0" Spacing="4">
-                                                    <TextBlock Text="{loc:Tr QualityOptions.LimitingMode}" Classes="label"/>
-                                                    <ComboBox SelectedIndex="{Binding SelectedQualityLimitModeIndex}" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.LimitFixed}"/>
-                                                        <ComboBoxItem Content="{loc:Tr QualityOptions.LimitPercent}"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" Spacing="4">
-                                                    <TextBlock Text="{loc:Tr QualityOptions.ValueToKeep}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding QualityKeepValue}" Minimum="1" Maximum="999999" FormatString="0"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <views:QualityOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 5 : ANIMATION OPTIONS -->
                     <TabItem Header="{loc:Tr Tab.AnimationOptions}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="10" Margin="4,8,4,4">
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="10">
-                                        <TextBlock Text="{loc:Tr AnimationOptions.PlaybackTitle}" Classes="grouptitle"/>
-                                        <CheckBox Content="{loc:Tr AnimationOptions.ForwardPlay}" IsChecked="{Binding AnimationForward}" FontSize="12"/>
-                                        <CheckBox Content="{loc:Tr AnimationOptions.ReversePlay}" IsChecked="{Binding AnimationReverse}" FontSize="12"/>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="{loc:Tr AnimationOptions.RepeatCount}" Classes="label"/>
-                                            <controls:NumberStepper Value="{Binding AnimationRepeatCount}" Minimum="1" Maximum="50" FormatString="0" Width="120"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <views:AnimationOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 6 : OUTPUT OPTIONS -->
                     <TabItem Header="{loc:Tr Tab.OutputOptions}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="10" Margin="4,8,4,4">
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="10">
-                                        <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
-                                        <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
-                                            <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
-                                        </ComboBox>
-
-                                        <Grid ColumnDefinitions="*,12,*">
-                                            <StackPanel Grid.Column="0" Spacing="6">
-                                                <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
-                                                <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding !MatchInputFps}">
-                                                    <TextBlock Text="{loc:Tr OutputOptions.CustomFps}" Classes="label"/>
-                                                    <controls:NumberStepper Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="120"/>
-                                                </StackPanel>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="2" Spacing="6">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <TextBlock Text="{loc:Tr OutputOptions.FileSuffix}" Classes="label"/>
-                                                    <TextBox Text="{Binding OutputSuffix}" Width="120"/>
-                                                </StackPanel>
-                                                <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Classes="groupbox">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{loc:Tr OutputOptions.DestinationFolder}" Classes="grouptitle"/>
-                                        <TextBlock Text="{loc:Tr OutputOptions.DefaultFolderHint}" FontSize="12" Foreground="{DynamicResource AppTextDimmed}"/>
-                                        <Grid ColumnDefinitions="*,Auto,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding CustomOutputDirectory}" Watermark="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,0,8,0"/>
-                                            <Button Grid.Column="1" Content="{loc:Tr OutputOptions.Browse}" Click="OnSelectOutputFolderClick" Margin="0,0,6,0"/>
-                                            <Button Grid.Column="2" Content="{loc:Tr OutputOptions.OpenFolder}" Command="{Binding OpenOutputFolderCommand}"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <views:OutputOptionsView />
                     </TabItem>
 
                     <!-- ONGLET 7 : DO PROCESSING -->
                     <TabItem Header="{loc:Tr Tab.DoProcessing}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <Grid RowDefinitions="Auto,Auto,*" Margin="4,8,4,4">
-
-                                <Border Grid.Row="0" Classes="groupbox" Margin="0,0,0,10">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="{loc:Tr DoProcessing.ExecutionTitle}" Classes="grouptitle" Margin="0"/>
-                                            <TextBlock Text="{Binding ProcessingStageText}" FontSize="13" Foreground="{DynamicResource AppBadgeFormat}"/>
-                                            <TextBlock Text="{Binding SummaryStatsText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <Button Content="{loc:Tr DoProcessing.StartProcessing}" Command="{Binding RunProcessingCommand}" IsEnabled="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" Padding="16,8"/>
-                                            <Button Content="{loc:Tr DoProcessing.Cancel}" Command="{Binding CancelProcessingCommand}" IsEnabled="{Binding IsProcessing}" Padding="12,8"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-
-                                <Border Grid.Row="1" Classes="groupbox" Margin="0,0,0,10">
-                                    <StackPanel Spacing="8">
-                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProcessingProgress}" Height="14"/>
-                                        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasCompletedOutput}">
-                                            <Button Content="{loc:Tr DoProcessing.PlayGenerated}" Command="{Binding PlayLastOutputVideoCommand}" Background="#16a34a" Foreground="White" FontWeight="SemiBold" Padding="12,6"/>
-                                            <Button Content="{loc:Tr DoProcessing.OpenOutput}" Command="{Binding OpenOutputFolderCommand}" Padding="12,6"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Row="2" Classes="groupbox" MinHeight="160">
-                                    <Grid RowDefinitions="Auto,*">
-                                        <TextBlock Grid.Row="0" Text="{loc:Tr DoProcessing.ExecutionLog}" Classes="grouptitle"/>
-                                        <TextBox Grid.Row="1" Text="{Binding ConsoleLogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas, Monospace" FontSize="12" Background="{DynamicResource AppConsoleLogBg}" Foreground="{DynamicResource AppTextPrimary}"/>
-                                    </Grid>
-                                </Border>
-
-                            </Grid>
-                        </ScrollViewer>
+                        <views:DoProcessingView />
                     </TabItem>
 
                 </TabControl>
@@ -538,46 +123,7 @@
 
             <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
             <Border Grid.Column="1" Background="{DynamicResource AppWindowBackground}" Padding="10">
-                <Grid RowDefinitions="Auto,*,Auto">
-
-                    <!-- En-tête de la visionneuse -->
-                    <Border Grid.Row="0" Classes="groupbox" Padding="10,8" Margin="0,0,0,8">
-                        <StackPanel Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="{Binding ViewerTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Grid.Column="1" Text="{Binding FrameDimensionsText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="8,0,0,0"/>
-                            </Grid>
-                            <WrapPanel Orientation="Horizontal">
-                                <CheckBox Content="{loc:Tr Viewer.ShowCropped}" IsChecked="{Binding PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
-                                <CheckBox Content="{loc:Tr Viewer.ShowOverlay}" IsChecked="{Binding ShowOverlayBoxes}" IsEnabled="{Binding !PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
-                                <CheckBox Content="{loc:Tr Viewer.TestThreshold}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
-                            </WrapPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Canvas d'aperçu avec respect du ratio d'aspect -->
-                    <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" Margin="0,0,0,8">
-                        <controls:AstroViewerControl />
-                    </Border>
-
-                    <!-- Contrôles de navigation Frame par Frame -->
-                    <Border Grid.Row="2" Classes="groupbox" Padding="10,8">
-                        <StackPanel Spacing="6">
-                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                                <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0"/>
-                                <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3" Margin="0,0,8,0"/>
-                                <Slider Grid.Column="2" Minimum="1" Maximum="{Binding MaxFrameCount}" Value="{Binding CurrentFrameIndex}" VerticalAlignment="Center"/>
-                                <Button Grid.Column="3" Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3" Margin="8,0,4,0"/>
-                                <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3"/>
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Grid.Column="1" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold" Margin="8,0,0,0"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                </Grid>
+                <views:FrameViewerView />
             </Border>
 
         </Grid>

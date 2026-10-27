@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.VisualTree;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -44,63 +43,6 @@ public partial class MainWindow : Window
         };
 
         UpdateMenuCheckStates();
-    }
-
-    // --- Réordonnancement des fichiers sources à la souris (glisser les lignes) ---
-    private SourceFileItem? _dragItem;
-    private Point _dragStart;
-    private bool _dragging;
-
-    private void OnFileListPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        _dragItem = null;
-        _dragging = false;
-        if (sender is not ListBox list) return;
-        if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) return;
-        if (e.Source is Avalonia.Visual v && v.FindAncestorOfType<CheckBox>() is not null) return;
-        var lbi = (e.Source as Avalonia.Visual)?.FindAncestorOfType<ListBoxItem>();
-        if (lbi?.DataContext is SourceFileItem item)
-        {
-            _dragItem = item;
-            _dragStart = e.GetPosition(list);
-        }
-    }
-
-    private void OnFileListPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_dragItem is null || sender is not ListBox list || DataContext is not MainWindowViewModel vm) return;
-        if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) { _dragItem = null; _dragging = false; return; }
-
-        var pos = e.GetPosition(list);
-        if (!_dragging)
-        {
-            if (Math.Abs(pos.Y - _dragStart.Y) < 6) return;
-            _dragging = true;
-            list.Cursor = new Cursor(StandardCursorType.SizeAll);
-        }
-
-        foreach (var lbi in list.GetVisualDescendants().OfType<ListBoxItem>())
-        {
-            var p = e.GetPosition(lbi);
-            if (p.Y >= 0 && p.Y <= lbi.Bounds.Height && lbi.DataContext is SourceFileItem target && !ReferenceEquals(target, _dragItem))
-            {
-                int from = vm.SourceFiles.IndexOf(_dragItem);
-                int to = vm.SourceFiles.IndexOf(target);
-                if (from >= 0 && to >= 0)
-                {
-                    vm.SourceFiles.Move(from, to);
-                    vm.SelectedSourceFile = _dragItem;
-                }
-                break;
-            }
-        }
-    }
-
-    private void OnFileListPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (sender is ListBox list) list.Cursor = Cursor.Default;
-        _dragItem = null;
-        _dragging = false;
     }
 
     private void ApplyLanguage()

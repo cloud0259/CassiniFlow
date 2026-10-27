@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.OutputOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="10" Margin="4,8,4,4">
+            <Border Classes="groupbox">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
+                    <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
+                    </ComboBox>
+
+                    <Grid ColumnDefinitions="*,12,*">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding !MatchInputFps}">
+                                <TextBlock Text="{loc:Tr OutputOptions.CustomFps}" Classes="label"/>
+                                <controls:NumberStepper Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="120"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Tr OutputOptions.FileSuffix}" Classes="label"/>
+                                <TextBox Text="{Binding OutputSuffix}" Width="120"/>
+                            </StackPanel>
+                            <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="groupbox">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{loc:Tr OutputOptions.DestinationFolder}" Classes="grouptitle"/>
+                    <TextBlock Text="{loc:Tr OutputOptions.DefaultFolderHint}" FontSize="12" Foreground="{DynamicResource AppTextDimmed}"/>
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding CustomOutputDirectory}" Watermark="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="{loc:Tr OutputOptions.Browse}" Click="OnSelectOutputFolderClick" Margin="0,0,6,0"/>
+                        <Button Grid.Column="2" Content="{loc:Tr OutputOptions.OpenFolder}" Command="{Binding OpenOutputFolderCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.InputOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="10" Margin="4,8,4,4">
+            <Border Classes="groupbox">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{loc:Tr InputOptions.DebayerTitle}" Classes="grouptitle"/>
+                    <CheckBox Content="{loc:Tr InputOptions.DebayerEnable}" IsChecked="{Binding DebayerEnabled}" FontSize="12"/>
+                    <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding DebayerEnabled}">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{loc:Tr InputOptions.BayerPattern}" Classes="label"/>
+                            <ComboBox SelectedIndex="{Binding SelectedBayerPatternIndex}" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="GBRG"/>
+                                <ComboBoxItem Content="BGGR"/>
+                                <ComboBoxItem Content="RGGB"/>
+                                <ComboBoxItem Content="GRBG"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="4">
+                            <TextBlock Text="{loc:Tr InputOptions.InterpolationAlgo}" Classes="label"/>
+                            <ComboBox SelectedIndex="{Binding SelectedDebayerAlgoIndex}" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Bilinear"/>
+                                <ComboBoxItem Content="HQ Linear"/>
+                                <ComboBoxItem Content="Smooth Hue"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="groupbox">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{loc:Tr InputOptions.BinningTitle}" Classes="grouptitle"/>
+                    <Grid ColumnDefinitions="*,12,*">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{loc:Tr InputOptions.BinningPixels}" Classes="label"/>
+                            <ComboBox SelectedIndex="{Binding SelectedBinningIndex}" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="{loc:Tr InputOptions.BinningDisabled}"/>
+                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning2x2}"/>
+                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning3x3}"/>
+                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning4x4}"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="4">
+                            <CheckBox Content="{loc:Tr InputOptions.HotPixels}" IsChecked="{Binding DarkSubtractEnabled}" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding DarkSubtractEnabled}">
+                                <TextBlock Text="{loc:Tr InputOptions.Threshold}" Classes="label"/>
+                                <controls:NumberStepper Value="{Binding HotPixelThreshold}" Minimum="1" Maximum="100" FormatString="0" Width="120"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.FrameViewerView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- En-tête de la visionneuse -->
+        <Border Grid.Row="0" Classes="groupbox" Padding="10,8" Margin="0,0,0,8">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding ViewerTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Text="{Binding FrameDimensionsText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="8,0,0,0"/>
+                </Grid>
+                <WrapPanel Orientation="Horizontal">
+                    <CheckBox Content="{loc:Tr Viewer.ShowCropped}" IsChecked="{Binding PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
+                    <CheckBox Content="{loc:Tr Viewer.ShowOverlay}" IsChecked="{Binding ShowOverlayBoxes}" IsEnabled="{Binding !PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
+                    <CheckBox Content="{loc:Tr Viewer.TestThreshold}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Canvas d'aperçu avec respect du ratio d'aspect -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" Margin="0,0,0,8">
+            <controls:AstroViewerControl />
+        </Border>
+
+        <!-- Contrôles de navigation Frame par Frame -->
+        <Border Grid.Row="2" Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                    <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3" Margin="0,0,8,0"/>
+                    <Slider Grid.Column="2" Minimum="1" Maximum="{Binding MaxFrameCount}" Value="{Binding CurrentFrameIndex}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="3" Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3" Margin="8,0,4,0"/>
+                    <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</UserControl>

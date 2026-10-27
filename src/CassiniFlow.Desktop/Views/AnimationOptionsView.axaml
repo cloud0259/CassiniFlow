@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.AnimationOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="10" Margin="4,8,4,4">
+            <Border Classes="groupbox">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{loc:Tr AnimationOptions.PlaybackTitle}" Classes="grouptitle"/>
+                    <CheckBox Content="{loc:Tr AnimationOptions.ForwardPlay}" IsChecked="{Binding AnimationForward}" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr AnimationOptions.ReversePlay}" IsChecked="{Binding AnimationReverse}" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{loc:Tr AnimationOptions.RepeatCount}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding AnimationRepeatCount}" Minimum="1" Maximum="50" FormatString="0" Width="120"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
