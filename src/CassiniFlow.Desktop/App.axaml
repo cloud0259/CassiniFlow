@@ -76,9 +76,6 @@
             <ResourceDictionary.ThemeDictionaries>
                 <!-- THÈME SOMBRE : DEEP SPACE (Défaut) -->
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="SystemAccentColor" Color="#2563EB"/>
-                    <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#2563EB"/>
-                    <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#2563EB"/>
                     <SolidColorBrush x:Key="AppWindowBackground" Color="#0F141C"/>
                     <SolidColorBrush x:Key="AppPanelBackground" Color="#18202C"/>
                     <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#121822"/>
@@ -98,9 +95,6 @@
 
                 <!-- THÈME CLAIR : CLEAN LAB (LIGHT) -->
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="SystemAccentColor" Color="#2563EB"/>
-                    <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#2563EB"/>
-                    <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#2563EB"/>
                     <SolidColorBrush x:Key="AppWindowBackground" Color="#F1F5F9"/>
                     <SolidColorBrush x:Key="AppPanelBackground" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#F8FAFC"/>
@@ -120,9 +114,6 @@
 
                 <!-- THÈME ROUGE ASTRO : NIGHT VISION -->
                 <ResourceDictionary x:Key="{x:Static theme:ThemeManager.NightVisionVariant}">
-                    <SolidColorBrush x:Key="SystemAccentColor" Color="#DC2626"/>
-                    <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#DC2626"/>
-                    <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#DC2626"/>
                     <SolidColorBrush x:Key="AppWindowBackground" Color="#0A0202"/>
                     <SolidColorBrush x:Key="AppPanelBackground" Color="#170505"/>
                     <SolidColorBrush x:Key="AppPanelSubtleBackground" Color="#0F0303"/>
