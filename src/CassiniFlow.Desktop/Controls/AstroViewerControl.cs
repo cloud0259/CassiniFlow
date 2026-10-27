@@ -1,12 +1,14 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using CassiniFlow.Desktop.Localization;
+using CassiniFlow.Desktop.ViewModels;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
-using CassiniFlow.Desktop.ViewModels;
 
 namespace CassiniFlow.Desktop.Controls;
 
@@ -37,6 +39,23 @@ public sealed class AstroViewerControl : Control
     {
         ClipToBounds = true;
         Cursor = new Cursor(StandardCursorType.Cross);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Loc.LanguageChanged += OnLanguageChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Loc.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        InvalidateVisual();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -109,83 +128,143 @@ public sealed class AstroViewerControl : Control
 
         if (DataContext is not MainWindowViewModel vm || _renderedFrame is null || _bitmap is null)
         {
-            var ft = new FormattedText(
-                "Aucun fichier vidéo chargé.\nUtilisez 'Ajouter des fichiers...' ou glissez-déposez une vidéo ici.",
-                System.Globalization.CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                Typeface.Default,
-                13,
-                TextMutedBrush)
-            {
-                TextAlignment = TextAlignment.Center
-            };
-            context.DrawText(ft, new Point(Math.Max(10, (bounds.Width - ft.Width) / 2), Math.Max(10, (bounds.Height - ft.Height) / 2)));
+            DrawEmptyPlaceholder(context, bounds);
             return;
         }
 
+        var (destRect, displayScale, fullToScreenScale) = CalculateLayout(bounds, _renderedFrame.Width, _renderedFrame.Height);
+        _lastImageDestRect = destRect;
+
+        context.DrawImage(_bitmap, new Rect(0, 0, _bitmap.PixelSize.Width, _bitmap.PixelSize.Height), destRect);
+        context.DrawRectangle(null, FrameBorderPen, destRect);
+
+        DrawOverlays(context, vm, destRect, displayScale, fullToScreenScale);
+    }
+
+    private void DrawEmptyPlaceholder(DrawingContext context, Rect bounds)
+    {
+        string prompt = Loc.Get("Viewer.NoVideoPrompt");
+        var culture = Loc.IsEnglish ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+
+        var ft = new FormattedText(
+            prompt,
+            culture,
+            FlowDirection.LeftToRight,
+            Typeface.Default,
+            13,
+            TextMutedBrush)
+        {
+            TextAlignment = TextAlignment.Center
+        };
+
+        double textX = Math.Max(10, (bounds.Width - ft.Width) / 2);
+        double textY = Math.Max(10, (bounds.Height - ft.Height) / 2);
+        context.DrawText(ft, new Point(textX, textY));
+    }
+
+    private (Rect DestRect, double DisplayScale, double FullToScreenScale) CalculateLayout(Rect bounds, int frameWidth, int frameHeight)
+    {
         double availW = Math.Max(16, bounds.Width - 16);
         double availH = Math.Max(16, bounds.Height - 16);
-        double displayScale = Math.Min(availW / _renderedFrame.Width, availH / _renderedFrame.Height);
-        double drawW = _renderedFrame.Width * displayScale;
-        double drawH = _renderedFrame.Height * displayScale;
+        double displayScale = Math.Min(availW / frameWidth, availH / frameHeight);
+        double drawW = frameWidth * displayScale;
+        double drawH = frameHeight * displayScale;
         double offsetX = (bounds.Width - drawW) * 0.5;
         double offsetY = (bounds.Height - drawH) * 0.5;
 
-        _lastImageDestRect = new Rect(offsetX, offsetY, drawW, drawH);
-        context.DrawImage(_bitmap, new Rect(0, 0, _bitmap.PixelSize.Width, _bitmap.PixelSize.Height), _lastImageDestRect);
-        context.DrawRectangle(null, FrameBorderPen, _lastImageDestRect);
-
-        // Combined scale from full-resolution source coordinates to screen coordinates
         double fullToScreenScale = displayScale * _previewScale;
+        return (new Rect(offsetX, offsetY, drawW, drawH), displayScale, fullToScreenScale);
+    }
 
-        if (vm.ShowOverlayBoxes && !vm.PreviewCroppedOutput && _renderedDetection is not null)
+    private void DrawOverlays(
+        DrawingContext context,
+        MainWindowViewModel vm,
+        Rect destRect,
+        double displayScale,
+        double fullToScreenScale)
+    {
+        if (!vm.ShowOverlayBoxes || vm.PreviewCroppedOutput || _renderedDetection is null)
+            return;
+
+        switch (vm.SelectedStabilisationModeIndex)
         {
-            if (vm.SelectedStabilisationModeIndex == 1) // Object / Planetary
-            {
-                double cx = offsetX + (_renderedDetection.CentroidX * displayScale) - (vm.CropOffsetX * fullToScreenScale);
-                double cy = offsetY + (_renderedDetection.CentroidY * displayScale) - (vm.CropOffsetY * fullToScreenScale);
+            case 1: // Object / Planetary
+                DrawPlanetaryOverlay(context, vm, _renderedDetection, destRect, displayScale, fullToScreenScale);
+                break;
 
+            case 2: // Surface Feature (AFB)
+                DrawSurfaceFeatureOverlay(context, vm, destRect, fullToScreenScale);
+                break;
+
+            default: // None / manual crop
                 if (vm.EnableCropping)
                 {
-                    double cw = vm.CropWidth * fullToScreenScale;
-                    double ch = vm.CropHeight * fullToScreenScale;
-                    if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
-                    context.DrawRectangle(null, CropPen, new Rect(cx - cw / 2, cy - ch / 2, cw, ch));
+                    DrawDefaultCropOverlay(context, vm, destRect, fullToScreenScale);
                 }
-
-                context.DrawLine(CrossPen, new Point(cx - 10, cy), new Point(cx + 10, cy));
-                context.DrawLine(CrossPen, new Point(cx, cy - 10), new Point(cx, cy + 10));
-            }
-            else if (vm.SelectedStabilisationModeIndex == 2) // Surface Feature (AFB)
-            {
-                double bx = offsetX + vm.TargetBoxX * fullToScreenScale;
-                double by = offsetY + vm.TargetBoxY * fullToScreenScale;
-
-                if (vm.EnableCropping)
-                {
-                    double cw = vm.CropWidth * fullToScreenScale;
-                    double ch = vm.CropHeight * fullToScreenScale;
-                    context.DrawRectangle(null, CropPen, new Rect(bx - cw / 2, by - ch / 2, cw, ch));
-                }
-
-                double aoiW = 160 * fullToScreenScale;
-                double aoiH = 160 * fullToScreenScale;
-                context.DrawRectangle(null, AoiPen, new Rect(bx - aoiW / 2, by - aoiH / 2, aoiW, aoiH));
-
-                double afbW = vm.AfbSize * fullToScreenScale;
-                double afbH = vm.AfbSize * fullToScreenScale;
-                context.DrawRectangle(null, AfbPen, new Rect(bx - afbW / 2, by - afbH / 2, afbW, afbH));
-            }
-            else if (vm.EnableCropping)
-            {
-                double cx = offsetX + drawW * 0.5 - (vm.CropOffsetX * fullToScreenScale);
-                double cy = offsetY + drawH * 0.5 - (vm.CropOffsetY * fullToScreenScale);
-                double cw = vm.CropWidth * fullToScreenScale;
-                double ch = vm.CropHeight * fullToScreenScale;
-                if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
-                context.DrawRectangle(null, CropPen, new Rect(cx - cw / 2, cy - ch / 2, cw, ch));
-            }
+                break;
         }
+    }
+
+    private static void DrawPlanetaryOverlay(
+        DrawingContext context,
+        MainWindowViewModel vm,
+        DetectionResult detection,
+        Rect destRect,
+        double displayScale,
+        double fullToScreenScale)
+    {
+        double cx = destRect.X + (detection.CentroidX * displayScale) - (vm.CropOffsetX * fullToScreenScale);
+        double cy = destRect.Y + (detection.CentroidY * displayScale) - (vm.CropOffsetY * fullToScreenScale);
+
+        if (vm.EnableCropping)
+        {
+            double cw = vm.CropWidth * fullToScreenScale;
+            double ch = vm.CropHeight * fullToScreenScale;
+            if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
+            context.DrawRectangle(null, CropPen, new Rect(cx - cw / 2, cy - ch / 2, cw, ch));
+        }
+
+        context.DrawLine(CrossPen, new Point(cx - 10, cy), new Point(cx + 10, cy));
+        context.DrawLine(CrossPen, new Point(cx, cy - 10), new Point(cx, cy + 10));
+    }
+
+    private static void DrawSurfaceFeatureOverlay(
+        DrawingContext context,
+        MainWindowViewModel vm,
+        Rect destRect,
+        double fullToScreenScale)
+    {
+        double bx = destRect.X + vm.TargetBoxX * fullToScreenScale;
+        double by = destRect.Y + vm.TargetBoxY * fullToScreenScale;
+
+        if (vm.EnableCropping)
+        {
+            double cw = vm.CropWidth * fullToScreenScale;
+            double ch = vm.CropHeight * fullToScreenScale;
+            context.DrawRectangle(null, CropPen, new Rect(bx - cw / 2, by - ch / 2, cw, ch));
+        }
+
+        double aoiW = 160 * fullToScreenScale;
+        double aoiH = 160 * fullToScreenScale;
+        context.DrawRectangle(null, AoiPen, new Rect(bx - aoiW / 2, by - aoiH / 2, aoiW, aoiH));
+
+        double afbW = vm.AfbSize * fullToScreenScale;
+        double afbH = vm.AfbSize * fullToScreenScale;
+        context.DrawRectangle(null, AfbPen, new Rect(bx - afbW / 2, by - afbH / 2, afbW, afbH));
+    }
+
+    private static void DrawDefaultCropOverlay(
+        DrawingContext context,
+        MainWindowViewModel vm,
+        Rect destRect,
+        double fullToScreenScale)
+    {
+        double cx = destRect.X + destRect.Width * 0.5 - (vm.CropOffsetX * fullToScreenScale);
+        double cy = destRect.Y + destRect.Height * 0.5 - (vm.CropOffsetY * fullToScreenScale);
+        double cw = vm.CropWidth * fullToScreenScale;
+        double ch = vm.CropHeight * fullToScreenScale;
+        if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
+        context.DrawRectangle(null, CropPen, new Rect(cx - cw / 2, cy - ch / 2, cw, ch));
     }
 
     private unsafe void EnsureBitmapAndBlit(AstroFrame frame, int threshold8Bit, bool highlightRed)
@@ -201,66 +280,124 @@ public sealed class AstroViewerControl : Control
         int stride = fb.RowBytes;
         int w = frame.Width;
         int h = frame.Height;
-        int ch = frame.Channels;
         ushort thresh16 = (ushort)(threshold8Bit * 257);
 
         fixed (ushort* pData = frame.Data)
         {
-            for (int y = 0; y < h; y++)
+            switch (frame.Channels)
             {
-                byte* row = ptr + y * stride;
-                int rowOffset = y * w;
+                case 1:
+                    BlitMonochrome(pData, ptr, w, h, stride, thresh16, highlightRed);
+                    break;
+                case 3:
+                default:
+                    BlitColorRgb(pData, ptr, w, h, stride, thresh16, highlightRed);
+                    break;
+            }
+        }
+    }
 
-                if (ch == 1)
+    private static unsafe void BlitMonochrome(
+        ushort* pData,
+        byte* ptr,
+        int w,
+        int h,
+        int stride,
+        ushort thresh16,
+        bool highlightRed)
+    {
+        for (int y = 0; y < h; y++)
+        {
+            byte* row = ptr + y * stride;
+            int rowOffset = y * w;
+
+            if (highlightRed)
+            {
+                for (int x = 0; x < w; x++)
                 {
-                    for (int x = 0; x < w; x++)
+                    ushort v = pData[rowOffset + x];
+                    byte g = (byte)(v >> 8);
+                    int d = x * 4;
+                    if (v >= thresh16)
                     {
-                        ushort v = pData[rowOffset + x];
-                        byte g = (byte)(v >> 8);
-                        int d = x * 4;
-                        if (highlightRed && v >= thresh16)
-                        {
-                            row[d] = (byte)(g >> 2);
-                            row[d + 1] = (byte)(g >> 2);
-                            row[d + 2] = 255;
-                            row[d + 3] = 255;
-                        }
-                        else
-                        {
-                            row[d] = g;
-                            row[d + 1] = g;
-                            row[d + 2] = g;
-                            row[d + 3] = 255;
-                        }
-                    }
-                }
-                else
-                {
-                    for (int x = 0; x < w; x++)
-                    {
-                        int s = (rowOffset + x) * 3;
-                        ushort sr = pData[s], sg = pData[s + 1], sb = pData[s + 2];
-                        byte r = (byte)(sr >> 8);
-                        byte g = (byte)(sg >> 8);
-                        byte b = (byte)(sb >> 8);
-
-                        if (highlightRed)
-                        {
-                            ushort maxSample = sr >= sg ? (sr >= sb ? sr : sb) : (sg >= sb ? sg : sb);
-                            if (maxSample >= thresh16)
-                            {
-                                r = 255;
-                                g = (byte)(g >> 2);
-                                b = (byte)(b >> 2);
-                            }
-                        }
-
-                        int d = x * 4;
-                        row[d] = b;
-                        row[d + 1] = g;
-                        row[d + 2] = r;
+                        row[d] = (byte)(g >> 2);
+                        row[d + 1] = (byte)(g >> 2);
+                        row[d + 2] = 255;
                         row[d + 3] = 255;
                     }
+                    else
+                    {
+                        row[d] = g;
+                        row[d + 1] = g;
+                        row[d + 2] = g;
+                        row[d + 3] = 255;
+                    }
+                }
+            }
+            else
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    byte g = (byte)(pData[rowOffset + x] >> 8);
+                    int d = x * 4;
+                    row[d] = g;
+                    row[d + 1] = g;
+                    row[d + 2] = g;
+                    row[d + 3] = 255;
+                }
+            }
+        }
+    }
+
+    private static unsafe void BlitColorRgb(
+        ushort* pData,
+        byte* ptr,
+        int w,
+        int h,
+        int stride,
+        ushort thresh16,
+        bool highlightRed)
+    {
+        for (int y = 0; y < h; y++)
+        {
+            byte* row = ptr + y * stride;
+            int rowOffset = y * w;
+
+            if (highlightRed)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int s = (rowOffset + x) * 3;
+                    ushort sr = pData[s], sg = pData[s + 1], sb = pData[s + 2];
+                    byte r = (byte)(sr >> 8);
+                    byte g = (byte)(sg >> 8);
+                    byte b = (byte)(sb >> 8);
+
+                    ushort maxSample = sr >= sg ? (sr >= sb ? sr : sb) : (sg >= sb ? sg : sb);
+                    if (maxSample >= thresh16)
+                    {
+                        r = 255;
+                        g = (byte)(g >> 2);
+                        b = (byte)(b >> 2);
+                    }
+
+                    int d = x * 4;
+                    row[d] = b;
+                    row[d + 1] = g;
+                    row[d + 2] = r;
+                    row[d + 3] = 255;
+                }
+            }
+            else
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int s = (rowOffset + x) * 3;
+                    int d = x * 4;
+                    row[d] = (byte)(pData[s + 2] >> 8);     // b
+                    row[d + 1] = (byte)(pData[s + 1] >> 8); // g
+                    row[d + 2] = (byte)(pData[s] >> 8);     // r
+                    row[d + 3] = 255;
                 }
             }
         }

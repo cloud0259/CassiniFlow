@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Outbound;
@@ -418,37 +418,15 @@ public sealed class ProfileSerializer : IProfileSerializer
 
         if (o.RejectOverexposedFrames) args.Add($"-oe={o.MaxOverexposedPixels}");
 
-        if (o.StabilisationMode == StabilisationMode.ObjectPlanetary)
+        switch (o.StabilisationMode)
         {
-            if (o.CheckPlanetObjectPresent)
-            {
-                args.Add("-chk");
-                args.Add($"-ms={o.MinimumObjectSizePixels}");
-                if (!o.AutoDetectionThreshold) args.Add($"-mp={o.ManualDetectionThreshold}");
-                if (o.EdgeInShadow != LunarShadowEdge.None) args.Add($"-shdw={(int)o.EdgeInShadow}");
-            }
-            if (o.CentreObjectInFrame) args.Add("-ctr");
-        }
-        else if (o.StabilisationMode == StabilisationMode.SurfaceFeature && o.EnableSurfaceStabilisation)
-        {
-            args.Add("-en_ss");
-            if (o.EnableSurfaceFeatureTracking) args.Add("-en_surface_feature_tracking");
-            args.Add($"-afb_x={o.AfbX}");
-            args.Add($"-afb_y={o.AfbY}");
-            args.Add($"-afb_width={o.AfbWidth}");
-            args.Add($"-afb_height={o.AfbHeight}");
-            if (o.AfbRejectFramesWithoutAnchor) args.Add("-freject");
+            case StabilisationMode.ObjectPlanetary:
+                AddPlanetaryCliArgs(args, o);
+                break;
 
-            if (o.AoiEnable)
-            {
-                args.Add("-aoi");
-                args.Add($"-aoi_x={o.AoiX}");
-                args.Add($"-aoi_y={o.AoiY}");
-                args.Add($"-aoi_width={o.AoiWidth}");
-                args.Add($"-aoi_height={o.AoiHeight}");
-                if (o.AoiRejectFramesWithoutCompleteArea) args.Add("-aoi_reject");
-                if (o.AoiCropFrames) args.Add("-aoi_crop");
-            }
+            case StabilisationMode.SurfaceFeature when o.EnableSurfaceStabilisation:
+                AddSurfaceFeatureCliArgs(args, o);
+                break;
         }
 
         if (o.EnableCropping)
@@ -511,5 +489,39 @@ public sealed class ProfileSerializer : IProfileSerializer
         if (o.GenerateWinJuposFilenames) args.Add($"-wjpos_time={(int)o.WinJuposTimeMode}");
 
         return args;
+    }
+
+    private static void AddPlanetaryCliArgs(List<string> args, ProcessingOptions o)
+    {
+        if (o.CheckPlanetObjectPresent)
+        {
+            args.Add("-chk");
+            args.Add($"-ms={o.MinimumObjectSizePixels}");
+            if (!o.AutoDetectionThreshold) args.Add($"-mp={o.ManualDetectionThreshold}");
+            if (o.EdgeInShadow != LunarShadowEdge.None) args.Add($"-shdw={(int)o.EdgeInShadow}");
+        }
+        if (o.CentreObjectInFrame) args.Add("-ctr");
+    }
+
+    private static void AddSurfaceFeatureCliArgs(List<string> args, ProcessingOptions o)
+    {
+        args.Add("-en_ss");
+        if (o.EnableSurfaceFeatureTracking) args.Add("-en_surface_feature_tracking");
+        args.Add($"-afb_x={o.AfbX}");
+        args.Add($"-afb_y={o.AfbY}");
+        args.Add($"-afb_width={o.AfbWidth}");
+        args.Add($"-afb_height={o.AfbHeight}");
+        if (o.AfbRejectFramesWithoutAnchor) args.Add("-freject");
+
+        if (o.AoiEnable)
+        {
+            args.Add("-aoi");
+            args.Add($"-aoi_x={o.AoiX}");
+            args.Add($"-aoi_y={o.AoiY}");
+            args.Add($"-aoi_width={o.AoiWidth}");
+            args.Add($"-aoi_height={o.AoiHeight}");
+            if (o.AoiRejectFramesWithoutCompleteArea) args.Add("-aoi_reject");
+            if (o.AoiCropFrames) args.Add("-aoi_crop");
+        }
     }
 }

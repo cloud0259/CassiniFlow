@@ -29,9 +29,7 @@ public static class ImageProcessor
 
             for (int i = 0; i < 65536; i++)
             {
-                double normalized = (i / 65535.0) * dGain;
-                if (normalized > 1.0) normalized = 1.0;
-                else if (normalized < 0.0) normalized = 0.0;
+                double normalized = Math.Clamp((i / 65535.0) * dGain, 0.0, 1.0);
 
                 if (applyGamma)
                 {
@@ -190,32 +188,29 @@ public static class ImageProcessor
             for (int x = 0; x < w; x++)
             {
                 bool isRedCol = (x & 1) == rx;
-                ushort r, g, b;
-
-                if (isRedRow && isRedCol)
+                (ushort r, ushort g, ushort b) = (isRedRow, isRedCol) switch
                 {
-                    r = sData[rowBase + x];
-                    g = (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2);
-                    b = (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2);
-                }
-                else if (!isRedRow && !isRedCol)
-                {
-                    b = sData[rowBase + x];
-                    g = (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2);
-                    r = (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2);
-                }
-                else if (isRedRow && !isRedCol)
-                {
-                    g = sData[rowBase + x];
-                    r = (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1);
-                    b = (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1);
-                }
-                else
-                {
-                    g = sData[rowBase + x];
-                    b = (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1);
-                    r = (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1);
-                }
+                    (true, true) => (
+                        sData[rowBase + x],
+                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2)
+                    ),
+                    (false, false) => (
+                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2),
+                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                        sData[rowBase + x]
+                    ),
+                    (true, false) => (
+                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1),
+                        sData[rowBase + x],
+                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1)
+                    ),
+                    _ => (
+                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1),
+                        sData[rowBase + x],
+                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1)
+                    )
+                };
 
                 int outIdx = (rowBase + x) * 3;
                 dData[outIdx] = r;

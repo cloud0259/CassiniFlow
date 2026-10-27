@@ -1,4 +1,4 @@
-﻿using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Infrastructure.Synthetic;
 
@@ -163,31 +163,33 @@ public static class SyntheticAstroGenerator
                 double globeDist = Math.Sqrt(rx * rx + (ry * 1.12) * (ry * 1.12));
                 double ringEll = Math.Sqrt((rx / 96.0) * (rx / 96.0) + (ry / 28.0) * (ry / 28.0));
 
-                if (globeDist <= 34.0)
+                (ushort r, ushort g, ushort b) = globeDist switch
                 {
-                    double limb = Math.Sqrt(1.0 - (globeDist / 36.0) * (globeDist / 36.0));
-                    double band = 1.0 - 0.15 * sharpness * Math.Sin(ry * 0.25);
-                    frame.Data[idx] = (ushort)(54000 * limb * band);
-                    frame.Data[idx + 1] = (ushort)(48000 * limb * band);
-                    frame.Data[idx + 2] = (ushort)(35000 * limb * band);
-                }
-                else if (ringEll is >= 0.48 and <= 1.0)
-                {
-                    // Cassini division around 0.80
-                    double cassini = Math.Abs(ringEll - 0.80) < 0.035 ? (1.0 - 0.75 * sharpness) : 1.0;
-                    frame.Data[idx] = (ushort)(50000 * cassini);
-                    frame.Data[idx + 1] = (ushort)(44500 * cassini);
-                    frame.Data[idx + 2] = (ushort)(34000 * cassini);
-                }
-                else
-                {
-                    frame.Data[idx] = 450;
-                    frame.Data[idx + 1] = 450;
-                    frame.Data[idx + 2] = 450;
-                }
+                    <= 34.0 => ComputeSaturnGlobePixel(globeDist, ry, sharpness),
+                    _ when ringEll is >= 0.48 and <= 1.0 => ComputeSaturnRingPixel(ringEll, sharpness),
+                    _ => ((ushort)450, (ushort)450, (ushort)450)
+                };
+
+                frame.Data[idx] = r;
+                frame.Data[idx + 1] = g;
+                frame.Data[idx + 2] = b;
             }
         }
 
         return frame;
+    }
+
+    private static (ushort R, ushort G, ushort B) ComputeSaturnGlobePixel(double globeDist, double ry, double sharpness)
+    {
+        double limb = Math.Sqrt(1.0 - (globeDist / 36.0) * (globeDist / 36.0));
+        double band = 1.0 - 0.15 * sharpness * Math.Sin(ry * 0.25);
+        return ((ushort)(54000 * limb * band), (ushort)(48000 * limb * band), (ushort)(35000 * limb * band));
+    }
+
+    private static (ushort R, ushort G, ushort B) ComputeSaturnRingPixel(double ringEll, double sharpness)
+    {
+        // Cassini division around 0.80
+        double cassini = Math.Abs(ringEll - 0.80) < 0.035 ? (1.0 - 0.75 * sharpness) : 1.0;
+        return ((ushort)(50000 * cassini), (ushort)(44500 * cassini), (ushort)(34000 * cassini));
     }
 }

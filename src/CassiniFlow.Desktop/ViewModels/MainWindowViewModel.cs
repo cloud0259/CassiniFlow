@@ -306,17 +306,21 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void SetAnchorOrCropTarget(int x, int y)
     {
-        if (SelectedStabilisationModeIndex == 2)
+        switch (SelectedStabilisationModeIndex)
         {
-            TargetBoxX = x;
-            TargetBoxY = y;
-            RequestPreviewUpdate(reloadFromDisk: false);
-        }
-        else if (SelectedSourceFile is not null)
-        {
-            CropOffsetX = (SelectedSourceFile.Width / 2) - x;
-            CropOffsetY = (SelectedSourceFile.Height / 2) - y;
-            RequestPreviewUpdate(reloadFromDisk: false);
+            case 2:
+                TargetBoxX = x;
+                TargetBoxY = y;
+                RequestPreviewUpdate(reloadFromDisk: false);
+                break;
+            default:
+                if (SelectedSourceFile is not null)
+                {
+                    CropOffsetX = (SelectedSourceFile.Width / 2) - x;
+                    CropOffsetY = (SelectedSourceFile.Height / 2) - y;
+                    RequestPreviewUpdate(reloadFromDisk: false);
+                }
+                break;
         }
     }
 
@@ -455,22 +459,21 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.Delay(100);
 
         var sizes = SourceFiles.Where(f => f.PlanetDiameterPx.HasValue).Select(f => f.PlanetDiameterPx!.Value).ToList();
-        if (sizes.Count >= 2)
+        ConsoleLogText = sizes.Count switch
         {
-            double min = sizes.Min(), max = sizes.Max();
-            double spread = (max - min) / max * 100.0;
-            ConsoleLogText = spread > 10.0
-                ? Loc.Pick($"⚠ Tailles d'objet différentes : de {min:F0} à {max:F0} px (écart {spread:F0} %). Les images ne seront pas à la même échelle lors de l'alignement.", $"⚠ Different object sizes: from {min:F0} to {max:F0} px ({spread:F0} % spread). Images will not be at the same scale when aligned.")
-                : Loc.Pick($"✔ Tailles d'objet homogènes : de {min:F0} à {max:F0} px (écart {spread:F0} %).", $"✔ Consistent object sizes: from {min:F0} to {max:F0} px ({spread:F0} % spread).");
-        }
-        else if (sizes.Count == 1)
-        {
-            ConsoleLogText = Loc.Pick($"Taille de l'objet : {sizes[0]:F0} px.", $"Object size: {sizes[0]:F0} px.");
-        }
-        else
-        {
-            ConsoleLogText = Loc.Pick("Taille de l'objet non détectable dans les fichiers (vérifiez le seuil / la présence de la planète).", "Object size could not be detected in the files (check the threshold / that the planet is present).");
-        }
+            0 => Loc.Pick("Taille de l'objet non détectable dans les fichiers (vérifiez le seuil / la présence de la planète).", "Object size could not be detected in the files (check the threshold / that the planet is present)."),
+            1 => Loc.Pick($"Taille de l'objet : {sizes[0]:F0} px.", $"Object size: {sizes[0]:F0} px."),
+            _ => FormatObjectSizeSpread(sizes)
+        };
+    }
+
+    private static string FormatObjectSizeSpread(IReadOnlyList<double> sizes)
+    {
+        double min = sizes.Min(), max = sizes.Max();
+        double spread = (max - min) / max * 100.0;
+        return spread > 10.0
+            ? Loc.Pick($"⚠ Tailles d'objet différentes : de {min:F0} à {max:F0} px (écart {spread:F0} %). Les images ne seront pas à la même échelle lors de l'alignement.", $"⚠ Different object sizes: from {min:F0} to {max:F0} px ({spread:F0} % spread). Images will not be at the same scale when aligned.")
+            : Loc.Pick($"✔ Tailles d'objet homogènes : de {min:F0} à {max:F0} px (écart {spread:F0} %).", $"✔ Consistent object sizes: from {min:F0} to {max:F0} px ({spread:F0} % spread).");
     }
 
 

@@ -189,6 +189,7 @@
     "Last": ">|",
     "NoFileSelected": "No file selected",
     "LoadVideoPrompt": "Load a video or images in the '1. Source Files' tab",
+    "NoVideoPrompt": "No video file loaded.\nUse 'Add files...' or drag and drop a video here.",
     "QualityPrefix": "Quality: ",
     "QualityNA": "Quality: -"
   },

@@ -189,6 +189,7 @@
     "Last": ">|",
     "NoFileSelected": "Aucun fichier sélectionné",
     "LoadVideoPrompt": "Chargez une vidéo ou des images dans l'onglet '1. Source Files'",
+    "NoVideoPrompt": "Aucun fichier vidéo chargé.\nUtilisez 'Ajouter des fichiers...' ou glissez-déposez une vidéo ici.",
     "QualityPrefix": "Qualité : ",
     "QualityNA": "Qualité : -"
   },

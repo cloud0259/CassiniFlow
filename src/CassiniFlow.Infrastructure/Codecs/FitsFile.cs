@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 using CassiniFlow.Domain.Models;
@@ -112,45 +112,60 @@ public static class FitsFile
         };
 
         int pixelCount = meta.Width * meta.Height;
-        if (meta.BitPix == 8)
+        switch (meta.BitPix)
         {
-            byte[] buf = new byte[pixelCount * channels];
-            fs.ReadExactly(buf);
-            if (channels == 1)
-            {
-                for (int i = 0; i < pixelCount; i++) frame.Data[i] = (ushort)(buf[i] * 257);
-            }
-            else
-            {
-                // FITS stores planar R, G, B
-                for (int i = 0; i < pixelCount; i++)
-                {
-                    frame.Data[i * 3] = (ushort)(buf[i] * 257);
-                    frame.Data[i * 3 + 1] = (ushort)(buf[pixelCount + i] * 257);
-                    frame.Data[i * 3 + 2] = (ushort)(buf[pixelCount * 2 + i] * 257);
-                }
-            }
-        }
-        else if (meta.BitPix == 16)
-        {
-            byte[] buf = new byte[pixelCount * channels * 2];
-            fs.ReadExactly(buf);
-            ReadOnlySpan<byte> span = buf;
-            for (int c = 0; c < channels; c++)
-            {
-                for (int i = 0; i < pixelCount; i++)
-                {
-                    int srcIdx = (c * pixelCount + i) * 2;
-                    short s = BinaryPrimitives.ReadInt16BigEndian(span.Slice(srcIdx, 2));
-                    double physical = meta.BZero + meta.BScale * s;
-                    ushort u = (ushort)Math.Clamp(physical, 0, 65535);
-                    if (channels == 1) frame.Data[i] = u;
-                    else frame.Data[i * 3 + c] = u;
-                }
-            }
+            case 8:
+                Read8BitPlanes(fs, frame, pixelCount, channels);
+                break;
+
+            case 16:
+                Read16BitPlanes(fs, frame, meta, pixelCount, channels);
+                break;
+
+            default:
+                throw new NotSupportedException($"Unsupported FITS BITPIX={meta.BitPix}. Only 8 and 16-bit are currently supported.");
         }
 
         return frame;
+    }
+
+    private static void Read8BitPlanes(FileStream fs, AstroFrame frame, int pixelCount, int channels)
+    {
+        byte[] buf = new byte[pixelCount * channels];
+        fs.ReadExactly(buf);
+        if (channels == 1)
+        {
+            for (int i = 0; i < pixelCount; i++) frame.Data[i] = (ushort)(buf[i] * 257);
+        }
+        else
+        {
+            // FITS stores planar R, G, B
+            for (int i = 0; i < pixelCount; i++)
+            {
+                frame.Data[i * 3] = (ushort)(buf[i] * 257);
+                frame.Data[i * 3 + 1] = (ushort)(buf[pixelCount + i] * 257);
+                frame.Data[i * 3 + 2] = (ushort)(buf[pixelCount * 2 + i] * 257);
+            }
+        }
+    }
+
+    private static void Read16BitPlanes(FileStream fs, AstroFrame frame, FitsMetadata meta, int pixelCount, int channels)
+    {
+        byte[] buf = new byte[pixelCount * channels * 2];
+        fs.ReadExactly(buf);
+        ReadOnlySpan<byte> span = buf;
+        for (int c = 0; c < channels; c++)
+        {
+            for (int i = 0; i < pixelCount; i++)
+            {
+                int srcIdx = (c * pixelCount + i) * 2;
+                short s = BinaryPrimitives.ReadInt16BigEndian(span.Slice(srcIdx, 2));
+                double physical = meta.BZero + meta.BScale * s;
+                ushort u = (ushort)Math.Clamp(physical, 0, 65535);
+                if (channels == 1) frame.Data[i] = u;
+                else frame.Data[i * 3 + c] = u;
+            }
+        }
     }
 
     public static void WriteFrame(string outputPath, AstroFrame frame)

@@ -56,10 +56,12 @@ public class LocalizationTests
         Loc.SetLanguage(AppLanguage.French, save: false);
         Assert.False(Loc.IsEnglish);
         Assert.Equal("Quitter", Loc.Get("Menu.Exit"));
+        Assert.Contains("Aucun fichier vidéo chargé", Loc.Get("Viewer.NoVideoPrompt"));
 
         Loc.SetLanguage(AppLanguage.English, save: false);
         Assert.True(Loc.IsEnglish);
         Assert.Equal("Exit", Loc.Get("Menu.Exit"));
+        Assert.Contains("No video file loaded", Loc.Get("Viewer.NoVideoPrompt"));
 
         // Reset to French
         Loc.SetLanguage(AppLanguage.French, save: false);

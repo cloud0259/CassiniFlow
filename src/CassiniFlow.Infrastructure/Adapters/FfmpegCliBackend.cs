@@ -98,35 +98,9 @@ public static class FfmpegCliBackend
                         durationSec = streamDurVal;
                     }
 
-                    int rotationDeg = 0;
-                    if (s.TryGetProperty("tags", out var tags) &&
-                        tags.TryGetProperty("rotate", out var rotTag) &&
-                        int.TryParse(rotTag.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int rTag))
-                    {
-                        rotationDeg = rTag;
-                    }
-                    else if (s.TryGetProperty("side_data_list", out var sideList) && sideList.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var sd in sideList.EnumerateArray())
-                        {
-                            if (sd.TryGetProperty("rotation", out var rotEl))
-                            {
-                                if (rotEl.ValueKind == JsonValueKind.Number && rotEl.TryGetDouble(out double rNum))
-                                {
-                                    rotationDeg = (int)Math.Round(rNum);
-                                    break;
-                                }
-                                if (rotEl.ValueKind == JsonValueKind.String &&
-                                    double.TryParse(rotEl.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double rStr))
-                                {
-                                    rotationDeg = (int)Math.Round(rStr);
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                    int rotationDeg = ExtractRotation(s);
 
-                    // ffmpeg auto-rotates 90Â°/270Â° smartphone videos during decoding, so swap width & height to match decoded output
+                    // ffmpeg auto-rotates 90°/270° smartphone videos during decoding, so swap width & height to match decoded output
                     if (Math.Abs(rotationDeg) % 180 == 90)
                     {
                         (width, height) = (height, width);
@@ -145,16 +119,7 @@ public static class FfmpegCliBackend
                         }
                     }
 
-                    if (s.TryGetProperty("nb_frames", out var nbEl) &&
-                        int.TryParse(nbEl.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedFrames) &&
-                        parsedFrames > 0)
-                    {
-                        frames = parsedFrames;
-                    }
-                    else if (durationSec > 0 && fps > 0)
-                    {
-                        frames = Math.Max(1, (int)Math.Round(durationSec * fps));
-                    }
+                    frames = ExtractFrameCount(s, durationSec, fps, frames);
                 }
             }
         }
@@ -182,6 +147,53 @@ public static class FfmpegCliBackend
             fps,
             fi.Length,
             sb.ToString());
+    }
+
+    private static int ExtractRotation(JsonElement stream)
+    {
+        if (stream.TryGetProperty("tags", out var tags) &&
+            tags.TryGetProperty("rotate", out var rotTag) &&
+            int.TryParse(rotTag.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int rTag))
+        {
+            return rTag;
+        }
+
+        if (stream.TryGetProperty("side_data_list", out var sideList) && sideList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var sd in sideList.EnumerateArray())
+            {
+                if (sd.TryGetProperty("rotation", out var rotEl))
+                {
+                    switch (rotEl.ValueKind)
+                    {
+                        case JsonValueKind.Number when rotEl.TryGetDouble(out double rNum):
+                            return (int)Math.Round(rNum);
+
+                        case JsonValueKind.String when double.TryParse(rotEl.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double rStr):
+                            return (int)Math.Round(rStr);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    private static int ExtractFrameCount(JsonElement stream, double durationSec, double fps, int defaultFrames)
+    {
+        if (stream.TryGetProperty("nb_frames", out var nbEl) &&
+            int.TryParse(nbEl.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedFrames) &&
+            parsedFrames > 0)
+        {
+            return parsedFrames;
+        }
+
+        if (durationSec > 0 && fps > 0)
+        {
+            return Math.Max(1, (int)Math.Round(durationSec * fps));
+        }
+
+        return defaultFrames;
     }
 
     public static UniversalPreviewFrame ReadPreviewFrame(string filePath, int frameIndex, int maxPreviewDim = 960)

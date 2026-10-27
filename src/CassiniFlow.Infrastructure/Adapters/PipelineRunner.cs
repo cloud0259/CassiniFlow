@@ -218,12 +218,13 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         for (int i = 0; i < sortedFrames.Count; i++)
         {
             weighted.Add(sortedFrames[i]);
-            if (i < q25)
+            int bonus = i switch
             {
-                weighted.Add(sortedFrames[i]);
-                weighted.Add(sortedFrames[i]);
-            }
-            else if (i < q50)
+                _ when i < q25 => 2,
+                _ when i < q50 => 1,
+                _ => 0
+            };
+            for (int b = 0; b < bonus; b++)
             {
                 weighted.Add(sortedFrames[i]);
             }
@@ -431,66 +432,70 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             // CASE 1: Streaming Direct (No Quality Sorting and (huge uncropped output > RAM budget OR image sequence))
             if (!options.EnableQualityEstimation && !options.AnimationReversePlay && (!options.AnimationRepeatAllSequence || options.AnimationRepeatAllCount <= 1) && (!fitsInSinglePassHeap || isImageOutput))
             {
-                VideoWriter? videoWriter = null;
-                Mat? outBgrMat = null;
-                SerStreamWriter? serWriter = null;
-                List<AstroFrame>? otherFrames = null;
+                using var writer = new PipelineFrameWriter(
+                    outputPath,
+                    outputDirectory,
+                    fullStem,
+                    options.OutputFormat,
+                    outW,
+                    outH,
+                    outChannels,
+                    outFps,
+                    isSource16Bit,
+                    totalInputFrames,
+                    options.AddLeadingZeros,
+                    isImageOutput);
 
-                try
+                int processedCount = 0;
+                int reportStep = Math.Max(1, totalInputFrames / 20);
+
+                for (int fIdx = 0; fIdx < groupFiles.Count; fIdx++)
                 {
-                    if (UniversalMediaReader.IsOpenCvNativeAvailable && options.OutputFormat is OutputFormat.Avi or OutputFormat.Mp4)
-                    {
-                        int fourcc = options.OutputFormat == OutputFormat.Mp4
-                            ? VideoWriter.FourCC('m', 'p', '4', 'v')
-                            : VideoWriter.FourCC('M', 'J', 'P', 'G');
-                        videoWriter = new VideoWriter(outputPath, fourcc, outFps, new Size(outW, outH), isColor: true);
-                        outBgrMat = new Mat(outH, outW, MatType.CV_8UC3);
-                    }
-                    else if (options.OutputFormat == OutputFormat.Ser)
-                    {
-                        serWriter = new SerStreamWriter(
-                            outputPath,
-                            outW,
-                            outH,
-                            outChannels,
-                            pixelDepthPerPlane: isSource16Bit ? 16 : 8,
-                            dateTimeTicks: DateTime.Now.Ticks,
-                            dateTimeUtcTicks: DateTime.UtcNow.Ticks);
-                    }
-                    else if (!isImageOutput)
-                    {
-                        otherFrames = [];
-                    }
+                    string path = groupFiles[fIdx];
+                    var info = fileSummaries[fIdx];
+                    int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
+                    int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
 
-                    int processedCount = 0;
-                    int reportStep = Math.Max(1, totalInputFrames / 20);
+                    StreamFramesThroughProcessor(
+                        path,
+                        startIdx,
+                        endIdx,
+                        options,
+                        checkPlanet,
+                        centrePlanet,
+                        cancellationToken,
+                        (frame, _) =>
+                        {
+                            processedCount++;
+                            if (frame is null)
+                            {
+                                discardedNoPlanet++;
+                            }
+                            else
+                            {
+                                writer.WriteFrame(hasAutoRotation ? AutoRotationAligner.Rotate(frame, fileRotationDeg[fIdx]) : frame);
+                            }
 
-                    void WriteSingleOutputFrame(AstroFrame frame)
-                    {
-                        if (videoWriter is not null && outBgrMat is not null && videoWriter.IsOpened())
-                        {
-                            UniversalMediaReader.CopyAstroFrameToBgrMat(frame, outBgrMat, outW, outH);
-                            videoWriter.Write(outBgrMat);
-                            outputFramesWritten++;
-                        }
-                        else if (serWriter is not null)
-                        {
-                            serWriter.WriteFrame(frame);
-                            outputFramesWritten++;
-                        }
-                        else if (isImageOutput)
-                        {
-                            int seqNumber = outputFramesWritten + 1;
-                            string framePath = GetImageFramePath(outputDirectory, fullStem, options.OutputFormat, seqNumber, totalInputFrames, options.AddLeadingZeros);
-                            UniversalMediaReader.WriteSingleImageFile(framePath, frame, isSource16Bit);
-                            outputFramesWritten++;
-                        }
-                        else if (otherFrames is not null)
-                        {
-                            otherFrames.Add(frame);
-                            outputFramesWritten++;
-                        }
-                    }
+                            if (processedCount % reportStep == 0 || processedCount == totalInputFrames)
+                            {
+                                int pct = Math.Clamp((int)(processedCount * 95.0 / Math.Max(1, totalInputFrames)), 5, 98);
+                                progress?.Report(new PipelineProgressReport(
+                                    "Streaming Direct",
+                                    pct,
+                                    Path.GetFileName(path),
+                                    processedCount,
+                                    totalInputFrames,
+                                    $"{processedCount}/{totalInputFrames} frames traitées ({writer.FramesWritten} écrites)..."));
+                            }
+                        });
+                }
+
+                // Fallback if 100% of frames were rejected by planet threshold on a personal video
+                if (writer.FramesWritten == 0 && totalInputFrames > 0 && checkPlanet)
+                {
+                    progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé sur fond noir détecté — encodage de toutes les frames sans rejet..."));
+                    discardedNoPlanet = 0;
+                    processedCount = 0;
 
                     for (int fIdx = 0; fIdx < groupFiles.Count; fIdx++)
                     {
@@ -504,89 +509,23 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                             startIdx,
                             endIdx,
                             options,
-                            checkPlanet,
-                            centrePlanet,
+                            enforcePlanetRejection: false,
+                            centrePlanet: centrePlanet,
                             cancellationToken,
                             (frame, _) =>
                             {
                                 processedCount++;
-                                if (frame is null)
+                                if (frame is not null)
                                 {
-                                    discardedNoPlanet++;
-                                }
-                                else
-                                {
-                                    WriteSingleOutputFrame(hasAutoRotation ? AutoRotationAligner.Rotate(frame, fileRotationDeg[fIdx]) : frame);
-                                }
-
-                                if (processedCount % reportStep == 0 || processedCount == totalInputFrames)
-                                {
-                                    int pct = Math.Clamp((int)(processedCount * 95.0 / Math.Max(1, totalInputFrames)), 5, 98);
-                                    progress?.Report(new PipelineProgressReport(
-                                        "Streaming Direct",
-                                        pct,
-                                        Path.GetFileName(path),
-                                        processedCount,
-                                        totalInputFrames,
-                                        $"{processedCount}/{totalInputFrames} frames traitées ({outputFramesWritten} écrites)..."));
+                                    writer.WriteFrame(hasAutoRotation ? AutoRotationAligner.Rotate(frame, fileRotationDeg[fIdx]) : frame);
                                 }
                             });
                     }
-
-                    // Fallback if 100% of frames were rejected by planet threshold on a personal video
-                    if (outputFramesWritten == 0 && totalInputFrames > 0 && checkPlanet)
-                    {
-                        progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé sur fond noir détecté — encodage de toutes les frames sans rejet..."));
-                        discardedNoPlanet = 0;
-                        processedCount = 0;
-
-                        for (int fIdx = 0; fIdx < groupFiles.Count; fIdx++)
-                        {
-                            string path = groupFiles[fIdx];
-                            var info = fileSummaries[fIdx];
-                            int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
-                            int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
-
-                            StreamFramesThroughProcessor(
-                                path,
-                                startIdx,
-                                endIdx,
-                                options,
-                                enforcePlanetRejection: false,
-                                centrePlanet: centrePlanet,
-                                cancellationToken,
-                                (frame, _) =>
-                                {
-                                    processedCount++;
-                                    if (frame is not null)
-                                    {
-                                        WriteSingleOutputFrame(hasAutoRotation ? AutoRotationAligner.Rotate(frame, fileRotationDeg[fIdx]) : frame);
-                                    }
-                                });
-                        }
-                    }
-
-                    serWriter?.Finish();
-                    if (otherFrames is { Count: > 0 })
-                    {
-                        if (options.OutputFormat is OutputFormat.Avi or OutputFormat.Mp4)
-                        {
-                            UniversalMediaReader.WriteVideoFile(outputPath, otherFrames, outFps, options.OutputFormat == OutputFormat.Mp4, options.AviCodec);
-                        }
-                        else
-                        {
-                            WriteNonVideoOutput(outputPath, otherFrames, options, isSource16Bit);
-                        }
-                    }
-                }
-                finally
-                {
-                    serWriter?.Dispose();
-                    videoWriter?.Release();
-                    videoWriter?.Dispose();
-                    outBgrMat?.Dispose();
                 }
 
+                writer.Finish();
+                writer.FlushFallback(options, outFps);
+                outputFramesWritten = writer.FramesWritten;
                 return;
             }
 
@@ -842,32 +781,20 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 scanEntries.Count,
                 $"Passe 2/2 : Écriture des {scanEntries.Count} meilleures frames vers '{Path.GetFileName(outputPath)}'..."));
 
-            VideoWriter? pass2VideoWriter = null;
-            Mat? pass2BgrMat = null;
-            SerStreamWriter? pass2SerWriter = null;
-
-            try
+            using (var pass2Writer = new PipelineFrameWriter(
+                outputPath,
+                outputDirectory,
+                fullStem,
+                options.OutputFormat,
+                outW,
+                outH,
+                outChannels,
+                outFps,
+                isSource16Bit,
+                scanEntries.Count,
+                options.AddLeadingZeros,
+                isImageOutput))
             {
-                if (UniversalMediaReader.IsOpenCvNativeAvailable && options.OutputFormat is OutputFormat.Avi or OutputFormat.Mp4)
-                {
-                    int fourcc = options.OutputFormat == OutputFormat.Mp4
-                        ? VideoWriter.FourCC('m', 'p', '4', 'v')
-                        : VideoWriter.FourCC('M', 'J', 'P', 'G');
-                    pass2VideoWriter = new VideoWriter(outputPath, fourcc, outFps, new Size(outW, outH), isColor: true);
-                    pass2BgrMat = new Mat(outH, outW, MatType.CV_8UC3);
-                }
-                else if (options.OutputFormat == OutputFormat.Ser)
-                {
-                    pass2SerWriter = new SerStreamWriter(
-                        outputPath,
-                        outW,
-                        outH,
-                        outChannels,
-                        pixelDepthPerPlane: isSource16Bit ? 16 : 8,
-                        dateTimeTicks: DateTime.Now.Ticks,
-                        dateTimeUtcTicks: DateTime.UtcNow.Ticks);
-                }
-
                 foreach (var fileGroup in scanEntries.GroupBy(x => x.FileIndex))
                 {
                     string path = groupFiles[fileGroup.Key];
@@ -886,35 +813,12 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                         (_, frame) =>
                         {
                             if (hasAutoRotation) frame = AutoRotationAligner.Rotate(frame, fileRotationDeg[fileGroup.Key]);
-                            if (pass2VideoWriter is not null && pass2BgrMat is not null && pass2VideoWriter.IsOpened())
-                            {
-                                UniversalMediaReader.CopyAstroFrameToBgrMat(frame, pass2BgrMat, outW, outH);
-                                pass2VideoWriter.Write(pass2BgrMat);
-                                outputFramesWritten++;
-                            }
-                            else if (pass2SerWriter is not null)
-                            {
-                                pass2SerWriter.WriteFrame(frame);
-                                outputFramesWritten++;
-                            }
-                            else if (isImageOutput)
-                            {
-                                int seqNumber = outputFramesWritten + 1;
-                                string framePath = GetImageFramePath(outputDirectory, fullStem, options.OutputFormat, seqNumber, scanEntries.Count, options.AddLeadingZeros);
-                                UniversalMediaReader.WriteSingleImageFile(framePath, frame, isSource16Bit);
-                                outputFramesWritten++;
-                            }
+                            pass2Writer.WriteFrame(frame);
                         });
                 }
 
-                pass2SerWriter?.Finish();
-            }
-            finally
-            {
-                pass2SerWriter?.Dispose();
-                pass2VideoWriter?.Release();
-                pass2VideoWriter?.Dispose();
-                pass2BgrMat?.Dispose();
+                pass2Writer.Finish();
+                outputFramesWritten = pass2Writer.FramesWritten;
             }
         }, cancellationToken);
 
@@ -1810,5 +1714,162 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         sw.Stop();
         return new PipelineRunSummary(accepted.Count > 0, sw.Elapsed, total, accepted.Count, discardedNoPlanet, 0, discardedQuality, outputPath);
+    }
+
+    /// <summary>
+    /// Encapsulates frame output writing across formats (AVI, MP4, SER, Image Sequences, In-Memory fallback).
+    /// Uses switch dispatch and ensures deterministic cleanup of native resources.
+    /// </summary>
+    private sealed class PipelineFrameWriter : IDisposable
+    {
+        private readonly string _outputPath;
+        private readonly string _outputDirectory;
+        private readonly string _fullStem;
+        private readonly OutputFormat _format;
+        private readonly bool _isSource16Bit;
+        private readonly int _totalFrames;
+        private readonly bool _addLeadingZeros;
+        private readonly VideoWriter? _videoWriter;
+        private readonly Mat? _bgrMat;
+        private readonly SerStreamWriter? _serWriter;
+        private readonly List<AstroFrame>? _fallbackFrames;
+        private int _framesWritten;
+
+        public int FramesWritten => _framesWritten;
+
+        public PipelineFrameWriter(
+            string outputPath,
+            string outputDirectory,
+            string fullStem,
+            OutputFormat format,
+            int width,
+            int height,
+            int channels,
+            double fps,
+            bool isSource16Bit,
+            int totalFrames,
+            bool addLeadingZeros,
+            bool isImageOutput)
+        {
+            _outputPath = outputPath;
+            _outputDirectory = outputDirectory;
+            _fullStem = fullStem;
+            _format = format;
+            _isSource16Bit = isSource16Bit;
+            _totalFrames = totalFrames;
+            _addLeadingZeros = addLeadingZeros;
+
+            switch (format)
+            {
+                case OutputFormat.Avi when UniversalMediaReader.IsOpenCvNativeAvailable:
+                    _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('M', 'J', 'P', 'G'), fps, new Size(width, height), isColor: true);
+                    _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    break;
+
+                case OutputFormat.Mp4 when UniversalMediaReader.IsOpenCvNativeAvailable:
+                    _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('m', 'p', '4', 'v'), fps, new Size(width, height), isColor: true);
+                    _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    break;
+
+                case OutputFormat.Ser:
+                    _serWriter = new SerStreamWriter(
+                        outputPath,
+                        width,
+                        height,
+                        channels,
+                        pixelDepthPerPlane: isSource16Bit ? 16 : 8,
+                        dateTimeTicks: DateTime.Now.Ticks,
+                        dateTimeUtcTicks: DateTime.UtcNow.Ticks);
+                    break;
+
+                case OutputFormat.Bmp:
+                case OutputFormat.Tiff:
+                case OutputFormat.Png:
+                case OutputFormat.Fits:
+                    // Image sequences are written frame by frame directly to disk
+                    break;
+
+                default:
+                    if (!isImageOutput)
+                    {
+                        _fallbackFrames = [];
+                    }
+                    break;
+            }
+        }
+
+        public void WriteFrame(AstroFrame frame)
+        {
+            switch (_format)
+            {
+                case OutputFormat.Avi:
+                case OutputFormat.Mp4:
+                    if (_videoWriter is not null && _bgrMat is not null && _videoWriter.IsOpened())
+                    {
+                        UniversalMediaReader.CopyAstroFrameToBgrMat(frame, _bgrMat, _bgrMat.Width, _bgrMat.Height);
+                        _videoWriter.Write(_bgrMat);
+                        _framesWritten++;
+                    }
+                    else if (_fallbackFrames is not null)
+                    {
+                        _fallbackFrames.Add(frame);
+                        _framesWritten++;
+                    }
+                    break;
+
+                case OutputFormat.Ser:
+                    if (_serWriter is not null)
+                    {
+                        _serWriter.WriteFrame(frame);
+                        _framesWritten++;
+                    }
+                    break;
+
+                case OutputFormat.Bmp:
+                case OutputFormat.Tiff:
+                case OutputFormat.Png:
+                case OutputFormat.Fits:
+                    int seqNumber = _framesWritten + 1;
+                    string framePath = GetImageFramePath(_outputDirectory, _fullStem, _format, seqNumber, _totalFrames, _addLeadingZeros);
+                    UniversalMediaReader.WriteSingleImageFile(framePath, frame, _isSource16Bit);
+                    _framesWritten++;
+                    break;
+
+                default:
+                    if (_fallbackFrames is not null)
+                    {
+                        _fallbackFrames.Add(frame);
+                        _framesWritten++;
+                    }
+                    break;
+            }
+        }
+
+        public void Finish()
+        {
+            _serWriter?.Finish();
+        }
+
+        public void FlushFallback(ProcessingOptions options, double fps)
+        {
+            if (_fallbackFrames is not { Count: > 0 }) return;
+
+            if (options.OutputFormat is OutputFormat.Avi or OutputFormat.Mp4)
+            {
+                UniversalMediaReader.WriteVideoFile(_outputPath, _fallbackFrames, fps, options.OutputFormat == OutputFormat.Mp4, options.AviCodec);
+            }
+            else
+            {
+                WriteNonVideoOutput(_outputPath, _fallbackFrames, options, _isSource16Bit);
+            }
+        }
+
+        public void Dispose()
+        {
+            _serWriter?.Dispose();
+            _videoWriter?.Release();
+            _videoWriter?.Dispose();
+            _bgrMat?.Dispose();
+        }
     }
 }
