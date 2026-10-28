@@ -52,6 +52,7 @@
                         </MenuItem>
                     </MenuItem>
                     <MenuItem Header="{loc:Tr Menu.Help}">
+                        <MenuItem Header="{loc:Tr Menu.Tutorial}" Command="{Binding StartTutorialCommand}"/>
                         <MenuItem Header="{loc:Tr Menu.About}" Click="OnAboutClick"/>
                     </MenuItem>
                 </Menu>
@@ -252,6 +253,41 @@
 
         </Grid>
 
+        <!-- Carte Didacticiel IntÃ©ractif Flottante -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding IsTutorialActive}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,24"
+                Width="480"
+                Background="{DynamicResource AppPanelBackground}"
+                BorderBrush="{DynamicResource AppAccent}"
+                BorderThickness="2"
+                CornerRadius="8"
+                Padding="16,12"
+                ZIndex="500">
+            <StackPanel Spacing="10">
+                <!-- En-tÃªte : NumÃ©ro d'Ã©tape + Titre + Bouton Quitter -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                        <TextBlock Text="{Binding TutorialStepBadge}" FontSize="11" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding TutorialStepTitle}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="2" Content="{loc:Tr Tutorial.Quit}" Command="{Binding CloseTutorialCommand}" FontSize="11" Padding="8,3" Background="Transparent" Foreground="{DynamicResource AppTextDimmed}" ToolTip.Tip="{loc:Tr Tutorial.Quit}"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <!-- Corps : Explication -->
+                <TextBlock Text="{Binding TutorialStepDescription}" TextWrapping="Wrap" FontSize="12" LineHeight="18" Foreground="{DynamicResource AppText}"/>
+
+                <!-- Pied : PrÃ©cÃ©dent & Suivant -->
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+                    <Button Grid.Column="0" Content="{loc:Tr Tutorial.Previous}" Command="{Binding PreviousTutorialStepCommand}" IsEnabled="{Binding CanTutorialGoPrevious}" FontSize="11" Padding="10,5"/>
+                    <Button Grid.Column="2" Content="{Binding TutorialNextButtonText}" Command="{Binding NextTutorialStepCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="12,5"/>
+                </Grid>
+            </StackPanel>
+        </Border>
         <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
         <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">

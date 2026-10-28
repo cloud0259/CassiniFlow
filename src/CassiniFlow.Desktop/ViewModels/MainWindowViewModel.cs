@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -669,6 +669,93 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateCpuStatus();
         foreach (var f in SourceFiles) f.RefreshLocalizedText();
         if (SelectedSourceFile is not null) RequestPreviewUpdate(reloadFromDisk: false);
+        if (IsTutorialActive) UpdateTutorialStep();
+    }
+
+    // Interactive Tutorial Wizard
+    [ObservableProperty] private bool _isTutorialActive;
+    [ObservableProperty] private int _tutorialStepIndex;
+    [ObservableProperty] private string _tutorialStepTitle = string.Empty;
+    [ObservableProperty] private string _tutorialStepDescription = string.Empty;
+    [ObservableProperty] private string _tutorialStepBadge = string.Empty;
+    [ObservableProperty] private bool _canTutorialGoPrevious;
+    [ObservableProperty] private string _tutorialNextButtonText = "Suivant ▶";
+
+    [RelayCommand]
+    public void StartTutorial()
+    {
+        TutorialStepIndex = 0;
+        IsTutorialActive = true;
+        UpdateTutorialStep();
+    }
+
+    [RelayCommand]
+    public void NextTutorialStep()
+    {
+        if (TutorialStepIndex < 4)
+        {
+            TutorialStepIndex++;
+            UpdateTutorialStep();
+        }
+        else
+        {
+            CloseTutorial();
+        }
+    }
+
+    [RelayCommand]
+    public void PreviousTutorialStep()
+    {
+        if (TutorialStepIndex > 0)
+        {
+            TutorialStepIndex--;
+            UpdateTutorialStep();
+        }
+    }
+
+    [RelayCommand]
+    public void CloseTutorial()
+    {
+        IsTutorialActive = false;
+        UserSettingsService.MarkTutorialSeen();
+    }
+
+    public void UpdateTutorialStep()
+    {
+        CanTutorialGoPrevious = TutorialStepIndex > 0;
+        TutorialStepBadge = string.Format(Loc.Get("Tutorial.StepBadge"), TutorialStepIndex + 1, 5);
+        TutorialNextButtonText = TutorialStepIndex == 4
+            ? Loc.Get("Tutorial.Finish")
+            : Loc.Get("Tutorial.Next");
+
+        switch (TutorialStepIndex)
+        {
+            case 0:
+                SelectedTabIndex = 0;
+                TutorialStepTitle = Loc.Get("Tutorial.Step1Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step1Desc");
+                break;
+            case 1:
+                SelectedTabIndex = 1;
+                TutorialStepTitle = Loc.Get("Tutorial.Step2Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step2Desc");
+                break;
+            case 2:
+                SelectedTabIndex = 2;
+                TutorialStepTitle = Loc.Get("Tutorial.Step3Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step3Desc");
+                break;
+            case 3:
+                SelectedTabIndex = 3;
+                TutorialStepTitle = Loc.Get("Tutorial.Step4Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step4Desc");
+                break;
+            case 4:
+                SelectedTabIndex = 6;
+                TutorialStepTitle = Loc.Get("Tutorial.Step5Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step5Desc");
+                break;
+        }
     }
 
     public event Action? RequestOpenSettings;
