@@ -22,12 +22,13 @@
     "French": "Français",
     "English": "English",
     "Theme": "Theme",
-    "ThemeDark": "🌙 Deep Space (Dark)",
+    "ThemeDark": "\uD83C\uDF19 Deep Space (Dark)",
     "ThemeLight": "☀️ Clean Lab (Light)",
-    "ThemeNightVision": "🔴 Night Vision (Red)",
+    "ThemeNightVision": "\uD83D\uDD34 Night Vision (Red)",
     "ThemeToggleTip": "Toggle theme (Dark / Light / Night Vision)",
     "Help": "_Help",
-    "About": "About CassiniFlow..."
+    "About": "About CassiniFlow...",
+    "Tutorial": "Interactive Tutorial..."
   },
   "Toolbar": {
     "AddSourceFiles": "+ Add Source Files...",
@@ -47,7 +48,7 @@
   "SourceFiles": {
     "Header": "Video files and image sequences to process:",
     "AddFiles": "+ Add files...",
-    "MeasureSizes": "📏 Measure sizes",
+    "MeasureSizes": "\uD83D\uDCCF Measure sizes",
     "MeasureSizesTip": "Measures the planet diameter in each file",
     "SortAsc": "Sort ↑ size",
     "SortAscTip": "Sort from smallest to largest object",
@@ -57,7 +58,7 @@
     "MoveUpTip": "Move up (Alt+↑)",
     "MoveDown": "▼ Move down",
     "MoveDownTip": "Move down (Alt+↓)",
-    "DeleteSelection": "🗑 Delete selection",
+    "DeleteSelection": "\uD83D\uDDD1 Delete selection",
     "DeleteSelectionTip": "Deletes checked files (or the active row if none is checked) - Del",
     "ClearList": "Clear list",
     "CheckAllTip": "Check / uncheck all",
@@ -180,7 +181,7 @@
     "StartProcessing": "▶ Start Processing",
     "Cancel": "Cancel",
     "PlayGenerated": "▶ Play generated video (VLC / Default player)",
-    "OpenOutput": "📂 Open output folder",
+    "OpenOutput": "\uD83D\uDCC2 Open output folder",
     "ExecutionLog": "Execution log:"
   },
   "Viewer": {
@@ -251,5 +252,23 @@
     "SaveSettings": "Save Preferences",
     "AutoSaveNote": "✓ Your preferences are automatically saved to your user profile.",
     "TotalCoresDetected": "Detected processor: {0} logical cores"
+  },
+  "Tutorial": {
+    "Title": "Interactive Tutorial",
+    "StepBadge": "Step {0} / {1}",
+    "Previous": "◀ Previous",
+    "Next": "Next ▶",
+    "Finish": "Finish ✓",
+    "Quit": "✕ Close",
+    "Step1Title": "1. Source Files (Import)",
+    "Step1Desc": "Add your planetary videos (SER, AVI, MP4...) or image sequences (PNG, TIFF, FITS, DNG). You can also drag and drop them directly into the application.",
+    "Step2Title": "2. Input Options & Debayering",
+    "Step2Desc": "If using a color sensor, enable debayering (Bayer patterns RGGB, etc.) to reconstruct color, or configure binning to reduce noise.",
+    "Step3Title": "3. Planetary Stabilization & Centering",
+    "Step3Desc": "Enable object detection and centering to anchor the planet in the center of every frame with adaptive cropping.",
+    "Step4Title": "4. Quality Sorting & Frame Selection",
+    "Step4Desc": "Let CassiniFlow estimate image sharpness and choose the percentage of best frames to keep, discarding atmospheric turbulence blur.",
+    "Step5Title": "5. Output & Execution",
+    "Step5Desc": "Choose your target format (16-bit SER for AutoStakkert!, AVI, TIFF) and start the pipeline in the Execution tab!"
   }
 }

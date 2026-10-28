@@ -9,6 +9,7 @@ public sealed class UserSettings
     public string Theme { get; set; } = "Dark";
     public int MaxCpuUsagePercent { get; set; } = 80;
     public int CpuWarningThresholdPercent { get; set; } = 85;
+    public bool HasSeenTutorial { get; set; } = false;
 }
 
 /// <summary>
@@ -83,6 +84,12 @@ public static class UserSettingsService
     public static void UpdateLanguage(string lang)
     {
         Current.Language = lang;
+        Save();
+    }
+
+    public static void MarkTutorialSeen()
+    {
+        Current.HasSeenTutorial = true;
         Save();
     }
 }
