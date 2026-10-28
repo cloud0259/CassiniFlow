@@ -3,6 +3,7 @@ using CassiniFlow.Desktop.Localization;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class LocalizationTests
 {
     private static void FlattenKeys(JsonElement element, string prefix, HashSet<string> keys)

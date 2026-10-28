@@ -87,7 +87,50 @@
 
             <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION HAUTE RÉSOLUTION -->
             <Border Grid.Column="2" MinWidth="360" Background="{DynamicResource AppWindowBackground}" Padding="4" IsEnabled="{Binding !IsProcessing}">
-                <views:FrameViewerView />
+                <Grid>
+                    <views:FrameViewerView />
+
+                    <!-- Carte Didacticiel IntÃ©ractif Flottante PositionnÃ©e Dynamiquement -->
+                    <Border IsVisible="{Binding IsTutorialActive}"
+                            HorizontalAlignment="{Binding TutorialHorizontalAlignment}"
+                            VerticalAlignment="{Binding TutorialVerticalAlignment}"
+                            Margin="{Binding TutorialMargin}"
+                            Width="390"
+                            Background="{DynamicResource AppPanelBackground}"
+                            BorderBrush="{DynamicResource AppAccent}"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            Padding="14,12"
+                            ZIndex="500">
+                        <StackPanel Spacing="8">
+                            <!-- En-tÃªte : Badge Ã‰tape + Cible + Bouton Quitter -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                    <Border Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding TutorialStepBadge}" FontSize="11" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding TutorialTargetBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="{loc:Tr Tutorial.Quit}" Command="{Binding CloseTutorialCommand}" FontSize="11" Padding="6,2" Background="Transparent" Foreground="{DynamicResource AppTextDimmed}" ToolTip.Tip="{loc:Tr Tutorial.Quit}"/>
+                            </Grid>
+
+                            <TextBlock Text="{Binding TutorialStepTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource AppText}" Margin="0,2,0,0"/>
+
+                            <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                            <!-- Corps : Explication concise -->
+                            <TextBlock Text="{Binding TutorialStepDescription}" TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="{DynamicResource AppTextSecondary}"/>
+
+                            <!-- Pied : PrÃ©cÃ©dent & Suivant -->
+                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+                                <Button Grid.Column="0" Content="{loc:Tr Tutorial.Previous}" Command="{Binding PreviousTutorialStepCommand}" IsEnabled="{Binding CanTutorialGoPrevious}" FontSize="11" Padding="10,4"/>
+                                <Button Grid.Column="2" Content="{Binding TutorialNextButtonText}" Command="{Binding NextTutorialStepCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="12,4"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
 
             <!-- SPLITTER CENTRE / DROITE (Fin 2px continu) -->
@@ -99,7 +142,7 @@
                     <StackPanel Spacing="6" Margin="2,2,4,4">
 
                         <!-- CARTE 1 : MODE DE TRAITEMENT & PRESETS (DÉPLACÉ DU VOLET GAUCHE) -->
-                        <Expander Classes="accordion-card" IsExpanded="True">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection1Expanded}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -158,7 +201,7 @@
                         </Expander>
 
                         <!-- CARTE 2 : CALIBRATION & ENTRÉE -->
-                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection2Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -173,7 +216,7 @@
                         </Expander>
 
                         <!-- CARTE 3 : STABILISATION & CENTRAGE -->
-                        <Expander Classes="accordion-card" IsExpanded="True" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection3Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -188,7 +231,7 @@
                         </Expander>
 
                         <!-- CARTE 4 : TRI QUALITÉ SEEING -->
-                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection4Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -203,7 +246,7 @@
                         </Expander>
 
                         <!-- CARTE 5 : ANIMATION -->
-                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection5Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -218,7 +261,7 @@
                         </Expander>
 
                         <!-- CARTE 6 : EXPORT & SORTIE -->
-                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection6Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -233,7 +276,7 @@
                         </Expander>
 
                         <!-- CARTE 7 : EXÉCUTION & CONSOLE -->
-                        <Expander Classes="accordion-card" IsExpanded="True">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection7Expanded}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
@@ -253,41 +296,6 @@
 
         </Grid>
 
-        <!-- Carte Didacticiel IntÃ©ractif Flottante -->
-        <Border Grid.Row="1"
-                IsVisible="{Binding IsTutorialActive}"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Bottom"
-                Margin="0,0,0,24"
-                Width="480"
-                Background="{DynamicResource AppPanelBackground}"
-                BorderBrush="{DynamicResource AppAccent}"
-                BorderThickness="2"
-                CornerRadius="8"
-                Padding="16,12"
-                ZIndex="500">
-            <StackPanel Spacing="10">
-                <!-- En-tÃªte : NumÃ©ro d'Ã©tape + Titre + Bouton Quitter -->
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
-                        <TextBlock Text="{Binding TutorialStepBadge}" FontSize="11" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Grid.Column="1" Text="{Binding TutorialStepTitle}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    <Button Grid.Column="2" Content="{loc:Tr Tutorial.Quit}" Command="{Binding CloseTutorialCommand}" FontSize="11" Padding="8,3" Background="Transparent" Foreground="{DynamicResource AppTextDimmed}" ToolTip.Tip="{loc:Tr Tutorial.Quit}"/>
-                </Grid>
-
-                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
-
-                <!-- Corps : Explication -->
-                <TextBlock Text="{Binding TutorialStepDescription}" TextWrapping="Wrap" FontSize="12" LineHeight="18" Foreground="{DynamicResource AppText}"/>
-
-                <!-- Pied : PrÃ©cÃ©dent & Suivant -->
-                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
-                    <Button Grid.Column="0" Content="{loc:Tr Tutorial.Previous}" Command="{Binding PreviousTutorialStepCommand}" IsEnabled="{Binding CanTutorialGoPrevious}" FontSize="11" Padding="10,5"/>
-                    <Button Grid.Column="2" Content="{Binding TutorialNextButtonText}" Command="{Binding NextTutorialStepCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="12,5"/>
-                </Grid>
-            </StackPanel>
-        </Border>
         <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
         <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">

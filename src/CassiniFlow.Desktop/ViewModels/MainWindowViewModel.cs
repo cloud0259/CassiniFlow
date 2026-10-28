@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -672,14 +672,27 @@ public partial class MainWindowViewModel : ObservableObject
         if (IsTutorialActive) UpdateTutorialStep();
     }
 
+    // Accordion Sections Expanders State
+    [ObservableProperty] private bool _isSection1Expanded = true;
+    [ObservableProperty] private bool _isSection2Expanded;
+    [ObservableProperty] private bool _isSection3Expanded = true;
+    [ObservableProperty] private bool _isSection4Expanded;
+    [ObservableProperty] private bool _isSection5Expanded;
+    [ObservableProperty] private bool _isSection6Expanded;
+    [ObservableProperty] private bool _isSection7Expanded = true;
+
     // Interactive Tutorial Wizard
     [ObservableProperty] private bool _isTutorialActive;
     [ObservableProperty] private int _tutorialStepIndex;
     [ObservableProperty] private string _tutorialStepTitle = string.Empty;
     [ObservableProperty] private string _tutorialStepDescription = string.Empty;
     [ObservableProperty] private string _tutorialStepBadge = string.Empty;
+    [ObservableProperty] private string _tutorialTargetBadge = string.Empty;
     [ObservableProperty] private bool _canTutorialGoPrevious;
-    [ObservableProperty] private string _tutorialNextButtonText = "Suivant ▶";
+    [ObservableProperty] private string _tutorialNextButtonText = "Suivant \u25B6";
+    [ObservableProperty] private Avalonia.Layout.HorizontalAlignment _tutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+    [ObservableProperty] private Avalonia.Layout.VerticalAlignment _tutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+    [ObservableProperty] private Avalonia.Thickness _tutorialMargin = new(16, 20, 0, 0);
 
     [RelayCommand]
     public void StartTutorial()
@@ -732,32 +745,61 @@ public partial class MainWindowViewModel : ObservableObject
         {
             case 0:
                 SelectedTabIndex = 0;
+                IsSection1Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+                TutorialMargin = new Avalonia.Thickness(16, 20, 0, 0);
+                TutorialTargetBadge = Loc.Pick("\uD83D\uDC48 Volet Fichiers Sources", "\uD83D\uDC48 Source Files Pane");
                 TutorialStepTitle = Loc.Get("Tutorial.Step1Title");
                 TutorialStepDescription = Loc.Get("Tutorial.Step1Desc");
                 break;
+
             case 1:
                 SelectedTabIndex = 1;
+                IsSection2Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+                TutorialMargin = new Avalonia.Thickness(0, 30, 16, 0);
+                TutorialTargetBadge = Loc.Pick("Options d'Entr\u00E9e \uD83D\uDC49", "Input Options \uD83D\uDC49");
                 TutorialStepTitle = Loc.Get("Tutorial.Step2Title");
                 TutorialStepDescription = Loc.Get("Tutorial.Step2Desc");
                 break;
+
             case 2:
                 SelectedTabIndex = 2;
+                IsSection3Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+                TutorialMargin = new Avalonia.Thickness(0, 0, 16, 40);
+                TutorialTargetBadge = Loc.Pick("Stabilisation & Centrage \uD83D\uDC49", "Stabilization & Centering \uD83D\uDC49");
                 TutorialStepTitle = Loc.Get("Tutorial.Step3Title");
                 TutorialStepDescription = Loc.Get("Tutorial.Step3Desc");
                 break;
+
             case 3:
                 SelectedTabIndex = 3;
+                IsSection4Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+                TutorialMargin = new Avalonia.Thickness(0, 60, 16, 0);
+                TutorialTargetBadge = Loc.Pick("Tri par Qualit\u00E9 \uD83D\uDC49", "Quality Sorting \uD83D\uDC49");
                 TutorialStepTitle = Loc.Get("Tutorial.Step4Title");
                 TutorialStepDescription = Loc.Get("Tutorial.Step4Desc");
                 break;
+
             case 4:
                 SelectedTabIndex = 6;
+                IsSection6Expanded = true;
+                IsSection7Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
+                TutorialMargin = new Avalonia.Thickness(0, 0, 16, 20);
+                TutorialTargetBadge = Loc.Pick("Sortie & Ex\u00E9cution \uD83D\uDC49", "Output & Execution \uD83D\uDC49");
                 TutorialStepTitle = Loc.Get("Tutorial.Step5Title");
                 TutorialStepDescription = Loc.Get("Tutorial.Step5Desc");
                 break;
         }
     }
-
     public event Action? RequestOpenSettings;
 
     [RelayCommand]

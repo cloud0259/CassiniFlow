@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using CassiniFlow.Desktop.Localization;
+using CassiniFlow.Desktop.Services;
 using CassiniFlow.Desktop.Theme;
 using CassiniFlow.Desktop.ViewModels;
 
@@ -25,6 +26,12 @@ public partial class MainWindow : Window
         {
             ApplyLanguage();
             UpdateMenuCheckStates();
+
+            // DÃ©marrage automatique du didacticiel au premier lancement
+            if (DataContext is MainWindowViewModel vm && !UserSettingsService.Current.HasSeenTutorial)
+            {
+                vm.StartTutorial();
+            }
         };
 
         DataContextChanged += (_, _) =>
