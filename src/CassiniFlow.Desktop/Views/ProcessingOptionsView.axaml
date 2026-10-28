@@ -6,118 +6,136 @@
              x:Class="CassiniFlow.Desktop.Views.ProcessingOptionsView"
              x:DataType="vm:MainWindowViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="10" Margin="4,8,4,4">
+    <StackPanel Spacing="10" Margin="2,4,2,2">
 
-            <!-- Stabilisation Mode -->
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr ProcessingOptions.StabilisationModeTitle}" Classes="grouptitle"/>
-                    <ComboBox SelectedIndex="{Binding SelectedStabilisationModeIndex}" HorizontalAlignment="Stretch">
-                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabNone}"/>
-                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabObject}"/>
-                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabSurface}"/>
-                    </ComboBox>
-                </StackPanel>
-            </Border>
+        <!-- Mode de Stabilisation -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr ProcessingOptions.StabilisationModeTitle}" Classes="grouptitle"/>
+                <ComboBox SelectedIndex="{Binding SelectedStabilisationModeIndex}" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabNone}"/>
+                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabObject}"/>
+                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabSurface}"/>
+                </ComboBox>
+            </StackPanel>
+        </Border>
 
-            <!-- Object Detection & Surface Anchor -->
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr ProcessingOptions.DetectionTitle}" Classes="grouptitle"/>
-                    <WrapPanel Orientation="Horizontal">
-                        <CheckBox Content="{loc:Tr ProcessingOptions.RejectNoObject}" IsChecked="{Binding CheckObjectPresent}" Margin="0,0,18,0" FontSize="12"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.CenterObject}" IsChecked="{Binding CentreObjectInFrame}" Margin="0,0,18,0" FontSize="12"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.AutoThreshold}" IsChecked="{Binding AutoThreshold}" FontSize="12"/>
-                    </WrapPanel>
+        <!-- Détection d'Objet & Centrage (Mise en page réactive anti-chevauchement) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr ProcessingOptions.DetectionTitle}" Classes="grouptitle"/>
 
-                    <Grid ColumnDefinitions="*,12,*">
-                        <StackPanel Grid.Column="0" Spacing="4">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Tr ProcessingOptions.ManualThreshold}" Classes="label"/>
-                                <controls:NumberStepper Value="{Binding DetectionThreshold}" Minimum="1" Maximum="250" FormatString="0" Width="120" IsEnabled="{Binding !AutoThreshold}"/>
-                            </StackPanel>
-                            <CheckBox Content="{loc:Tr ProcessingOptions.ShowDetectedRed}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
-                        </StackPanel>
+                <!-- Options sous forme de cases à cocher empilées sans débordement -->
+                <CheckBox Content="{loc:Tr ProcessingOptions.RejectNoObject}" IsChecked="{Binding CheckObjectPresent}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr ProcessingOptions.CenterObject}" IsChecked="{Binding CentreObjectInFrame}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr ProcessingOptions.AutoThreshold}" IsChecked="{Binding AutoThreshold}" FontSize="12"/>
 
-                        <StackPanel Grid.Column="2" Spacing="4">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Tr ProcessingOptions.MinObjectSize}" Classes="label"/>
-                                <controls:NumberStepper Value="{Binding MinObjectSizePixels}" Minimum="2" Maximum="2000" FormatString="0" Width="120"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Tr ProcessingOptions.AfbBoxSize}" Classes="label"/>
-                                <controls:NumberStepper Value="{Binding AfbSize}" Minimum="16" Maximum="256" Increment="8" FormatString="0" Width="120"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
-            <!-- Cropping -->
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{loc:Tr ProcessingOptions.CroppingTitle}" Classes="grouptitle" Margin="0"/>
-                        <CheckBox Grid.Column="1" Content="{loc:Tr ProcessingOptions.EnableCropping}" IsChecked="{Binding EnableCropping}" FontSize="12"/>
-                    </Grid>
+                <!-- Seuil manuel -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr ProcessingOptions.ManualThreshold}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding DetectionThreshold}" Minimum="1" Maximum="250" FormatString="0" Width="110" IsEnabled="{Binding !AutoThreshold}"/>
+                </Grid>
 
-                    <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto" IsEnabled="{Binding EnableCropping}">
-                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,0,8">
+                <!-- Afficher pixels rouges -->
+                <CheckBox Content="{loc:Tr ProcessingOptions.ShowDetectedRed}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
+
+                <!-- Taille min objet -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr ProcessingOptions.MinObjectSize}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding MinObjectSizePixels}" Minimum="2" Maximum="2000" FormatString="0" Width="110"/>
+                </Grid>
+
+                <!-- Taille boîte AFB -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr ProcessingOptions.AfbBoxSize}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding AfbSize}" Minimum="16" Maximum="256" Increment="8" FormatString="0" Width="110"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Recadrage (Cropping) avec labels au-dessus des champs -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{loc:Tr ProcessingOptions.CroppingTitle}" Classes="grouptitle" Margin="0" VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="1" Content="{loc:Tr ProcessingOptions.EnableCropping}" IsChecked="{Binding EnableCropping}" FontSize="12"/>
+                </Grid>
+
+                <StackPanel Spacing="8" IsEnabled="{Binding EnableCropping}">
+                    <!-- Ligne 1 : Largeur & Hauteur -->
+                    <Grid ColumnDefinitions="*,8,*">
+                        <StackPanel Grid.Column="0" Spacing="3">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropWidth}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropWidth}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,0,8">
+                        <StackPanel Grid.Column="2" Spacing="3">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropHeight}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropHeight}" Minimum="16" Maximum="8192" Increment="8" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                    </Grid>
+
+                    <!-- Ligne 2 : Décalages X & Y -->
+                    <Grid ColumnDefinitions="*,8,*">
+                        <StackPanel Grid.Column="0" Spacing="3">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetX}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropOffsetX}" Minimum="-4096" Maximum="4096" FormatString="0"/>
                         </StackPanel>
-                        <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4">
+                        <StackPanel Grid.Column="2" Spacing="3">
                             <TextBlock Text="{loc:Tr ProcessingOptions.CropOffsetY}" Classes="label"/>
                             <controls:NumberStepper Value="{Binding CropOffsetY}" Minimum="-4096" Maximum="4096" FormatString="0"/>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
-            </Border>
+            </StackPanel>
+        </Border>
 
-            <!-- Gain, Gamma, Histogram, Monochrome, Rotation -->
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr ProcessingOptions.GainTitle}" Classes="grouptitle"/>
-                    <Grid ColumnDefinitions="*,*,*">
-                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                            <TextBlock Text="{loc:Tr ProcessingOptions.InputGain}" Classes="label"/>
-                            <controls:NumberStepper Value="{Binding InputGain}" Minimum="0.10" Maximum="10.00" Increment="0.05" FormatString="0.00"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0">
-                            <TextBlock Text="{loc:Tr ProcessingOptions.Gamma}" Classes="label"/>
-                            <controls:NumberStepper Value="{Binding Gamma}" Minimum="0.10" Maximum="5.00" Increment="0.05" FormatString="0.00"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4">
-                            <TextBlock Text="{loc:Tr ProcessingOptions.Rotation}" Classes="label"/>
-                            <ComboBox SelectedIndex="{Binding SelectedRotationIndex}" HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="{loc:Tr ProcessingOptions.RotNone}"/>
-                                <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Cw}"/>
-                                <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Ccw}"/>
-                                <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot180}"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </Grid>
+        <!-- Gain, Gamma, Histogramme, Rotation -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr ProcessingOptions.GainTitle}" Classes="grouptitle"/>
 
-                    <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <CheckBox Content="{loc:Tr ProcessingOptions.StretchHistogram}" IsChecked="{Binding HistogramStretchEnabled}" Margin="0,0,8,0" FontSize="12"/>
-                        <controls:NumberStepper Value="{Binding HistogramStretchPercent}" Minimum="10" Maximum="100" FormatString="0" Width="110" IsEnabled="{Binding HistogramStretchEnabled}" Margin="0,0,16,0"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.ConvertToMono}" IsChecked="{Binding ConvertToMono}" Margin="0,0,16,0" FontSize="12"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.FlipHorizontal}" IsChecked="{Binding FlipHorizontal}" Margin="0,0,16,0" FontSize="12"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.FlipVertical}" IsChecked="{Binding FlipVertical}" FontSize="12"/>
-                        <CheckBox Content="{loc:Tr ProcessingOptions.AutoRotate}" IsChecked="{Binding AutoRotateAlign}" Margin="16,0,0,0" FontSize="12" ToolTip.Tip="{loc:Tr ProcessingOptions.AutoRotateTip}"/>
-                    </WrapPanel>
+                <!-- Gain & Gamma côte à côte avec label au-dessus -->
+                <Grid ColumnDefinitions="*,8,*">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{loc:Tr ProcessingOptions.InputGain}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding InputGain}" Minimum="0.10" Maximum="10.00" Increment="0.05" FormatString="0.00"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{loc:Tr ProcessingOptions.Gamma}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding Gamma}" Minimum="0.10" Maximum="5.00" Increment="0.05" FormatString="0.00"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Rotation pleine largeur -->
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{loc:Tr ProcessingOptions.Rotation}" Classes="label"/>
+                    <ComboBox SelectedIndex="{Binding SelectedRotationIndex}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.RotNone}"/>
+                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Cw}"/>
+                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot90Ccw}"/>
+                        <ComboBoxItem Content="{loc:Tr ProcessingOptions.Rot180}"/>
+                    </ComboBox>
                 </StackPanel>
-            </Border>
 
-        </StackPanel>
-    </ScrollViewer>
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <!-- Étirement d'histogramme -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <CheckBox Grid.Column="0" Content="{loc:Tr ProcessingOptions.StretchHistogram}" IsChecked="{Binding HistogramStretchEnabled}" FontSize="12" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding HistogramStretchPercent}" Minimum="10" Maximum="100" FormatString="0" Width="100" IsEnabled="{Binding HistogramStretchEnabled}"/>
+                </Grid>
+
+                <!-- Autres options géométriques et noir & blanc -->
+                <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                    <CheckBox Content="{loc:Tr ProcessingOptions.ConvertToMono}" IsChecked="{Binding ConvertToMono}" Margin="0,0,12,4" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr ProcessingOptions.FlipHorizontal}" IsChecked="{Binding FlipHorizontal}" Margin="0,0,12,4" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr ProcessingOptions.FlipVertical}" IsChecked="{Binding FlipVertical}" Margin="0,0,12,4" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr ProcessingOptions.AutoRotate}" IsChecked="{Binding AutoRotateAlign}" Margin="0,0,0,4" FontSize="12" ToolTip.Tip="{loc:Tr ProcessingOptions.AutoRotateTip}"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
 </UserControl>

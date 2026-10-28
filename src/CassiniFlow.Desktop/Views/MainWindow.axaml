@@ -14,17 +14,10 @@
         Icon="/Assets/cassiniflow.ico"
         DragDrop.AllowDrop="True">
 
-    <Window.Styles>
-        <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="10,6"/>
-        </Style>
-    </Window.Styles>
-
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
-        <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+        <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <Menu Grid.Column="0" VerticalAlignment="Center" IsEnabled="{Binding !IsProcessing}">
                     <MenuItem Header="{loc:Tr Menu.File}">
@@ -80,70 +73,182 @@
             </Grid>
         </Border>
 
-        <!-- ZONE PRINCIPALE : LES ONGLETS MODULAIRES À GAUCHE / APERÇU DE LA FRAME À DROITE -->
-        <Grid Grid.Row="1" ColumnDefinitions="58*,Auto,42*">
+        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX CONTINUS ET SANS ESPACES VIDES -->
+        <Grid Grid.Row="1" ColumnDefinitions="26*,Auto,48*,Auto,26*">
 
-            <!-- PANNEAU GAUCHE : LES ONGLETS -->
-            <Border Grid.Column="0" MinWidth="480" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8">
-                <TabControl SelectedIndex="{Binding SelectedTabIndex}">
-
-                    <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand la fenêtre est réduite -->
-                    <TabControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </TabControl.ItemsPanel>
-
-                    <!-- ONGLET 1 : SOURCE FILES -->
-                    <TabItem Header="{loc:Tr Tab.SourceFiles}" IsEnabled="{Binding !IsProcessing}">
-                        <views:SourceFilesView />
-                    </TabItem>
-
-                    <!-- ONGLET 2 : INPUT OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.InputOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:InputOptionsView />
-                    </TabItem>
-
-                    <!-- ONGLET 3 : PROCESSING OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.ProcessingOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:ProcessingOptionsView />
-                    </TabItem>
-
-                    <!-- ONGLET 4 : QUALITY OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.QualityOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:QualityOptionsView />
-                    </TabItem>
-
-                    <!-- ONGLET 5 : ANIMATION OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.AnimationOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:AnimationOptionsView />
-                    </TabItem>
-
-                    <!-- ONGLET 6 : OUTPUT OPTIONS -->
-                    <TabItem Header="{loc:Tr Tab.OutputOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:OutputOptionsView />
-                    </TabItem>
-
-                    <!-- ONGLET 7 : DO PROCESSING -->
-                    <TabItem Header="{loc:Tr Tab.DoProcessing}">
-                        <views:DoProcessingView />
-                    </TabItem>
-
-                </TabControl>
+            <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
+            <Border Grid.Column="0" MinWidth="250" MaxWidth="480" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="4" IsEnabled="{Binding !IsProcessing}">
+                <views:SourceFilesView />
             </Border>
 
-            <!-- SPLITTER DE REDIMENSIONNEMENT DES VOLETS -->
-            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns" />
+            <!-- SPLITTER GAUCHE / CENTRE (Fin 2px continu) -->
+            <GridSplitter Grid.Column="1" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
 
-            <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
-            <Border Grid.Column="2" MinWidth="380" Background="{DynamicResource AppWindowBackground}" Padding="10" IsEnabled="{Binding !IsProcessing}">
+            <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION HAUTE RÉSOLUTION -->
+            <Border Grid.Column="2" MinWidth="360" Background="{DynamicResource AppWindowBackground}" Padding="4" IsEnabled="{Binding !IsProcessing}">
                 <views:FrameViewerView />
+            </Border>
+
+            <!-- SPLITTER CENTRE / DROITE (Fin 2px continu) -->
+            <GridSplitter Grid.Column="3" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
+
+            <!-- VOLET DROIT : PIPELINE EN CARTES ACCORDÉON -->
+            <Border Grid.Column="4" MinWidth="290" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="4">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="2,2,4,4">
+
+                        <!-- CARTE 1 : MODE DE TRAITEMENT & PRESETS (DÉPLACÉ DU VOLET GAUCHE) -->
+                        <Expander Classes="accordion-card" IsExpanded="True">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="Mode &amp; Presets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="10,8">
+                                <StackPanel Spacing="10">
+                                    <!-- Mode de traitement -->
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{loc:Tr SourceFiles.ModeTitle}" Classes="label" FontWeight="SemiBold"/>
+                                        <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="12" Margin="0,2"/>
+                                        <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="12" Margin="0,2"/>
+                                    </StackPanel>
+
+                                    <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                                    <!-- Presets d'optimisation -->
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{loc:Tr SourceFiles.PresetsTitle}" Classes="label" FontWeight="SemiBold"/>
+                                        <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetIss}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                                    <!-- Plage de trames avec labels au-dessus sans chevauchement -->
+                                    <StackPanel Spacing="6">
+                                        <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
+                                        <Grid ColumnDefinitions="*,8,*" IsEnabled="{Binding LimitFrameRange}" Margin="2,0,0,0">
+                                            <StackPanel Grid.Column="0" Spacing="3">
+                                                <TextBlock Text="{loc:Tr SourceFiles.Start}" Classes="label"/>
+                                                <controls:NumberStepper Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="3">
+                                                <TextBlock Text="{loc:Tr SourceFiles.End}" Classes="label"/>
+                                                <controls:NumberStepper Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 2 : CALIBRATION & ENTRÉE -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.InputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:InputOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 3 : STABILISATION & CENTRAGE -->
+                        <Expander Classes="accordion-card" IsExpanded="True" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.ProcessingOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:ProcessingOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 4 : TRI QUALITÉ SEEING -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="4" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.QualityOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:QualityOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 5 : ANIMATION -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="5" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AnimationOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:AnimationOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 6 : EXPORT & SORTIE -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="6" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.OutputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:OutputOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 7 : EXÉCUTION & CONSOLE -->
+                        <Expander Classes="accordion-card" IsExpanded="True">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="7" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.DoProcessing}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:DoProcessingView />
+                            </Border>
+                        </Expander>
+
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
         </Grid>
 
         <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
-        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="12,4">
+        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding ViewerStatusText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding ProcessingStageText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>

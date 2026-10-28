@@ -6,57 +6,59 @@
              x:Class="CassiniFlow.Desktop.Views.InputOptionsView"
              x:DataType="vm:MainWindowViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="10" Margin="4,8,4,4">
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr InputOptions.DebayerTitle}" Classes="grouptitle"/>
-                    <CheckBox Content="{loc:Tr InputOptions.DebayerEnable}" IsChecked="{Binding DebayerEnabled}" FontSize="12"/>
-                    <Grid ColumnDefinitions="*,12,*" IsEnabled="{Binding DebayerEnabled}">
-                        <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="{loc:Tr InputOptions.BayerPattern}" Classes="label"/>
-                            <ComboBox SelectedIndex="{Binding SelectedBayerPatternIndex}" HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="GBRG"/>
-                                <ComboBoxItem Content="BGGR"/>
-                                <ComboBoxItem Content="RGGB"/>
-                                <ComboBoxItem Content="GRBG"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4">
-                            <TextBlock Text="{loc:Tr InputOptions.InterpolationAlgo}" Classes="label"/>
-                            <ComboBox SelectedIndex="{Binding SelectedDebayerAlgoIndex}" HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="Bilinear"/>
-                                <ComboBoxItem Content="HQ Linear"/>
-                                <ComboBoxItem Content="Smooth Hue"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+        <!-- Débayérisation -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr InputOptions.DebayerTitle}" Classes="grouptitle"/>
+                <CheckBox Content="{loc:Tr InputOptions.DebayerEnable}" IsChecked="{Binding DebayerEnabled}" FontSize="12"/>
+                <Grid ColumnDefinitions="*,8,*" IsEnabled="{Binding DebayerEnabled}">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{loc:Tr InputOptions.BayerPattern}" Classes="label"/>
+                        <ComboBox SelectedIndex="{Binding SelectedBayerPatternIndex}" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="GBRG"/>
+                            <ComboBoxItem Content="BGGR"/>
+                            <ComboBoxItem Content="RGGB"/>
+                            <ComboBoxItem Content="GRBG"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{loc:Tr InputOptions.InterpolationAlgo}" Classes="label"/>
+                        <ComboBox SelectedIndex="{Binding SelectedDebayerAlgoIndex}" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="Bilinear"/>
+                            <ComboBoxItem Content="HQ Linear"/>
+                            <ComboBoxItem Content="Smooth Hue"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
 
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr InputOptions.BinningTitle}" Classes="grouptitle"/>
-                    <Grid ColumnDefinitions="*,12,*">
-                        <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="{loc:Tr InputOptions.BinningPixels}" Classes="label"/>
-                            <ComboBox SelectedIndex="{Binding SelectedBinningIndex}" HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="{loc:Tr InputOptions.BinningDisabled}"/>
-                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning2x2}"/>
-                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning3x3}"/>
-                                <ComboBoxItem Content="{loc:Tr InputOptions.Binning4x4}"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4">
-                            <CheckBox Content="{loc:Tr InputOptions.HotPixels}" IsChecked="{Binding DarkSubtractEnabled}" FontSize="12"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding DarkSubtractEnabled}">
-                                <TextBlock Text="{loc:Tr InputOptions.Threshold}" Classes="label"/>
-                                <controls:NumberStepper Value="{Binding HotPixelThreshold}" Minimum="1" Maximum="100" FormatString="0" Width="120"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
+        <!-- Binning & Pixels Chauds -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr InputOptions.BinningTitle}" Classes="grouptitle"/>
+                
+                <!-- Binning -->
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{loc:Tr InputOptions.BinningPixels}" Classes="label"/>
+                    <ComboBox SelectedIndex="{Binding SelectedBinningIndex}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="{loc:Tr InputOptions.BinningDisabled}"/>
+                        <ComboBoxItem Content="{loc:Tr InputOptions.Binning2x2}"/>
+                        <ComboBoxItem Content="{loc:Tr InputOptions.Binning3x3}"/>
+                        <ComboBoxItem Content="{loc:Tr InputOptions.Binning4x4}"/>
+                    </ComboBox>
                 </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <!-- Pixels Chauds -->
+                <CheckBox Content="{loc:Tr InputOptions.HotPixels}" IsChecked="{Binding DarkSubtractEnabled}" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding DarkSubtractEnabled}">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr InputOptions.Threshold}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding HotPixelThreshold}" Minimum="1" Maximum="100" FormatString="0" Width="110"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
 </UserControl>

@@ -6,19 +6,18 @@
              x:Class="CassiniFlow.Desktop.Views.AnimationOptionsView"
              x:DataType="vm:MainWindowViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="10" Margin="4,8,4,4">
-            <Border Classes="groupbox">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{loc:Tr AnimationOptions.PlaybackTitle}" Classes="grouptitle"/>
-                    <CheckBox Content="{loc:Tr AnimationOptions.ForwardPlay}" IsChecked="{Binding AnimationForward}" FontSize="12"/>
-                    <CheckBox Content="{loc:Tr AnimationOptions.ReversePlay}" IsChecked="{Binding AnimationReverse}" FontSize="12"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock Text="{loc:Tr AnimationOptions.RepeatCount}" Classes="label"/>
-                        <controls:NumberStepper Value="{Binding AnimationRepeatCount}" Minimum="1" Maximum="50" FormatString="0" Width="120"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr AnimationOptions.PlaybackTitle}" Classes="grouptitle"/>
+                <CheckBox Content="{loc:Tr AnimationOptions.ForwardPlay}" IsChecked="{Binding AnimationForward}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr AnimationOptions.ReversePlay}" IsChecked="{Binding AnimationReverse}" FontSize="12"/>
+                
+                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr AnimationOptions.RepeatCount}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding AnimationRepeatCount}" Minimum="1" Maximum="50" FormatString="0" Width="110"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
 </UserControl>
