@@ -13,6 +13,9 @@ bld/
 [Ll]og/
 [Ll]ogs/
 publish/
+staging/
+*.zip
+*.tar.gz
 
 ## Visual Studio & IDEs
 .vs/
