@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using Avalonia;
@@ -174,13 +174,13 @@ public partial class MainWindow : Window
 
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Loc.Pick("Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF)", "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF)"),
+            Title = Loc.Pick("Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)", "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(Loc.Pick("Vidéos & Séquences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG)", "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG)"))
+                new FilePickerFileType(Loc.Pick("Vidéos & Séquences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)", "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)"))
                 {
-                    Patterns = ["*.avi", "*.mp4", "*.mov", "*.mkv", "*.webm", "*.wmv", "*.ser", "*.fit", "*.fits", "*.bmp", "*.png", "*.tif", "*.tiff", "*.jpg", "*.jpeg"]
+                    Patterns = ["*.avi", "*.mp4", "*.mov", "*.mkv", "*.webm", "*.wmv", "*.ser", "*.fit", "*.fits", "*.bmp", "*.png", "*.tif", "*.tiff", "*.jpg", "*.jpeg", "*.dng"]
                 },
                 FilePickerFileTypes.All
             ]

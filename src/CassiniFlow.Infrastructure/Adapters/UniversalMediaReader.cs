@@ -39,7 +39,7 @@ public static class UniversalMediaReader
 
     public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"
+        ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".dng"
     };
 
     private static readonly object PreviewCapLock = new();
@@ -190,7 +190,8 @@ public static class UniversalMediaReader
                 h,
                 1.0,
                 fi.Length,
-                $"Fichier Image : {fi.Name} ({w}Ã—{h}, {depth}-bit, Canaux={mat.Channels()})");
+                $"Fichier Image : {fi.Name} ({w}Ã—{h}, {depth}-bit, Canaux={mat.Channels()})",
+                AstroMetadataExtractor.Extract(filePath));
         }
 
         throw new NotSupportedException($"Format de fichier non supportÃ© : {ext}");
@@ -213,7 +214,7 @@ public static class UniversalMediaReader
 
         if (ImageExtensions.Contains(ext))
         {
-            using var mat = Cv2.ImRead(filePath, ImreadModes.Color);
+            using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (mat.Empty()) throw new InvalidDataException($"Impossible de lire l'image '{filePath}'.");
             int origW = mat.Width;
             int origH = mat.Height;
@@ -326,7 +327,7 @@ public static class UniversalMediaReader
 
         if (ImageExtensions.Contains(ext))
         {
-            using var mat = Cv2.ImRead(filePath, ImreadModes.Color);
+            using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (mat.Empty()) throw new InvalidDataException($"Impossible de lire l'image '{filePath}'.");
             return MatToAstroFrame(mat, 0);
         }
@@ -842,7 +843,7 @@ public static class UniversalMediaReader
 
         if (ImageExtensions.Contains(ext))
         {
-            using var mat = Cv2.ImRead(filePath, ImreadModes.Color);
+            using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (!mat.Empty())
                 yield return MatToAstroFrame(mat, 0);
             yield break;
@@ -1038,22 +1039,35 @@ public static class UniversalMediaReader
         int w = mat.Width;
         int h = mat.Height;
         int ch = mat.Channels();
+        bool is16Bit = mat.ElemSize1() == 2;
 
         if (ch == 1)
         {
-            var frame = new AstroFrame(w, h, 1, 8) { FrameIndex = frameIndex };
+            var frame = new AstroFrame(w, h, 1, is16Bit ? 16 : 8) { FrameIndex = frameIndex };
             int stride = (int)mat.Step();
             byte* pSrcBase = (byte*)mat.Data;
 
             fixed (ushort* pDstBase = frame.Data)
             {
-                for (int y = 0; y < h; y++)
+                if (is16Bit)
                 {
-                    byte* srcRow = pSrcBase + y * stride;
-                    ushort* dstRow = pDstBase + y * w;
-                    for (int x = 0; x < w; x++)
+                    for (int y = 0; y < h; y++)
                     {
-                        dstRow[x] = (ushort)(srcRow[x] * 257);
+                        ushort* srcRow = (ushort*)(pSrcBase + y * stride);
+                        ushort* dstRow = pDstBase + y * w;
+                        Buffer.MemoryCopy(srcRow, dstRow, w * sizeof(ushort), w * sizeof(ushort));
+                    }
+                }
+                else
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        byte* srcRow = pSrcBase + y * stride;
+                        ushort* dstRow = pDstBase + y * w;
+                        for (int x = 0; x < w; x++)
+                        {
+                            dstRow[x] = (ushort)(srcRow[x] * 257);
+                        }
                     }
                 }
             }
@@ -1065,23 +1079,42 @@ public static class UniversalMediaReader
             Mat bgr = ch == 3 ? mat : converted!;
             if (ch != 3) Cv2.CvtColor(mat, bgr, ColorConversionCodes.BGRA2BGR);
 
-            var frame = new AstroFrame(w, h, 3, 8) { FrameIndex = frameIndex };
+            var frame = new AstroFrame(w, h, 3, is16Bit ? 16 : 8) { FrameIndex = frameIndex };
             int stride = (int)bgr.Step();
             byte* pSrcBase = (byte*)bgr.Data;
 
             fixed (ushort* pDstBase = frame.Data)
             {
-                for (int y = 0; y < h; y++)
+                if (is16Bit)
                 {
-                    byte* srcRow = pSrcBase + y * stride;
-                    ushort* dstRow = pDstBase + y * w * 3;
-                    for (int x = 0; x < w; x++)
+                    for (int y = 0; y < h; y++)
                     {
-                        int sIdx = x * 3;
-                        int dIdx = x * 3;
-                        dstRow[dIdx] = (ushort)(srcRow[sIdx + 2] * 257);     // R
-                        dstRow[dIdx + 1] = (ushort)(srcRow[sIdx + 1] * 257); // G
-                        dstRow[dIdx + 2] = (ushort)(srcRow[sIdx] * 257);     // B
+                        ushort* srcRow = (ushort*)(pSrcBase + y * stride);
+                        ushort* dstRow = pDstBase + y * w * 3;
+                        for (int x = 0; x < w; x++)
+                        {
+                            int sIdx = x * 3;
+                            int dIdx = x * 3;
+                            dstRow[dIdx] = srcRow[sIdx + 2];     // R
+                            dstRow[dIdx + 1] = srcRow[sIdx + 1]; // G
+                            dstRow[dIdx + 2] = srcRow[sIdx];     // B
+                        }
+                    }
+                }
+                else
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        byte* srcRow = pSrcBase + y * stride;
+                        ushort* dstRow = pDstBase + y * w * 3;
+                        for (int x = 0; x < w; x++)
+                        {
+                            int sIdx = x * 3;
+                            int dIdx = x * 3;
+                            dstRow[dIdx] = (ushort)(srcRow[sIdx + 2] * 257);     // R
+                            dstRow[dIdx + 1] = (ushort)(srcRow[sIdx + 1] * 257); // G
+                            dstRow[dIdx + 2] = (ushort)(srcRow[sIdx] * 257);     // B
+                        }
                     }
                 }
             }
