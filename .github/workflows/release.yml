@@ -1,0 +1,158 @@
+name: Release & Packaging Pipeline
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Nom de la version / Tag (ex: v1.0.0)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg & Codecs (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore CassiniFlow.slnx
+
+      - name: Build solution (Release)
+        run: dotnet build CassiniFlow.slnx -c Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test CassiniFlow.slnx -c Release --no-build --verbosity normal
+
+  package-binaries:
+    name: Package Binaries (${{ matrix.target.name }})
+    needs: build-and-test
+    runs-on: ${{ matrix.target.os }}
+    strategy:
+      matrix:
+        target:
+          - name: win-x64
+            os: windows-latest
+            rid: win-x64
+            archive_ext: zip
+          - name: linux-x64
+            os: ubuntu-latest
+            rid: linux-x64
+            archive_ext: tar.gz
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish Desktop
+        run: >
+          dotnet publish src/CassiniFlow.Desktop/CassiniFlow.Desktop.csproj
+          -c Release
+          -r ${{ matrix.target.rid }}
+          --self-contained false
+          -o staging/CassiniFlow-${{ matrix.target.name }}/Desktop
+
+      - name: Publish CLI
+        run: >
+          dotnet publish src/CassiniFlow.Cli/CassiniFlow.Cli.csproj
+          -c Release
+          -r ${{ matrix.target.rid }}
+          --self-contained false
+          -o staging/CassiniFlow-${{ matrix.target.name }}/Cli
+
+      - name: Copy README and documentation to package
+        shell: bash
+        run: |
+          cp README.md staging/CassiniFlow-${{ matrix.target.name }}/ || true
+          cp LICENSE staging/CassiniFlow-${{ matrix.target.name }}/ || true
+
+      - name: Compress Archive (Windows .zip)
+        if: matrix.target.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "staging/CassiniFlow-${{ matrix.target.name }}/*" -DestinationPath "CassiniFlow-${{ matrix.target.name }}.zip" -Force
+
+      - name: Compress Archive (Linux .tar.gz)
+        if: matrix.target.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          tar -czf "CassiniFlow-${{ matrix.target.name }}.tar.gz" -C "staging/CassiniFlow-${{ matrix.target.name }}" .
+
+      - name: Upload Packaged Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CassiniFlow-${{ matrix.target.name }}-${{ matrix.target.archive_ext }}
+          path: CassiniFlow-${{ matrix.target.name }}.${{ matrix.target.archive_ext }}
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: package-binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Determine Release Tag
+        id: release_info
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v$(date +'%Y.%m.%d-%H%M')"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Using release tag: $TAG"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: CassiniFlow ${{ steps.release_info.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-artifacts/*.zip
+            release-artifacts/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
