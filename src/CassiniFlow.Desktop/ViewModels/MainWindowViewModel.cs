@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -413,7 +413,7 @@ public partial class MainWindowViewModel : ObservableObject
         var paths = filePaths.Where(File.Exists).ToList();
         if (paths.Count == 0) return;
 
-        SourceFileItem? firstNew = null;
+        var newItems = new List<SourceFileItem>();
 
         await Task.Run(() =>
         {
@@ -438,22 +438,7 @@ public partial class MainWindowViewModel : ObservableObject
                         DetailedReport = summary.DetailedReport
                     };
 
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        SourceFiles.Add(item);
-                        HasLoadedFiles = SourceFiles.Count > 0;
-                        if (SourceFiles.Count > 1)
-                        {
-                            IsJoinMode = true;
-                            IsBatchMode = false;
-                        }
-                        if (SelectedSourceFile is null)
-                        {
-                            SelectedSourceFile = item;
-                        }
-                    });
-
-                    firstNew ??= item;
+                    newItems.Add(item);
                 }
                 catch (Exception ex)
                 {
@@ -465,12 +450,27 @@ public partial class MainWindowViewModel : ObservableObject
             }
         });
 
-        if (firstNew is not null)
+        if (newItems.Count == 0) return;
+
+        foreach (var item in newItems)
         {
-            SelectedSourceFile = firstNew;
-            ConsoleLogText = Loc.Pick($"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).", $"{SourceFiles.Count} file(s) in the list. Selected: {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames at {firstNew.FpsInfo}).");
-            _ = AnalyzePlanetSizes();
+            SourceFiles.Add(item);
         }
+
+        HasLoadedFiles = SourceFiles.Count > 0;
+        if (SourceFiles.Count > 1)
+        {
+            IsJoinMode = true;
+            IsBatchMode = false;
+        }
+
+        var firstNew = newItems[0];
+        SelectedSourceFile ??= firstNew;
+        ConsoleLogText = Loc.Pick(
+            $"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).",
+            $"{SourceFiles.Count} file(s) in the list. Selected: {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames at {firstNew.FpsInfo}).");
+
+        await AnalyzePlanetSizes();
     }
 
 
@@ -533,14 +533,13 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 double? d = null;
                 try { d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames); } catch { }
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
                 {
                     it.PlanetDiameterPx = d;
                     it.IsMeasuring = false;
                 });
             }
         });
-        await Task.Delay(100);
 
         var sizes = SourceFiles.Where(f => f.PlanetDiameterPx.HasValue).Select(f => f.PlanetDiameterPx!.Value).ToList();
         ConsoleLogText = sizes.Count switch

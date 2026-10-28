@@ -1,0 +1,80 @@
+using System;
+using System.Collections.Generic;
+using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Services;
+using Xunit;
+
+namespace CassiniFlow.Tests;
+
+public class PlanetDiskMeasurementTests
+{
+    [Fact]
+    public void CalculateEquivalentDiameter_ReturnsExpectedDiameter()
+    {
+        // For a circle with radius R=50, Area = pi * 50^2 = 7853.98
+        int pixelCount = (int)Math.Round(Math.PI * 50 * 50);
+        double diameter = PlanetDiskCalculator.CalculateEquivalentDiameter(pixelCount, scale: 1.0);
+
+        Assert.InRange(diameter, 99.0, 101.0);
+    }
+
+    [Fact]
+    public void CalculateEquivalentDiameter_WithScaling_ReturnsUnscaledDiameter()
+    {
+        // If preview scale is 0.5 (preview is half size), detected pixel count corresponds to R=25 in preview (area ~1963)
+        int previewPixelCount = (int)Math.Round(Math.PI * 25 * 25);
+        double originalDiameter = PlanetDiskCalculator.CalculateEquivalentDiameter(previewPixelCount, scale: 0.5);
+
+        Assert.InRange(originalDiameter, 99.0, 101.0);
+    }
+
+    [Fact]
+    public void ComputeMedian_ReturnsExpectedMedian()
+    {
+        var odd = new List<double> { 50.0, 100.0, 75.0 };
+        Assert.Equal(75.0, PlanetDiskCalculator.ComputeMedian(odd));
+
+        var even = new List<double> { 10.0, 20.0, 30.0, 40.0 };
+        Assert.Equal(25.0, PlanetDiskCalculator.ComputeMedian(even));
+
+        var empty = new List<double>();
+        Assert.Null(PlanetDiskCalculator.ComputeMedian(empty));
+    }
+
+    [Fact]
+    public void MeasureDiameterPixels_WithPreviewFrameLoader_MeasuresSyntheticDisk()
+    {
+        int w = 200, h = 200, r = 30;
+        var frame = new AstroFrame(w, h, 3, 16);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - 100;
+                int dy = y - 100;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    frame.Data[idx] = 40000;
+                    frame.Data[idx + 1] = 40000;
+                    frame.Data[idx + 2] = 40000;
+                }
+            }
+        }
+
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+            var measured = PlanetSizeAnalyzer.MeasureDiameterPixels("test.ser", 10, samples: 3);
+
+            Assert.NotNull(measured);
+            // Expected diameter is ~60px (radius 30)
+            Assert.InRange(measured.Value, 58.0, 62.0);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+        }
+    }
+}
