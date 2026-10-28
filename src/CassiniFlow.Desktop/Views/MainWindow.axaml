@@ -24,7 +24,7 @@
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
-        <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+        <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <Menu Grid.Column="0" VerticalAlignment="Center" IsEnabled="{Binding !IsProcessing}">
                     <MenuItem Header="{loc:Tr Menu.File}">
@@ -80,27 +80,27 @@
             </Grid>
         </Border>
 
-        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX (SESSION GAUCHE / VIEWER CENTRE / PARAMÈTRES DROITE) -->
+        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX AVEC SÉPARATEURS MINCES -->
         <Grid Grid.Row="1" ColumnDefinitions="28*,Auto,44*,Auto,28*">
 
             <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
-            <Border Grid.Column="0" MinWidth="260" MaxWidth="500" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8,8,6,8" IsEnabled="{Binding !IsProcessing}">
+            <Border Grid.Column="0" MinWidth="260" MaxWidth="500" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="5,5,3,5" IsEnabled="{Binding !IsProcessing}">
                 <views:SourceFilesView />
             </Border>
 
-            <!-- SPLITTER GAUCHE / CENTRE -->
-            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns" />
+            <!-- SPLITTER GAUCHE / CENTRE (Étroit 2px) -->
+            <GridSplitter Grid.Column="1" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
 
-            <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION TEMPORELLE HAUTE RÉSOLUTION -->
-            <Border Grid.Column="2" MinWidth="360" Background="{DynamicResource AppWindowBackground}" Padding="8" IsEnabled="{Binding !IsProcessing}">
+            <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION HAUTE RÉSOLUTION -->
+            <Border Grid.Column="2" MinWidth="360" Background="{DynamicResource AppWindowBackground}" Padding="4" IsEnabled="{Binding !IsProcessing}">
                 <views:FrameViewerView />
             </Border>
 
-            <!-- SPLITTER CENTRE / DROITE -->
-            <GridSplitter Grid.Column="3" Width="4" Background="Transparent" ResizeDirection="Columns" />
+            <!-- SPLITTER CENTRE / DROITE (Étroit 2px) -->
+            <GridSplitter Grid.Column="3" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
 
             <!-- VOLET DROIT : PIPELINE DE CALCUL & PARAMÈTRES SÉQUENTIELS -->
-            <Border Grid.Column="4" MinWidth="280" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="6,8,8,8">
+            <Border Grid.Column="4" MinWidth="280" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="4,5,5,5">
                 <TabControl SelectedIndex="{Binding SelectedTabIndex}">
 
                     <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand le volet est réduit -->
@@ -146,7 +146,7 @@
         </Grid>
 
         <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
-        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="12,4">
+        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding ViewerStatusText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding ProcessingStageText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>
