@@ -50,6 +50,8 @@ public static class StackingPipelineRunner
                 var summary = UniversalMediaReader.InspectFile(file);
                 int expectedTotalFrames = Math.Max(1, summary.FrameCount);
 
+                string ext = Path.GetExtension(file).ToLowerInvariant();
+
                 progress?.Report(new PipelineProgressReport(
                     "Analyse de Qualité",
                     1,
@@ -61,50 +63,112 @@ public static class StackingPipelineRunner
                 // =========================================================================
                 // PASSE 1 : Analyse de qualité seeing & Sélection de la trame de référence
                 // Zéro mise en cache en RAM : seule la meilleure trame est conservée en mémoire.
+                // Accélération multi-cœurs CPU sur fichiers SER.
                 // =========================================================================
-                var scoreRecords = new List<FrameScoreRecord>(expectedTotalFrames);
+                List<FrameScoreRecord> scoreRecords;
                 AstroFrame? bestRefFrame = null;
-                double bestQuality = double.MinValue;
-                int pass1Processed = 0;
 
-                foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
+                if (ext == ".ser")
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    totalInputFrames++;
-                    pass1Processed++;
+                    using var ser = new SerFile(file);
+                    int totalFrames = ser.Header.FrameCount;
+                    var records = new FrameScoreRecord?[totalFrames];
+                    int processedCount = 0;
+                    int bestIdx = 0;
+                    double bestScore = double.MinValue;
+                    object lockObj = new();
 
-                    // Préparation de la trame (Débayerisation si brute + centrage si All-In-One)
-                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
-                    if (!accepted)
+                    Parallel.For(0, totalFrames, new ParallelOptions
                     {
-                        discardedNoPlanet++;
-                        continue;
+                        MaxDegreeOfParallelism = Environment.ProcessorCount,
+                        CancellationToken = cancellationToken
+                    }, i =>
+                    {
+                        var raw = ser.ReadFrame(i, options.SerBitDepthOverride);
+                        var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                        if (!accepted)
+                        {
+                            Interlocked.Increment(ref discardedNoPlanet);
+                            return;
+                        }
+
+                        double score = StabilisationAndQualityEngine.ComputeQualityScore(work, options.QualityAlgorithm);
+                        records[i] = new FrameScoreRecord(i, score, cx, cy);
+
+                        lock (lockObj)
+                        {
+                            if (score > bestScore)
+                            {
+                                bestScore = score;
+                                bestIdx = i;
+                            }
+                        }
+
+                        int done = Interlocked.Increment(ref processedCount);
+                        if (done % 50 == 0 || done == totalFrames)
+                        {
+                            int pct = Math.Clamp((int)Math.Round((double)done / totalFrames * 45.0), 1, 45);
+                            progress?.Report(new PipelineProgressReport(
+                                "Analyse de Qualité",
+                                pct,
+                                fileName,
+                                done,
+                                totalFrames,
+                                $"Analyse de qualité {done}/{totalFrames} ({pct}%)..."));
+                        }
+                    });
+
+                    totalInputFrames += totalFrames;
+                    scoreRecords = records.Where(r => r.HasValue).Select(r => r!.Value).ToList();
+
+                    if (scoreRecords.Count > 0)
+                    {
+                        var rawBest = ser.ReadFrame(bestIdx, options.SerBitDepthOverride);
+                        bestRefFrame = PrepareFrame(rawBest, options, out _, out _, out _);
                     }
+                }
+                else
+                {
+                    scoreRecords = new List<FrameScoreRecord>(expectedTotalFrames);
+                    double bestQuality = double.MinValue;
+                    int pass1Processed = 0;
 
-                    // Calcul de la netteté seeing
-                    double score = StabilisationAndQualityEngine.ComputeQualityScore(
-                        workFrame,
-                        options.QualityAlgorithm);
-
-                    scoreRecords.Add(new FrameScoreRecord(raw.FrameIndex, score, cx, cy));
-
-                    // Conserver uniquement la meilleure pose comme trame de référence
-                    if (score > bestQuality || bestRefFrame is null)
+                    foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
                     {
-                        bestQuality = score;
-                        bestRefFrame = workFrame.Clone();
-                    }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        totalInputFrames++;
+                        pass1Processed++;
 
-                    if (pass1Processed % 10 == 0 || pass1Processed == expectedTotalFrames)
-                    {
-                        int pct = Math.Clamp((int)Math.Round((double)pass1Processed / expectedTotalFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            "Analyse de Qualité",
-                            pct,
-                            fileName,
-                            pass1Processed,
-                            expectedTotalFrames,
-                            $"Analyse de qualité {pass1Processed}/{expectedTotalFrames} ({pct}%)..."));
+                        var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                        if (!accepted)
+                        {
+                            discardedNoPlanet++;
+                            continue;
+                        }
+
+                        double score = StabilisationAndQualityEngine.ComputeQualityScore(
+                            workFrame,
+                            options.QualityAlgorithm);
+
+                        scoreRecords.Add(new FrameScoreRecord(raw.FrameIndex, score, cx, cy));
+
+                        if (score > bestQuality || bestRefFrame is null)
+                        {
+                            bestQuality = score;
+                            bestRefFrame = workFrame.Clone();
+                        }
+
+                        if (pass1Processed % 10 == 0 || pass1Processed == expectedTotalFrames)
+                        {
+                            int pct = Math.Clamp((int)Math.Round((double)pass1Processed / expectedTotalFrames * 45.0), 1, 45);
+                            progress?.Report(new PipelineProgressReport(
+                                "Analyse de Qualité",
+                                pct,
+                                fileName,
+                                pass1Processed,
+                                expectedTotalFrames,
+                                $"Analyse de qualité {pass1Processed}/{expectedTotalFrames} ({pct}%)..."));
+                        }
                     }
                 }
 
@@ -161,7 +225,6 @@ public static class StackingPipelineRunner
                 // Optimisation seek direct pour les SER : évite de décoder les trames rejetées.
                 // =========================================================================
                 int stackedSoFar = 0;
-                string ext = Path.GetExtension(file).ToLowerInvariant();
 
                 if (ext == ".ser")
                 {
@@ -306,9 +369,12 @@ public static class StackingPipelineRunner
         accepted = true;
 
         // Démattriçage systématique des trames Bayer pour éliminer tout motif de trame en pointillés
-        if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+        if (work.Channels == 1 && !options.ProtectBayerPattern &&
+            (options.DebayerEnabled || work.IsBayerRaw || DetectBayerPatternFast(work, out _)))
         {
-            var pattern = work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern;
+            var pattern = work.IsBayerRaw
+                ? work.BayerPattern
+                : (DetectBayerPatternFast(work, out var detected) ? detected : options.DebayerPattern);
             work = ImageProcessor.Debayer(work, pattern, options.DebayerType);
         }
 
@@ -334,5 +400,72 @@ public static class StackingPipelineRunner
         }
 
         return work;
+    }
+
+    private static bool DetectBayerPatternFast(AstroFrame frame, out BayerPattern detectedPattern)
+    {
+        detectedPattern = BayerPattern.Rggb;
+        if (frame.Channels != 1 || frame.Width < 32 || frame.Height < 32)
+            return false;
+
+        ushort[] data = frame.Data;
+        int w = frame.Width;
+        int h = frame.Height;
+        long sum00 = 0, sum10 = 0, sum01 = 0, sum11 = 0;
+        int count = 0;
+
+        int yStart = h / 4;
+        int yEnd = (h * 3) / 4;
+        int xStart = w / 4;
+        int xEnd = (w * 3) / 4;
+
+        for (int y = yStart; y < yEnd; y += 4)
+        {
+            int r0 = y * w;
+            int r1 = (y + 1) * w;
+            for (int x = xStart; x < xEnd; x += 4)
+            {
+                ushort v00 = data[r0 + x];
+                ushort v10 = data[r0 + x + 1];
+                ushort v01 = data[r1 + x];
+                ushort v11 = data[r1 + x + 1];
+
+                if (v00 < 2000 && v10 < 2000 && v01 < 2000 && v11 < 2000) continue;
+
+                sum00 += v00;
+                sum10 += v10;
+                sum01 += v01;
+                sum11 += v11;
+                count++;
+            }
+        }
+
+        if (count < 100) return false;
+
+        double m00 = (double)sum00 / count;
+        double m10 = (double)sum10 / count;
+        double m01 = (double)sum01 / count;
+        double m11 = (double)sum11 / count;
+        double mean = (m00 + m10 + m01 + m11) * 0.25;
+        if (mean < 500) return false;
+
+        // In Bayer matrix, diagonally opposed green pixels have nearly identical average responses
+        // while red and blue differ significantly
+        double diffDiag1 = Math.Abs(m10 - m01) / mean; // Green if RGGB / BGGR
+        double diffDiag2 = Math.Abs(m00 - m11) / mean; // Green if GRBG / GBRG
+
+        if (diffDiag1 < 0.08 && diffDiag2 > 0.12)
+        {
+            detectedPattern = m00 > m11 ? BayerPattern.Rggb : BayerPattern.Bggr;
+            return true;
+        }
+
+        if (diffDiag2 < 0.08 && diffDiag1 > 0.12)
+        {
+            detectedPattern = m10 > m01 ? BayerPattern.Grbg : BayerPattern.Gbrg;
+            return true;
+        }
+
+        return false;
     }
 }

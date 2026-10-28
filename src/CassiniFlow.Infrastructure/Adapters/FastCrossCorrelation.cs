@@ -26,7 +26,9 @@ public static class FastCrossCorrelation
             FillFloatLuminanceMat(current, mat1);
             FillFloatLuminanceMat(reference, mat2);
 
-            var shift = Cv2.PhaseCorrelate(mat1, mat2, null!, out _);
+            using var hanning = new Mat();
+            Cv2.CreateHanningWindow(hanning, new Size(w, h), MatType.CV_32F);
+            var shift = Cv2.PhaseCorrelate(mat1, mat2, hanning, out _);
             return (shift.X, shift.Y);
         }
         catch
@@ -73,13 +75,15 @@ public static class FastCrossCorrelation
             FillFloatSubRegion(current, tile1, curX0, curY0, tw, th);
             FillFloatSubRegion(reference, tile2, refX0, refY0, tw, th);
 
-            var residualShift = Cv2.PhaseCorrelate(tile1, tile2, null!, out _);
+            using var hanning = new Mat();
+            Cv2.CreateHanningWindow(hanning, new Size(tw, th), MatType.CV_32F);
+            var residualShift = Cv2.PhaseCorrelate(tile1, tile2, hanning, out _);
 
             // Si le décalage résiduel est cohérent (turbulence locale < demi-tuile)
             if (Math.Abs(residualShift.X) <= half && Math.Abs(residualShift.Y) <= half)
             {
-                double totalShiftX = (curX0 - refX0) + residualShift.X;
-                double totalShiftY = (curY0 - refY0) + residualShift.Y;
+                double totalShiftX = (refX0 - curX0) + residualShift.X;
+                double totalShiftY = (refY0 - curY0) + residualShift.Y;
                 return (totalShiftX, totalShiftY);
             }
 

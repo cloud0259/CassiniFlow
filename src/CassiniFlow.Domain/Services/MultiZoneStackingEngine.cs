@@ -129,8 +129,8 @@ public sealed class MultiZoneStackingEngine
 
         for (int i = 0; i < apCount; i++)
         {
-            effShiftX[i] = (int)Math.Round(_activePoints[i].ShiftX + globalShiftX);
-            effShiftY[i] = (int)Math.Round(_activePoints[i].ShiftY + globalShiftY);
+            effShiftX[i] = (int)Math.Round(_activePoints[i].ShiftX);
+            effShiftY[i] = (int)Math.Round(_activePoints[i].ShiftY);
         }
 
         for (int y = 0; y < _height; y++)

@@ -19,7 +19,7 @@ public static class ConvolutionSharpeningFilter
         -2, -3, -3, -3, -2
     ];
 
-    private const int KernelSum = 16; // Somme des coefficients
+    private const int KernelSum = 4; // Somme exacte des coefficients (-13 - 10 + 50 - 10 - 13 = 4)
 
     public static AstroFrame ApplySharpening(AstroFrame frame, int blendPercent = 10)
     {

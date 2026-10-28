@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -336,14 +336,15 @@ public partial class MainWindowViewModel : ObservableObject
                 EnableCropping = true;
                 if (SelectedSourceFile?.PlanetDiameterPx is double planetD && planetD > 5)
                 {
-                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 1.6), 64, Math.Min(maxW, maxH)) & ~7;
+                    // Multiplicateur 2.5 pour englober confortablement les anneaux (ex: Saturne) et une marge de sécurité
+                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 2.5), 96, Math.Min(maxW, maxH)) & ~7;
                     CropWidth = pCrop;
                     CropHeight = pCrop;
                 }
                 else
                 {
-                    CropWidth = Math.Min(448, maxW);
-                    CropHeight = Math.Min(448, maxH);
+                    CropWidth = Math.Min(512, maxW);
+                    CropHeight = Math.Min(512, maxH);
                 }
                 EnableQuality = true;
                 SelectedQualityLimitModeIndex = 1;
@@ -1263,14 +1264,14 @@ public partial class MainWindowViewModel : ObservableObject
         {
             ProcessingProgress = r.PercentComplete;
             ProcessingStageText = $"{Loc.TranslateRuntime(r.Stage)} ({r.PercentComplete}%)";
-            ConsoleLogText += $"\n[{DateTime.Now:HH:mm:ss}] {Loc.TranslateRuntime(r.LogMessage)}";
+            UpdateProgressLog(r);
         });
 
         try
         {
             var filesToRun = SourceFiles.Select(f => f.FullPath).ToList();
             string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
-            ConsoleLogText = Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Démarrage du traitement ({filesToRun.Count} fichier(s), {modeLabel})...", $"[{DateTime.Now:HH:mm:ss}] Starting processing ({filesToRun.Count} file(s), {modeLabel})...");
+            InitProcessingLog(filesToRun.Count);
 
             var summary = await Task.Run(() => PipelineRunner.ExecuteFilesAsync(
                 filesToRun,
@@ -1284,17 +1285,17 @@ public partial class MainWindowViewModel : ObservableObject
 
             double fpsSpeed = summary.TotalInputFrames / Math.Max(0.001, summary.Elapsed.TotalSeconds);
             SummaryStatsText = Loc.Pick($"Frames lues : {summary.TotalInputFrames} | Frames écrites : {summary.OutputFramesWritten} | Rejetées : {summary.DiscardedNoPlanet + summary.DiscardedQuality} | Durée : {summary.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps)", $"Frames read: {summary.TotalInputFrames} | Frames written: {summary.OutputFramesWritten} | Rejected: {summary.DiscardedNoPlanet + summary.DiscardedQuality} | Duration: {summary.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps)");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Traitement terminé.\nDernier fichier généré : {summary.OutputFilePath}", $"\n[{DateTime.Now:HH:mm:ss}] Processing finished.\nLast file generated: {summary.OutputFilePath}");
+            FinishProcessingLog(summary);
         }
         catch (OperationCanceledException)
         {
             ProcessingStageText = Loc.Pick("Annulé par l'utilisateur", "Cancelled by user");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Traitement annulé.", $"\n[{DateTime.Now:HH:mm:ss}] Processing cancelled.");
+            AppendStatusLog(Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Traitement annulé.", $"[{DateTime.Now:HH:mm:ss}] Processing cancelled."));
         }
         catch (Exception ex)
         {
             ProcessingStageText = Loc.Pick("Erreur", "Error");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Erreur : {ex.Message}", $"\n[{DateTime.Now:HH:mm:ss}] Error: {ex.Message}");
+            AppendStatusLog(Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Erreur : {ex.Message}", $"[{DateTime.Now:HH:mm:ss}] Error: {ex.Message}"));
         }
         finally
         {
@@ -1302,6 +1303,57 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+
+    private readonly List<string> _processingLogLines = [];
+    private string _currentProcessingStage = string.Empty;
+
+    private void InitProcessingLog(int fileCount)
+    {
+        _processingLogLines.Clear();
+        _currentProcessingStage = string.Empty;
+        string startTime = DateTime.Now.ToString("HH:mm:ss");
+        string modeLabel = IsJoinMode
+            ? Loc.Pick("Mode Fusion", "Join Mode")
+            : Loc.Pick("Mode Lot", "Batch Mode");
+        string line1 = Loc.Pick(
+            $"Heure de lancement : {startTime} ({fileCount} fichier(s), {modeLabel})",
+            $"Launch time: {startTime} ({fileCount} file(s), {modeLabel})");
+        _processingLogLines.Add(line1);
+        ConsoleLogText = line1;
+    }
+
+    private void UpdateProgressLog(PipelineProgressReport r)
+    {
+        string stage = r.Stage;
+        string msg = Loc.TranslateRuntime(r.LogMessage);
+
+        if (string.Equals(stage, _currentProcessingStage, StringComparison.Ordinal) && _processingLogLines.Count > 1)
+        {
+            _processingLogLines[^1] = msg;
+        }
+        else
+        {
+            _currentProcessingStage = stage;
+            _processingLogLines.Add(msg);
+        }
+
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    private void FinishProcessingLog(PipelineRunSummary summary)
+    {
+        string finishMsg = Loc.Pick(
+            $"[{DateTime.Now:HH:mm:ss}] Traitement terminé avec succès.\nDernier fichier généré : {summary.OutputFilePath}",
+            $"[{DateTime.Now:HH:mm:ss}] Processing finished successfully.\nLast file generated: {summary.OutputFilePath}");
+        _processingLogLines.Add(finishMsg);
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    private void AppendStatusLog(string message)
+    {
+        _processingLogLines.Add(message);
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
 
     [RelayCommand]
     public void SetWorkflowMode(string mode)

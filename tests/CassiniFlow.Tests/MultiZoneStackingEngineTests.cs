@@ -1,13 +1,21 @@
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Adapters;
+using CassiniFlow.Infrastructure.Codecs;
 using CassiniFlow.Infrastructure.Synthetic;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace CassiniFlow.Tests;
 
 public class MultiZoneStackingEngineTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public MultiZoneStackingEngineTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
     [Fact]
     public void AlignmentGridGenerator_GeneratesExpectedPointsAndPrunesDarkBackground()
     {
@@ -188,5 +196,66 @@ public class MultiZoneStackingEngineTests
             if (File.Exists(tempAvi)) File.Delete(tempAvi);
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
+    }
+
+    [Fact]
+    public void ConvolutionSharpeningFilter_PreservesLuminanceOnFlatRegion()
+    {
+        var frame = new AstroFrame(32, 32, 1, 16);
+        Array.Fill(frame.Data, (ushort)30000);
+
+        var sharpened = ConvolutionSharpeningFilter.ApplySharpening(frame, blendPercent: 25);
+
+        // Sur une zone plate, la convolution laplacienne doit conserver exactement la luminosité (KernelSum = 4)
+        Assert.Equal(30000, sharpened.Data[16 * 32 + 16]);
+    }
+
+    [Fact]
+    public void FastCrossCorrelation_TileShift_AccuratelyComputesOffset()
+    {
+        var refFrame = new AstroFrame(128, 128, 1, 16);
+        var curFrame = new AstroFrame(128, 128, 1, 16);
+
+        // Crée une structure caractéristique (disque Gaussien) centrée à (64, 64) sur ref
+        for (int y = 50; y <= 78; y++)
+        {
+            for (int x = 50; x <= 78; x++)
+            {
+                double dsq = (x - 64) * (x - 64) + (y - 64) * (y - 64);
+                ushort val = (ushort)Math.Max(0, 45000 - dsq * 80);
+                refFrame.Data[y * 128 + x] = val;
+            }
+        }
+
+        // Sur curFrame, la structure est décalée de (+3, -2) : centre à (67, 62)
+        for (int y = 50; y <= 78; y++)
+        {
+            for (int x = 50; x <= 78; x++)
+            {
+                int cy = y - 2;
+                int cx = x + 3;
+                if (cx >= 0 && cx < 128 && cy >= 0 && cy < 128)
+                {
+                    curFrame.Data[cy * 128 + cx] = refFrame.Data[y * 128 + x];
+                }
+            }
+        }
+
+        var (shiftX, shiftY) = FastCrossCorrelation.ComputeShift(curFrame, refFrame);
+        // curFrame est à ref + (3, -2), donc ref - cur = (-3, +2)
+        Assert.InRange(shiftX, -3.5, -2.5);
+        Assert.InRange(shiftY, 1.5, 2.5);
+
+        var (tileDx, tileDy) = FastCrossCorrelation.ComputeTileShift(
+            curFrame,
+            refFrame,
+            centerX: 64,
+            centerY: 64,
+            size: 48,
+            globalShiftX: shiftX,
+            globalShiftY: shiftY);
+
+        Assert.InRange(tileDx, -3.5, -2.5);
+        Assert.InRange(tileDy, 1.5, 2.5);
     }
 }
