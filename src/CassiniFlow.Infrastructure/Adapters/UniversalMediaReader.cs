@@ -173,6 +173,11 @@ public static class UniversalMediaReader
                 astroMeta);
         }
 
+        if (ext == ".dng")
+        {
+            if (DngReader.TryInspect(filePath, out var dngSummary) && dngSummary != null)
+                return dngSummary;
+        }
         if (ImageExtensions.Contains(ext))
         {
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
@@ -212,6 +217,27 @@ public static class UniversalMediaReader
             return new UniversalPreviewFrame(full, full.Width, full.Height, 1.0);
         }
 
+        if (ext == ".dng")
+        {
+            using var dngMat = DngReader.Decode(filePath);
+            if (dngMat != null && !dngMat.Empty())
+            {
+                int origW = dngMat.Width;
+                int origH = dngMat.Height;
+                double scale = 1.0;
+                int maxDim = Math.Max(origW, origH);
+                if (maxDim > maxPreviewDim)
+                {
+                    scale = (double)maxPreviewDim / maxDim;
+                    int newW = Math.Max(16, (int)Math.Round(origW * scale));
+                    int newH = Math.Max(16, (int)Math.Round(origH * scale));
+                    using var resized = new Mat();
+                    Cv2.Resize(dngMat, resized, new Size(newW, newH), 0, 0, InterpolationFlags.Area);
+                    return new UniversalPreviewFrame(MatToAstroFrame(resized, 0), origW, origH, scale);
+                }
+                return new UniversalPreviewFrame(MatToAstroFrame(dngMat, 0), origW, origH, 1.0);
+            }
+        }
         if (ImageExtensions.Contains(ext))
         {
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
@@ -325,6 +351,12 @@ public static class UniversalMediaReader
             return BmpAndAviWriter.ReadBmp(filePath);
         }
 
+        if (ext == ".dng")
+        {
+            using var dngMat = DngReader.Decode(filePath);
+            if (dngMat != null && !dngMat.Empty())
+                return MatToAstroFrame(dngMat, 0);
+        }
         if (ImageExtensions.Contains(ext))
         {
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
@@ -841,6 +873,13 @@ public static class UniversalMediaReader
             yield break;
         }
 
+        if (ext == ".dng")
+        {
+            using var dngMat = DngReader.Decode(filePath);
+            if (dngMat != null && !dngMat.Empty())
+                yield return MatToAstroFrame(dngMat, 0);
+            yield break;
+        }
         if (ImageExtensions.Contains(ext))
         {
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);

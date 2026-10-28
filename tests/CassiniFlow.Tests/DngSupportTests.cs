@@ -58,4 +58,37 @@ public class DngSupportTests
             if (File.Exists(tempDng)) File.Delete(tempDng);
         }
     }
+
+    [Fact]
+    public void UniversalMediaReader_CanReadCameraDng_WithSubIfdAndJpegStream()
+    {
+        string path = @"d:\Astro\Soleil\Eclipse\12082026\raw\PXL_20260812_172214874.RAW-02.ORIGINAL.dng";
+        if (!File.Exists(path)) return; // Test is executed if file is present on local machine
+
+        // 1. Inspect
+        var summary = UniversalMediaReader.InspectFile(path);
+        Assert.NotNull(summary);
+        Assert.StartsWith("DNG", summary.FormatBadge);
+        Assert.True(summary.Width > 0);
+        Assert.True(summary.Height > 0);
+        Assert.Contains("Pixel", summary.DetailedReport);
+
+        // 2. ReadPreviewFrame
+        var preview = UniversalMediaReader.ReadPreviewFrame(path, 0, maxPreviewDim: 640);
+        Assert.NotNull(preview);
+        Assert.NotNull(preview.Frame);
+        Assert.True(preview.Frame.Width <= 640);
+        Assert.True(preview.Frame.Height <= 640);
+
+        // 3. ReadSingleFrame
+        var single = UniversalMediaReader.ReadSingleFrame(path, 0);
+        Assert.NotNull(single);
+        Assert.Equal(summary.Width, single.Width);
+        Assert.Equal(summary.Height, single.Height);
+
+        // 4. EnumerateFrames
+        var enumerated = UniversalMediaReader.EnumerateFrames(path, 0, 0).ToList();
+        Assert.Single(enumerated);
+        Assert.Equal(summary.Width, enumerated[0].Width);
+    }
 }
