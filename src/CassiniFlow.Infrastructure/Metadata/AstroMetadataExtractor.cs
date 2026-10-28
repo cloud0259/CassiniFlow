@@ -1,3 +1,4 @@
+﻿using System.Buffers.Binary;
 using System;
 using System.Globalization;
 using System.IO;
@@ -325,117 +326,216 @@ public static class AstroMetadataExtractor
 
     private static AstroMediaMetadata ReadExifTags(Stream stream)
     {
-        // Lecteur d'en-tête EXIF léger pour JPEG (APP1) et TIFF (IFD0)
-        byte[] header = new byte[4096];
-        int read = stream.Read(header, 0, header.Length);
-        if (read < 16) return AstroMediaMetadata.Empty;
+        if (stream.Length < 16) return AstroMediaMetadata.Empty;
 
-        // TIFF header check (II = Little Endian, MM = Big Endian)
-        if ((header[0] == 0x49 && header[1] == 0x49 && header[2] == 0x2A && header[3] == 0x00) ||
-            (header[0] == 0x4D && header[1] == 0x4D && header[2] == 0x00 && header[3] == 0x2A))
+        Span<byte> magic = stackalloc byte[4];
+        if (stream.Read(magic) < 4) return AstroMediaMetadata.Empty;
+
+        // TIFF (II = Little Endian, MM = Big Endian)
+        if ((magic[0] == 0x49 && magic[1] == 0x49 && magic[2] == 0x2A && magic[3] == 0x00) ||
+            (magic[0] == 0x4D && magic[1] == 0x4D && magic[2] == 0x00 && magic[3] == 0x2A))
         {
-            return ParseTiffExif(header, 0, read);
+            return ParseTiffExifStream(stream, 0, stream.Length);
         }
 
         // JPEG check (SOI marker 0xFFD8)
-        if (header[0] == 0xFF && header[1] == 0xD8)
+        if (magic[0] == 0xFF && magic[1] == 0xD8)
         {
-            int idx = 2;
-            while (idx < read - 4)
-            {
-                if (header[idx] != 0xFF) break;
-                byte marker = header[idx + 1];
-                int len = (header[idx + 2] << 8) | header[idx + 3];
+            long pos = 2;
+            byte[] markerBuf = new byte[4];
 
-                if (marker == 0xE1 && idx + 10 < read) // APP1 marker
+            while (pos < stream.Length - 4)
+            {
+                stream.Seek(pos, SeekOrigin.Begin);
+                if (stream.Read(markerBuf, 0, 4) < 4) break;
+                if (markerBuf[0] != 0xFF) break;
+
+                byte marker = markerBuf[1];
+                int len = (markerBuf[2] << 8) | markerBuf[3];
+
+                if (marker == 0xE1) // APP1 marker
                 {
-                    // Check "Exif\0\0"
-                    if (header[idx + 4] == 0x45 && header[idx + 5] == 0x78 && header[idx + 6] == 0x69 && header[idx + 7] == 0x66 &&
-                        header[idx + 8] == 0x00 && header[idx + 9] == 0x00)
+                    byte[] exifSig = new byte[6];
+                    if (stream.Read(exifSig, 0, 6) == 6 &&
+                        exifSig[0] == 0x45 && exifSig[1] == 0x78 && exifSig[2] == 0x69 && exifSig[3] == 0x66 &&
+                        exifSig[4] == 0x00 && exifSig[5] == 0x00)
                     {
-                        int tiffStart = idx + 10;
-                        return ParseTiffExif(header, tiffStart, read - tiffStart);
+                        long tiffStart = pos + 10;
+                        long tiffLen = len - 8;
+                        return ParseTiffExifStream(stream, tiffStart, tiffLen);
                     }
                 }
 
-                idx += 2 + len;
+                if (marker == 0xDA) break; // SOS marker, image data begins
+
+                pos += 2 + len;
             }
         }
 
         return AstroMediaMetadata.Empty;
     }
 
-    private static AstroMediaMetadata ParseTiffExif(byte[] data, int start, int length)
+    private static AstroMediaMetadata ParseTiffExifStream(Stream stream, long tiffStart, long tiffLength)
     {
-        if (length < 8) return AstroMediaMetadata.Empty;
-        bool littleEndian = data[start] == 0x49 && data[start + 1] == 0x49;
+        if (tiffLength < 8 || !stream.CanSeek) return AstroMediaMetadata.Empty;
 
-        ushort ReadU16(int offset)
-        {
-            int o = start + offset;
-            if (o + 1 >= data.Length) return 0;
-            return littleEndian
-                ? (ushort)(data[o] | (data[o + 1] << 8))
-                : (ushort)((data[o] << 8) | data[o + 1]);
-        }
+        stream.Seek(tiffStart, SeekOrigin.Begin);
+        byte[] hdr = new byte[8];
+        if (stream.Read(hdr, 0, 8) < 8) return AstroMediaMetadata.Empty;
 
-        uint ReadU32(int offset)
-        {
-            int o = start + offset;
-            if (o + 3 >= data.Length) return 0;
-            return littleEndian
-                ? (uint)(data[o] | (data[o + 1] << 8) | (data[o + 2] << 16) | (data[o + 3] << 24))
-                : (uint)((data[o] << 24) | (data[o + 1] << 16) | (data[o + 2] << 8) | data[o + 3]);
-        }
+        bool littleEndian = hdr[0] == 0x49 && hdr[1] == 0x49;
+        bool bigEndian = hdr[0] == 0x4D && hdr[1] == 0x4D;
+        if (!littleEndian && !bigEndian) return AstroMediaMetadata.Empty;
 
-        uint ifdOffset = ReadU32(4);
-        if (ifdOffset == 0 || ifdOffset >= length) return AstroMediaMetadata.Empty;
+        ushort magic = littleEndian
+            ? BinaryPrimitives.ReadUInt16LittleEndian(hdr.AsSpan(2, 2))
+            : BinaryPrimitives.ReadUInt16BigEndian(hdr.AsSpan(2, 2));
+        if (magic != 42) return AstroMediaMetadata.Empty;
+
+        uint ifdOffset = littleEndian
+            ? BinaryPrimitives.ReadUInt32LittleEndian(hdr.AsSpan(4, 4))
+            : BinaryPrimitives.ReadUInt32BigEndian(hdr.AsSpan(4, 4));
+
+        if (ifdOffset == 0 || ifdOffset >= tiffLength) return AstroMediaMetadata.Empty;
 
         double? expTime = null;
         int? iso = null;
+        string? make = null;
+        string? model = null;
         string? camera = null;
+        string? telescope = null;
+        DateTime? timestamp = null;
+        double? fNumber = null;
+        double? focalLength = null;
+        int? focalLength35 = null;
 
-        void ReadIfd(uint offset)
+        var visited = new HashSet<uint>();
+
+        void ReadIfd(uint relOffset, int depth)
         {
-            if (offset == 0 || offset + 2 >= length) return;
-            ushort count = ReadU16((int)offset);
-            int cur = (int)offset + 2;
+            if (depth > 10 || relOffset == 0 || relOffset + 2 >= tiffLength || !visited.Add(relOffset))
+                return;
 
-            for (int i = 0; i < count && cur + 12 <= length; i++, cur += 12)
+            long absOffset = tiffStart + relOffset;
+            stream.Seek(absOffset, SeekOrigin.Begin);
+
+            byte[] countBuf = new byte[2];
+            if (stream.Read(countBuf, 0, 2) < 2) return;
+            ushort count = littleEndian
+                ? BinaryPrimitives.ReadUInt16LittleEndian(countBuf)
+                : BinaryPrimitives.ReadUInt16BigEndian(countBuf);
+            if (count == 0 || count > 500) return;
+
+            byte[] entriesBuf = new byte[count * 12];
+            if (stream.Read(entriesBuf, 0, entriesBuf.Length) < entriesBuf.Length) return;
+
+            var subIfdsToFollow = new List<uint>();
+
+            for (int i = 0; i < count; i++)
             {
-                ushort tag = ReadU16(cur);
-                ushort type = ReadU16(cur + 2);
-                uint valCount = ReadU32(cur + 4);
-                uint valOffset = ReadU32(cur + 8);
+                var entry = entriesBuf.AsSpan(i * 12, 12);
+                ushort tag = littleEndian
+                    ? BinaryPrimitives.ReadUInt16LittleEndian(entry[..2])
+                    : BinaryPrimitives.ReadUInt16BigEndian(entry[..2]);
+                ushort type = littleEndian
+                    ? BinaryPrimitives.ReadUInt16LittleEndian(entry[2..4])
+                    : BinaryPrimitives.ReadUInt16BigEndian(entry[2..4]);
+                uint valCount = littleEndian
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(entry[4..8])
+                    : BinaryPrimitives.ReadUInt32BigEndian(entry[4..8]);
+                uint valOrOffset = littleEndian
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(entry[8..12])
+                    : BinaryPrimitives.ReadUInt32BigEndian(entry[8..12]);
 
                 switch (tag)
                 {
-                    case 0x829A: // ExposureTime (Rational)
-                        if (valOffset + 8 <= length)
+                    case 0x010F: // Make (ASCII)
+                        make ??= ReadStringAt(stream, tiffStart, valOrOffset, valCount);
+                        break;
+                    case 0x0110: // Model (ASCII)
+                        model ??= ReadStringAt(stream, tiffStart, valOrOffset, valCount);
+                        break;
+                    case 0x0132: // DateTime (ASCII)
+                        if (timestamp == null)
                         {
-                            uint num = ReadU32((int)valOffset);
-                            uint den = ReadU32((int)valOffset + 4);
+                            string? dtStr = ReadStringAt(stream, tiffStart, valOrOffset, valCount);
+                            timestamp = ParseExifDateTime(dtStr);
+                        }
+                        break;
+                    case 0x829A: // ExposureTime (Rational)
+                        if (expTime == null)
+                        {
+                            var (num, den) = ReadRationalAt(stream, tiffStart, valOrOffset, littleEndian);
                             if (den > 0) expTime = (double)num / den;
                         }
                         break;
-                    case 0x8827: // ISOSpeedRatings (Short)
-                        iso = (int)(valOffset & 0xFFFF);
-                        break;
-                    case 0x0110: // Model (ASCII)
-                        if (valOffset + Math.Min(32, valCount) <= length)
+                    case 0x829D: // FNumber (Rational)
+                        if (fNumber == null)
                         {
-                            int strLen = (int)Math.Min(64, valCount);
-                            camera = Encoding.ASCII.GetString(data, start + (int)valOffset, strLen).Trim('\0', ' ');
+                            var (num, den) = ReadRationalAt(stream, tiffStart, valOrOffset, littleEndian);
+                            if (den > 0) fNumber = (double)num / den;
                         }
                         break;
+                    case 0x8827: // ISOSpeedRatings (Short/Long)
+                        iso ??= (int)(valOrOffset & 0xFFFF);
+                        break;
+                    case 0x9003: // DateTimeOriginal (ASCII)
+                    case 0x9004: // DateTimeDigitized (ASCII)
+                        if (timestamp == null)
+                        {
+                            string? dtStr = ReadStringAt(stream, tiffStart, valOrOffset, valCount);
+                            timestamp = ParseExifDateTime(dtStr);
+                        }
+                        break;
+                    case 0x920A: // FocalLength (Rational)
+                        if (focalLength == null)
+                        {
+                            var (num, den) = ReadRationalAt(stream, tiffStart, valOrOffset, littleEndian);
+                            if (den > 0) focalLength = (double)num / den;
+                        }
+                        break;
+                    case 0xA405: // FocalLengthIn35mmFilm (Short)
+                        focalLength35 ??= (int)(valOrOffset & 0xFFFF);
+                        break;
                     case 0x8769: // ExifIFDPointer
-                        ReadIfd(valOffset);
+                    case 0x014A: // SubIFDs
+                        subIfdsToFollow.Add(valOrOffset);
                         break;
                 }
             }
+
+            foreach (var sub in subIfdsToFollow)
+            {
+                ReadIfd(sub, depth + 1);
+            }
         }
 
-        ReadIfd(ifdOffset);
+        ReadIfd(ifdOffset, 0);
+
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            if (!string.IsNullOrWhiteSpace(make) && !model.Contains(make, StringComparison.OrdinalIgnoreCase))
+                camera = $"{make} {model}".Trim();
+            else
+                camera = model.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(make))
+        {
+            camera = make.Trim();
+        }
+
+        if (fNumber.HasValue && focalLength.HasValue)
+        {
+            telescope = focalLength35.HasValue && focalLength35.Value > 0
+                ? $"f/{fNumber.Value:F1}, {focalLength.Value:F1} mm (équiv. {focalLength35.Value} mm)"
+                : $"f/{fNumber.Value:F1}, {focalLength.Value:F1} mm";
+        }
+        else if (focalLength.HasValue)
+        {
+            telescope = focalLength35.HasValue && focalLength35.Value > 0
+                ? $"{focalLength.Value:F1} mm (équiv. {focalLength35.Value} mm)"
+                : $"{focalLength.Value:F1} mm";
+        }
 
         string? shutter = expTime.HasValue ? AstroMediaMetadata.FormatShutterSpeed(expTime.Value) : null;
         string? expText = expTime.HasValue ? AstroMediaMetadata.FormatExposure(expTime.Value) : null;
@@ -445,7 +545,60 @@ public static class AstroMetadataExtractor
             ExposureText: expText,
             ShutterSpeedText: shutter,
             Iso: iso,
-            Camera: camera);
+            Camera: camera,
+            Telescope: telescope,
+            TimestampUtc: timestamp);
+    }
+
+    private static (uint Num, uint Den) ReadRationalAt(Stream stream, long tiffStart, uint valOrOffset, bool littleEndian)
+    {
+        long pos = stream.Position;
+        try
+        {
+            stream.Seek(tiffStart + valOrOffset, SeekOrigin.Begin);
+            byte[] buf = new byte[8];
+            if (stream.Read(buf, 0, 8) == 8)
+            {
+                uint num = littleEndian ? BinaryPrimitives.ReadUInt32LittleEndian(buf.AsSpan(0, 4)) : BinaryPrimitives.ReadUInt32BigEndian(buf.AsSpan(0, 4));
+                uint den = littleEndian ? BinaryPrimitives.ReadUInt32LittleEndian(buf.AsSpan(4, 4)) : BinaryPrimitives.ReadUInt32BigEndian(buf.AsSpan(4, 4));
+                return (num, den);
+            }
+            return (0, 0);
+        }
+        finally
+        {
+            stream.Seek(pos, SeekOrigin.Begin);
+        }
+    }
+
+    private static string? ReadStringAt(Stream stream, long tiffStart, uint valOrOffset, uint count)
+    {
+        if (count == 0 || count > 1024) return null;
+        long pos = stream.Position;
+        try
+        {
+            stream.Seek(tiffStart + valOrOffset, SeekOrigin.Begin);
+            byte[] buf = new byte[count];
+            if (stream.Read(buf, 0, buf.Length) == buf.Length)
+            {
+                return Encoding.ASCII.GetString(buf).Trim('\0', ' ').Trim();
+            }
+            return null;
+        }
+        finally
+        {
+            stream.Seek(pos, SeekOrigin.Begin);
+        }
+    }
+
+    private static DateTime? ParseExifDateTime(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (DateTime.TryParseExact(s, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dt))
+            return dt;
+        if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dt2))
+            return dt2;
+        return null;
     }
 
     private static AstroMediaMetadata Merge(AstroMediaMetadata primary, AstroMediaMetadata secondary)

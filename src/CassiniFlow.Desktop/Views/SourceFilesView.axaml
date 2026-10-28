@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -120,6 +120,10 @@
                     <Grid ColumnDefinitions="*,*">
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.IsoOrGainInfo, StringFormat='Sensib. : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" IsVisible="{Binding SelectedSourceFile.HasCameraInfo}">
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.CameraInfo, StringFormat='Appareil : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.TelescopeInfo, StringFormat='Optique : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" IsVisible="{Binding SelectedSourceFile.HasTelescopeInfo}"/>
                     </Grid>
                 </StackPanel>
 
