@@ -548,7 +548,76 @@ public partial class MainWindowViewModel : ObservableObject
             1 => Loc.Pick($"Taille de l'objet : {sizes[0]:F0} px.", $"Object size: {sizes[0]:F0} px."),
             _ => FormatObjectSizeSpread(sizes)
         };
+
+        // Reconnaissance automatique de l'objet présent (Planète / Lune / Soleil) et réglage de la dropdown
+        var targetFile = SelectedSourceFile;
+        if (targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
+        {
+            try
+            {
+                var preview = PlanetSizeAnalyzer.PreviewFrameLoader(targetFile.FullPath, 0, 960);
+                var classification = CelestialTargetClassifier.Classify(
+                    preview.Frame,
+                    targetFile.PlanetDiameterPx,
+                    preview.OriginalWidth,
+                    preview.OriginalHeight);
+
+                if (classification.TargetType != CelestialTargetType.Unknown &&
+                    classification.RecommendedPresetIndex > 0)
+                {
+                    SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    ConsoleLogText += $"\n{Loc.Pick($"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé automatiquement.", $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" selected automatically.")}";
+                }
+            }
+            catch { }
+        }
     }
+
+    [RelayCommand]
+    public void AutoDetectPreset()
+    {
+        var item = SelectedSourceFile;
+        if (item is null || PlanetSizeAnalyzer.PreviewFrameLoader is null) return;
+
+        try
+        {
+            var preview = PlanetSizeAnalyzer.PreviewFrameLoader(item.FullPath, 0, 960);
+            var classification = CelestialTargetClassifier.Classify(
+                preview.Frame,
+                item.PlanetDiameterPx,
+                preview.OriginalWidth,
+                preview.OriginalHeight);
+
+            if (classification.TargetType != CelestialTargetType.Unknown &&
+                classification.RecommendedPresetIndex > 0)
+            {
+                SelectedPresetIndex = classification.RecommendedPresetIndex;
+                ConsoleLogText = Loc.Pick(
+                    $"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé ({classification.Details}).",
+                    $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" activated ({classification.Details}).");
+            }
+            else
+            {
+                ConsoleLogText = Loc.Pick(
+                    "Objet céleste non reconnu avec certitude. Le mode Manuel est conservé.",
+                    "Celestial object could not be identified with certainty. Manual mode is retained.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogText = Loc.Pick($"Erreur reconnaissance : {ex.Message}", $"Recognition error: {ex.Message}");
+        }
+    }
+
+    private static string GetPresetName(int index) => index switch
+    {
+        1 => Loc.Pick("Planétaire", "Planetary"),
+        2 => Loc.Pick("Solaire / Lunaire (gros plan)", "Solar / Lunar Close-up"),
+        3 => Loc.Pick("Solaire / Lunaire (disque entier)", "Solar / Lunar Full Disc"),
+        4 => Loc.Pick("ISS", "ISS"),
+        5 => Loc.Pick("Animation planétaire", "Planetary Animation"),
+        _ => Loc.Pick("Manuel", "Manual")
+    };
 
     private static string FormatObjectSizeSpread(IReadOnlyList<double> sizes)
     {

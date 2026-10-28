@@ -1,4 +1,4 @@
-{
+﻿{
   "App": {
     "Title": "CassiniFlow — Planetary & Astro Imaging PreProcessor"
   },
@@ -77,6 +77,7 @@
     "End": "Fin :",
     "PresetsTitle": "Optimiser les options pour : (Préréglages CassiniFlow)",
     "PresetsSubtitle": "Configure automatiquement les onglets selon le type de cible :",
+    "AutoDetectPresetTooltip": "Reconnaissance automatique de l'objet et sélection du preset",
     "PresetManual": "Configuration Manuelle (Pas d'optimisation automatique)",
     "PresetPlanetary": "Planétaire (Planète sur fond noir : détection + centrage + recadrage)",
     "PresetSolarLunarCloseup": "Gros plan Solaire / Lunaire (Surface : stabilisation par ancrage AFB)",
