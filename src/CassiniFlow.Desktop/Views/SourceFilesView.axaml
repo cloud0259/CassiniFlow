@@ -6,87 +6,93 @@
              x:Class="CassiniFlow.Desktop.Views.SourceFilesView"
              x:DataType="vm:MainWindowViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid RowDefinitions="Auto,*,Auto" Margin="4,8,4,4">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="2,4,2,2">
 
-            <!-- Barre d'outils de la liste des fichiers -->
-            <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
-                <TextBlock Text="{loc:Tr SourceFiles.Header}" Classes="grouptitle" VerticalAlignment="Center" Margin="0"/>
-                <WrapPanel Grid.Row="1" Margin="0,6,0,0">
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.AddFiles}" Click="OnAddVideoFilesClick" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="10,4"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MeasureSizes}" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MeasureSizesTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.SortAsc}" Command="{Binding SortFilesBySizeAscendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.SortAscTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.SortDesc}" Command="{Binding SortFilesBySizeDescendingCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.SortDescTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MoveUp}" Command="{Binding MoveSelectedFileUpCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveUpTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.MoveDown}" Command="{Binding MoveSelectedFileDownCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveDownTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.DeleteSelection}" Command="{Binding RemoveSelectedFileCommand}" FontSize="12" Padding="8,4" ToolTip.Tip="{loc:Tr SourceFiles.DeleteSelectionTip}"/>
-                    <Button Margin="0,0,6,4" Content="{loc:Tr SourceFiles.ClearList}" Command="{Binding ClearAllFilesCommand}" FontSize="12" Padding="8,4"/>
-                </WrapPanel>
+        <!-- Barre d'outils de la liste des fichiers -->
+        <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,6">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="{loc:Tr SourceFiles.Header}" Classes="grouptitle" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Grid.Column="1" Text="{Binding SourceFiles.Count, StringFormat='{}{0}'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
             </Grid>
+            <WrapPanel Grid.Row="1" Margin="0,2,0,2">
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.AddFiles}" Click="OnAddVideoFilesClick" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,4"/>
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.MeasureSizes}" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="11" Padding="6,4" ToolTip.Tip="{loc:Tr SourceFiles.MeasureSizesTip}"/>
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.SortAsc}" Command="{Binding SortFilesBySizeAscendingCommand}" FontSize="11" Padding="6,4" ToolTip.Tip="{loc:Tr SourceFiles.SortAscTip}"/>
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.SortDesc}" Command="{Binding SortFilesBySizeDescendingCommand}" FontSize="11" Padding="6,4" ToolTip.Tip="{loc:Tr SourceFiles.SortDescTip}"/>
+                <Button Margin="0,0,4,4" Content="▲" Command="{Binding MoveSelectedFileUpCommand}" FontSize="11" Padding="7,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveUpTip}"/>
+                <Button Margin="0,0,4,4" Content="▼" Command="{Binding MoveSelectedFileDownCommand}" FontSize="11" Padding="7,4" ToolTip.Tip="{loc:Tr SourceFiles.MoveDownTip}"/>
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.DeleteSelection}" Command="{Binding RemoveSelectedFileCommand}" FontSize="11" Padding="6,4" ToolTip.Tip="{loc:Tr SourceFiles.DeleteSelectionTip}"/>
+                <Button Margin="0,0,4,4" Content="{loc:Tr SourceFiles.ClearList}" Command="{Binding ClearAllFilesCommand}" FontSize="11" Padding="6,4"/>
+            </WrapPanel>
+        </Grid>
 
-            <!-- Tableau des fichiers sources -->
-            <Border Grid.Row="1" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="140" Margin="0,0,0,10">
-                <Grid RowDefinitions="Auto,*">
-                    <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
-                        <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*">
-                            <Button Grid.Column="0" Content="☑" Command="{Binding ToggleCheckAllFilesCommand}" Padding="2,0" FontSize="12" Background="Transparent" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
-                            <TextBlock Grid.Column="1" Text="{loc:Tr SourceFiles.ColFileName}" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.ColType}" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="3" Text="{loc:Tr SourceFiles.ColFrames}" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="4" Text="{loc:Tr SourceFiles.ColDimensions}" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="5" Text="{loc:Tr SourceFiles.ColFps}" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="6" Text="{loc:Tr SourceFiles.ColSize}" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right"/>
-                            <TextBlock Grid.Column="7" Text="{loc:Tr SourceFiles.ColDiameter}" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Right" ToolTip.Tip="{loc:Tr SourceFiles.ColDiameterTip}"/>
-                        </Grid>
-                    </Border>
+        <!-- Tableau / Cartes des fichiers sources -->
+        <Border Grid.Row="1" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="140" Margin="0,0,0,6">
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Button Grid.Column="0" Content="☑" Command="{Binding ToggleCheckAllFilesCommand}" Padding="4,1" FontSize="11" Background="Transparent" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Tr SourceFiles.ColFileName}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SourceFiles.Count, StringFormat='{}{0} item(s)'}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
 
-                    <ListBox Grid.Row="1" PointerPressed="OnFileListPointerPressed" PointerMoved="OnFileListPointerMoved" PointerReleased="OnFileListPointerReleased" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedSourceFile}" Background="Transparent" BorderThickness="0">
-                        <ListBox.KeyBindings>
-                            <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedFileCommand}"/>
-                            <KeyBinding Gesture="Alt+Up" Command="{Binding MoveSelectedFileUpCommand}"/>
-                            <KeyBinding Gesture="Alt+Down" Command="{Binding MoveSelectedFileDownCommand}"/>
-                        </ListBox.KeyBindings>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:SourceFileItem">
-                                <Grid ColumnDefinitions="32,3*,1.4*,0.8*,1.1*,0.9*,0.9*,1*" Margin="4,2">
-                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding FormatBadge}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding Frames}" FontSize="12" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="4" Text="{Binding Resolution}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="5" Text="{Binding FpsInfo}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="6" Text="{Binding FileSize}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="7" Text="{Binding PlanetSizeText}" FontSize="12" Foreground="{DynamicResource AppBadgeAccent}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                <ListBox Grid.Row="1" PointerPressed="OnFileListPointerPressed" PointerMoved="OnFileListPointerMoved" PointerReleased="OnFileListPointerReleased" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedSourceFile}" Background="Transparent" BorderThickness="0" Padding="4">
+                    <ListBox.KeyBindings>
+                        <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedFileCommand}"/>
+                        <KeyBinding Gesture="Alt+Up" Command="{Binding MoveSelectedFileUpCommand}"/>
+                        <KeyBinding Gesture="Alt+Down" Command="{Binding MoveSelectedFileDownCommand}"/>
+                    </ListBox.KeyBindings>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SourceFileItem">
+                            <Border Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,2">
+                                <Grid RowDefinitions="Auto,Auto">
+                                    <!-- Ligne 1 : Checkbox + Nom du fichier + FormatBadge -->
+                                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding FileName}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Border Grid.Column="2" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="5,1" Margin="4,0,0,0">
+                                            <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>
+                                        </Border>
+                                    </Grid>
+                                    <!-- Ligne 2 : Frames • Taille • Résolution • Diamètre -->
+                                    <WrapPanel Grid.Row="1" Margin="24,3,0,0" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Frames, StringFormat='{}{0} fr'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}"/>
+                                    </WrapPanel>
                                 </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </Border>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
 
-            <!-- Bas de l'onglet 1 : Mode Batch/Join à gauche + "Optimise Options For" à droite -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,10,*">
-                <Border Grid.Column="0" Classes="groupbox">
-                    <StackPanel Spacing="8">
+        <!-- Bas du volet gauche : Options de session & Presets -->
+        <ScrollViewer Grid.Row="2" MaxHeight="240" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="6">
+                <Border Classes="groupbox" Padding="8">
+                    <StackPanel Spacing="6">
                         <TextBlock Text="{loc:Tr SourceFiles.ModeTitle}" Classes="grouptitle"/>
-                        <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="12"/>
-                        <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="12"/>
-                        <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
-                        <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
+                        <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="11"/>
+                        <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="11"/>
+                        <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+                        <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="11"/>
                         <Grid ColumnDefinitions="Auto,*,Auto,*" IsEnabled="{Binding LimitFrameRange}">
-                            <TextBlock Grid.Column="0" Text="{loc:Tr SourceFiles.Start}" Classes="label" Margin="0,0,6,0"/>
-                            <controls:NumberStepper Grid.Column="1" Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="50"/>
-                            <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.End}" Classes="label" Margin="10,0,6,0"/>
-                            <controls:NumberStepper Grid.Column="3" Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="50"/>
+                            <TextBlock Grid.Column="0" Text="{loc:Tr SourceFiles.Start}" Classes="label" Margin="0,0,4,0"/>
+                            <controls:NumberStepper Grid.Column="1" Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="45"/>
+                            <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.End}" Classes="label" Margin="6,0,4,0"/>
+                            <controls:NumberStepper Grid.Column="3" Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" MinWidth="45"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="2" Classes="groupbox">
-                    <StackPanel Spacing="6">
+                <Border Classes="groupbox" Padding="8">
+                    <StackPanel Spacing="4">
                         <TextBlock Text="{loc:Tr SourceFiles.PresetsTitle}" Classes="grouptitle"/>
-                        <TextBlock Text="{loc:Tr SourceFiles.PresetsSubtitle}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,0,2"/>
-                        <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch">
+                        <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch" FontSize="11">
                             <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
                             <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
                             <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
@@ -96,8 +102,8 @@
                         </ComboBox>
                     </StackPanel>
                 </Border>
-            </Grid>
+            </StackPanel>
+        </ScrollViewer>
 
-        </Grid>
-    </ScrollViewer>
+    </Grid>
 </UserControl>

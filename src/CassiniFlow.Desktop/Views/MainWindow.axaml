@@ -16,8 +16,8 @@
 
     <Window.Styles>
         <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
         </Style>
     </Window.Styles>
 
@@ -80,64 +80,67 @@
             </Grid>
         </Border>
 
-        <!-- ZONE PRINCIPALE : LES ONGLETS MODULAIRES À GAUCHE / APERÇU DE LA FRAME À DROITE -->
-        <Grid Grid.Row="1" ColumnDefinitions="58*,Auto,42*">
+        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX (SESSION GAUCHE / VIEWER CENTRE / PARAMÈTRES DROITE) -->
+        <Grid Grid.Row="1" ColumnDefinitions="28*,Auto,44*,Auto,28*">
 
-            <!-- PANNEAU GAUCHE : LES ONGLETS -->
-            <Border Grid.Column="0" MinWidth="480" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8">
+            <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
+            <Border Grid.Column="0" MinWidth="260" MaxWidth="500" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="8,8,6,8" IsEnabled="{Binding !IsProcessing}">
+                <views:SourceFilesView />
+            </Border>
+
+            <!-- SPLITTER GAUCHE / CENTRE -->
+            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns" />
+
+            <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION TEMPORELLE HAUTE RÉSOLUTION -->
+            <Border Grid.Column="2" MinWidth="360" Background="{DynamicResource AppWindowBackground}" Padding="8" IsEnabled="{Binding !IsProcessing}">
+                <views:FrameViewerView />
+            </Border>
+
+            <!-- SPLITTER CENTRE / DROITE -->
+            <GridSplitter Grid.Column="3" Width="4" Background="Transparent" ResizeDirection="Columns" />
+
+            <!-- VOLET DROIT : PIPELINE DE CALCUL & PARAMÈTRES SÉQUENTIELS -->
+            <Border Grid.Column="4" MinWidth="280" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="6,8,8,8">
                 <TabControl SelectedIndex="{Binding SelectedTabIndex}">
 
-                    <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand la fenêtre est réduite -->
+                    <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand le volet est réduit -->
                     <TabControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />
                         </ItemsPanelTemplate>
                     </TabControl.ItemsPanel>
 
-                    <!-- ONGLET 1 : SOURCE FILES -->
-                    <TabItem Header="{loc:Tr Tab.SourceFiles}" IsEnabled="{Binding !IsProcessing}">
-                        <views:SourceFilesView />
-                    </TabItem>
-
-                    <!-- ONGLET 2 : INPUT OPTIONS -->
+                    <!-- 1. CALIBRATION & ENTRÉE -->
                     <TabItem Header="{loc:Tr Tab.InputOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:InputOptionsView />
                     </TabItem>
 
-                    <!-- ONGLET 3 : PROCESSING OPTIONS -->
+                    <!-- 2. STABILISATION & CENTRAGE -->
                     <TabItem Header="{loc:Tr Tab.ProcessingOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:ProcessingOptionsView />
                     </TabItem>
 
-                    <!-- ONGLET 4 : QUALITY OPTIONS -->
+                    <!-- 3. TRI QUALITÉ SEEING -->
                     <TabItem Header="{loc:Tr Tab.QualityOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:QualityOptionsView />
                     </TabItem>
 
-                    <!-- ONGLET 5 : ANIMATION OPTIONS -->
+                    <!-- 4. ANIMATION -->
                     <TabItem Header="{loc:Tr Tab.AnimationOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:AnimationOptionsView />
                     </TabItem>
 
-                    <!-- ONGLET 6 : OUTPUT OPTIONS -->
+                    <!-- 5. EXPORT & SORTIE -->
                     <TabItem Header="{loc:Tr Tab.OutputOptions}" IsEnabled="{Binding !IsProcessing}">
                         <views:OutputOptionsView />
                     </TabItem>
 
-                    <!-- ONGLET 7 : DO PROCESSING -->
+                    <!-- 6. EXÉCUTION & CONSOLE -->
                     <TabItem Header="{loc:Tr Tab.DoProcessing}">
                         <views:DoProcessingView />
                     </TabItem>
 
                 </TabControl>
-            </Border>
-
-            <!-- SPLITTER DE REDIMENSIONNEMENT DES VOLETS -->
-            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns" />
-
-            <!-- PANNEAU DROIT : FENÊTRE D'APERÇU CassiniFlow (OUTPUT FRAME VIEWER) -->
-            <Border Grid.Column="2" MinWidth="380" Background="{DynamicResource AppWindowBackground}" Padding="10" IsEnabled="{Binding !IsProcessing}">
-                <views:FrameViewerView />
             </Border>
 
         </Grid>

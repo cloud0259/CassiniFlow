@@ -8,9 +8,9 @@
 
     <Grid RowDefinitions="Auto,*,Auto">
 
-        <!-- En-tête de la visionneuse -->
-        <Border Grid.Row="0" Classes="groupbox" Padding="10,8" Margin="0,0,0,8">
-            <StackPanel Spacing="6">
+        <!-- En-tête de la visionneuse / Barre d'outils HUD -->
+        <Border Grid.Row="0" Classes="groupbox" Padding="10,6" Margin="0,0,0,6">
+            <StackPanel Spacing="5">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="{Binding ViewerTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Grid.Column="1" Text="{Binding FrameDimensionsText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="8,0,0,0"/>
@@ -23,24 +23,30 @@
             </StackPanel>
         </Border>
 
-        <!-- Canvas d'aperçu avec respect du ratio d'aspect -->
-        <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" Margin="0,0,0,8">
+        <!-- Canvas d'aperçu haute résolution avec fond sombre astrophysique -->
+        <Border Grid.Row="1" Background="#06090E" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" Margin="0,0,0,6">
             <controls:AstroViewerControl />
         </Border>
 
-        <!-- Contrôles de navigation Frame par Frame -->
-        <Border Grid.Row="2" Classes="groupbox" Padding="10,8">
+        <!-- Contrôles de navigation temporelle Frame par Frame -->
+        <Border Grid.Row="2" Classes="groupbox" Padding="10,6">
             <StackPanel Spacing="6">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                    <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0" ToolTip.Tip="{loc:Tr Menu.FirstFrame}"/>
                     <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3" Margin="0,0,8,0"/>
                     <Slider Grid.Column="2" Minimum="1" Maximum="{Binding MaxFrameCount}" Value="{Binding CurrentFrameIndex}" VerticalAlignment="Center"/>
                     <Button Grid.Column="3" Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3" Margin="8,0,4,0"/>
-                    <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3"/>
+                    <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.LastFrame}"/>
                 </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Grid.Column="1" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Frame :" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Text="{Binding CurrentFrameIndex}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
+                        <TextBlock Text="/" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"/>
+                        <TextBlock Text="{Binding MaxFrameCount}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12,0"/>
+                    <TextBlock Grid.Column="2" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </StackPanel>
         </Border>

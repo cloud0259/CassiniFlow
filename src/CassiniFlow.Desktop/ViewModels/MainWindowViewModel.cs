@@ -834,7 +834,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (IsProcessing) return;
 
-        SelectedTabIndex = 6;
+        SelectedTabIndex = 5;
         IsProcessing = true;
         HasCompletedOutput = false;
         SyncOptionsFromUi();
