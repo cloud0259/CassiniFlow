@@ -6,52 +6,48 @@
              x:Class="CassiniFlow.Desktop.Views.OutputOptionsView"
              x:DataType="vm:MainWindowViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="10" Margin="4,8,4,4">
-            <Border Classes="groupbox">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
-                    <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
-                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
-                    </ComboBox>
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
+                <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
+                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
+                </ComboBox>
 
-                    <Grid ColumnDefinitions="*,12,*">
-                        <StackPanel Grid.Column="0" Spacing="6">
-                            <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding !MatchInputFps}">
-                                <TextBlock Text="{loc:Tr OutputOptions.CustomFps}" Classes="label"/>
-                                <controls:NumberStepper Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="120"/>
-                            </StackPanel>
-                        </StackPanel>
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
-                        <StackPanel Grid.Column="2" Spacing="6">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Tr OutputOptions.FileSuffix}" Classes="label"/>
-                                <TextBox Text="{Binding OutputSuffix}" Width="120"/>
-                            </StackPanel>
-                            <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+                <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !MatchInputFps}">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.CustomFps}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="110"/>
+                </Grid>
 
-            <Border Classes="groupbox">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{loc:Tr OutputOptions.DestinationFolder}" Classes="grouptitle"/>
-                    <TextBlock Text="{loc:Tr OutputOptions.DefaultFolderHint}" FontSize="12" Foreground="{DynamicResource AppTextDimmed}"/>
-                    <Grid ColumnDefinitions="*,Auto,Auto">
-                        <TextBox Grid.Column="0" Text="{Binding CustomOutputDirectory}" Watermark="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,0,8,0"/>
-                        <Button Grid.Column="1" Content="{loc:Tr OutputOptions.Browse}" Click="OnSelectOutputFolderClick" Margin="0,0,6,0"/>
-                        <Button Grid.Column="2" Content="{loc:Tr OutputOptions.OpenFolder}" Command="{Binding OpenOutputFolderCommand}"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.FileSuffix}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                    <TextBox Grid.Column="1" Text="{Binding OutputSuffix}" Width="110"/>
+                </Grid>
+                <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr OutputOptions.DestinationFolder}" Classes="grouptitle"/>
+                <TextBlock Text="{loc:Tr OutputOptions.DefaultFolderHint}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextWrapping="Wrap"/>
+                <TextBox Text="{Binding CustomOutputDirectory}" Watermark="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,2"/>
+                <Grid ColumnDefinitions="*,8,*">
+                    <Button Grid.Column="0" Content="{loc:Tr OutputOptions.Browse}" Click="OnSelectOutputFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                    <Button Grid.Column="2" Content="{loc:Tr OutputOptions.OpenFolder}" Command="{Binding OpenOutputFolderCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
 </UserControl>
