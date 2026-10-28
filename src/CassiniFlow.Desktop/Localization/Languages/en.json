@@ -61,6 +61,8 @@
     "DeleteSelectionTip": "Deletes checked files (or the active row if none is checked) - Del",
     "ClearList": "Clear list",
     "CheckAllTip": "Check / uncheck all",
+    "LoadingFiles": "Loading files ({0}/{1})...",
+    "LoadingInProgress": "Loading files in progress...",
     "ColFileName": "File name",
     "ColType": "Type / Codec",
     "ColFrames": "Frames",

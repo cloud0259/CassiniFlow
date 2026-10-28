@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -76,7 +76,7 @@ public partial class SourceFilesView : UserControl
 
     private async void OnAddVideoFilesClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
 

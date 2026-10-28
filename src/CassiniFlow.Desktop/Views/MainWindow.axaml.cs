@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using Avalonia;
@@ -138,7 +138,7 @@ public partial class MainWindow : Window
 
     private void OnWindowDragOver(object? sender, DragEventArgs e)
     {
-        if (DataContext is MainWindowViewModel { IsProcessing: true })
+        if (DataContext is MainWindowViewModel { IsProcessing: true } or MainWindowViewModel { IsLoadingFiles: true })
         {
             e.DragEffects = DragDropEffects.None;
             return;
@@ -151,7 +151,7 @@ public partial class MainWindow : Window
 
     private async void OnWindowDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsLoadingFiles) return;
 
         var files = e.Data.GetFiles();
         if (files is null) return;
@@ -170,7 +170,7 @@ public partial class MainWindow : Window
 
     private async void OnAddVideoFilesClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
 
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
@@ -200,7 +200,7 @@ public partial class MainWindow : Window
 
     private async void OnSelectOutputFolderClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {

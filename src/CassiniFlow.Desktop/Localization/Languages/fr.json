@@ -1,4 +1,4 @@
-﻿{
+{
   "App": {
     "Title": "CassiniFlow — Planetary & Astro Imaging PreProcessor"
   },
@@ -61,6 +61,8 @@
     "DeleteSelectionTip": "Supprime les fichiers cochés (ou la ligne active si aucun n'est coché) - Suppr",
     "ClearList": "Vider la liste",
     "CheckAllTip": "Tout cocher / décocher",
+    "LoadingFiles": "Chargement des fichiers ({0}/{1})...",
+    "LoadingInProgress": "Chargement des fichiers en cours...",
     "ColFileName": "Nom du fichier",
     "ColType": "Type / Codec",
     "ColFrames": "Frames",

@@ -175,6 +175,11 @@ public static class UniversalMediaReader
 
         if (ImageExtensions.Contains(ext))
         {
+            if (FastImageHeaderReader.TryInspect(filePath, out var fastSummary) && fastSummary != null)
+            {
+                return fastSummary;
+            }
+
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (mat.Empty())
                 throw new InvalidDataException($"Impossible de dÃ©coder l'image '{filePath}'.");

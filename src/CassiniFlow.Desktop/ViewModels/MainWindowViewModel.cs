@@ -70,7 +70,21 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty] private SourceFileItem? _selectedSourceFile;
     [ObservableProperty] private int _selectedTabIndex;
-    [ObservableProperty] private bool _hasLoadedFiles;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    private bool _hasLoadedFiles;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    private bool _isLoadingFiles;
+
+    [ObservableProperty]
+    private double _loadingProgress;
+
+    [ObservableProperty]
+    private string _loadingStatusText = string.Empty;
+
+    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles;
 
     // Viewer state
     [ObservableProperty] private int _currentFrameIndex = 1;
@@ -251,7 +265,9 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _customOutputDirectory = string.Empty;
 
     // 7. Do Processing
-    [ObservableProperty] private bool _isProcessing;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    private bool _isProcessing;
     [ObservableProperty] private int _processingProgress;
     [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
@@ -417,50 +433,78 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task AddPhysicalFilesAsync(IEnumerable<string> filePaths)
     {
+        if (IsLoadingFiles || IsProcessing) return;
+
         var paths = filePaths.Where(File.Exists).ToList();
         if (paths.Count == 0) return;
 
-        var newItems = new List<SourceFileItem>();
+        IsLoadingFiles = true;
+        LoadingProgress = 0;
+        LoadingStatusText = string.Format(Loc.Get("SourceFiles.LoadingFiles"), 0, paths.Count);
 
-        await Task.Run(() =>
+        var newItems = new SourceFileItem?[paths.Count];
+        int processedCount = 0;
+
+        try
         {
-            foreach (string path in paths)
+            await Task.Run(() =>
             {
-                try
+                int maxWorkers = Math.Clamp(Environment.ProcessorCount, 1, 16);
+                Parallel.For(0, paths.Count, new ParallelOptions { MaxDegreeOfParallelism = maxWorkers }, i =>
                 {
-                    var summary = UniversalMediaReader.InspectFile(path);
-                    double mb = summary.FileSizeBytes / (1024.0 * 1024.0);
-                    string sizeStr = mb >= 1024 ? $"{mb / 1024.0:F2} Go" : $"{mb:F1} Mo";
-
-                    var item = new SourceFileItem
+                    string path = paths[i];
+                    try
                     {
-                        FileName = Path.GetFileName(path),
-                        FullPath = path,
-                        FormatBadge = summary.FormatBadge,
-                        Frames = summary.FrameCount,
-                        Width = summary.Width,
-                        Height = summary.Height,
-                        Fps = summary.Fps,
-                        FileSize = sizeStr,
-                        DetailedReport = summary.DetailedReport,
-                        Metadata = summary.Metadata ?? AstroMediaMetadata.Empty
-                    };
+                        var summary = UniversalMediaReader.InspectFile(path);
+                        double mb = summary.FileSizeBytes / (1024.0 * 1024.0);
+                        string sizeStr = mb >= 1024 ? $"{mb / 1024.0:F2} Go" : $"{mb:F1} Mo";
 
-                    newItems.Add(item);
-                }
-                catch (Exception ex)
-                {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        newItems[i] = new SourceFileItem
+                        {
+                            FileName = Path.GetFileName(path),
+                            FullPath = path,
+                            FormatBadge = summary.FormatBadge,
+                            Frames = summary.FrameCount,
+                            Width = summary.Width,
+                            Height = summary.Height,
+                            Fps = summary.Fps,
+                            FileSize = sizeStr,
+                            DetailedReport = summary.DetailedReport,
+                            Metadata = summary.Metadata ?? AstroMediaMetadata.Empty
+                        };
+                    }
+                    catch (Exception ex)
                     {
-                        ConsoleLogText += $"\n{Loc.Pick("[Erreur lecture]", "[Read error]")} {Path.GetFileName(path)} : {ex.Message}";
-                    });
-                }
-            }
-        });
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            ConsoleLogText += $"\n{Loc.Pick("[Erreur lecture]", "[Read error]")} {Path.GetFileName(path)} : {ex.Message}";
+                        });
+                    }
 
-        if (newItems.Count == 0) return;
+                    int done = Interlocked.Increment(ref processedCount);
+                    if (paths.Count > 10 && (done % 20 == 0 || done == paths.Count))
+                    {
+                        double pct = (double)done / paths.Count * 100.0;
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            LoadingProgress = pct;
+                            LoadingStatusText = string.Format(Loc.Get("SourceFiles.LoadingFiles"), done, paths.Count);
+                        });
+                    }
+                });
+            });
+        }
+        finally
+        {
+            IsLoadingFiles = false;
+            LoadingProgress = 0;
+            LoadingStatusText = string.Empty;
+        }
 
-        foreach (var item in newItems)
+        var validItems = newItems.Where(it => it != null).Cast<SourceFileItem>().ToList();
+        if (validItems.Count == 0) return;
+
+        foreach (var item in validItems)
         {
             SourceFiles.Add(item);
         }
@@ -472,7 +516,7 @@ public partial class MainWindowViewModel : ObservableObject
             IsBatchMode = false;
         }
 
-        var firstNew = newItems[0];
+        var firstNew = validItems[0];
         SelectedSourceFile ??= firstNew;
         ConsoleLogText = Loc.Pick(
             $"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).",
