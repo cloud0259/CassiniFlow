@@ -20,17 +20,10 @@ public sealed record DngInfo(
 /// <summary>
 /// Robust DNG reader for astronomical and photographic raw files.
 /// Handles standard uncompressed DNGs as well as smartphone/camera DNGs with SubIFDs and embedded JPEG streams.
+/// Never calls OpenCV's native file loader directly on DNG files to avoid noisy console warnings from libtiff.
 /// </summary>
 public static class DngReader
 {
-    private sealed class IfdEntry
-    {
-        public ushort Tag { get; init; }
-        public ushort Type { get; init; }
-        public uint Count { get; init; }
-        public uint ValueOrOffset { get; init; }
-    }
-
     private sealed class IfdData
     {
         public uint Offset { get; init; }
@@ -53,9 +46,89 @@ public static class DngReader
         summary = null;
         if (!File.Exists(filePath)) return false;
 
+        // Parse TIFF/DNG structure first without touching OpenCV's file loader
         try
         {
-            // First check if native OpenCV can decode it directly
+            var parsed = ParseDngMetadata(filePath);
+            if (parsed != null)
+            {
+                // Try decoding embedded image preview first
+                using var decoded = DecodeEmbeddedImage(filePath, parsed);
+                if (decoded != null && !decoded.Empty())
+                {
+                    var fi = new FileInfo(filePath);
+                    var meta = AstroMetadataExtractor.Extract(filePath);
+                    int w = decoded.Width;
+                    int h = decoded.Height;
+                    int depth = parsed.RawSensorBits > 0 ? parsed.RawSensorBits : (decoded.ElemSize1() * 8);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Format : DNG (Digital Negative - Image Brute)");
+                    if (!string.IsNullOrWhiteSpace(meta.Camera))
+                    {
+                        sb.AppendLine($"Appareil : {meta.Camera}");
+                    }
+                    else if (!string.IsNullOrWhiteSpace(parsed.CameraMake) || !string.IsNullOrWhiteSpace(parsed.CameraModel))
+                    {
+                        sb.AppendLine($"Appareil : {parsed.CameraMake} {parsed.CameraModel}".Trim());
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(meta.EffectiveShutterSpeedText) && meta.EffectiveShutterSpeedText != "—")
+                    {
+                        sb.AppendLine($"Temps d'exposition : {meta.EffectiveShutterSpeedText} ({meta.EffectiveExposureText})");
+                    }
+                    if (!string.IsNullOrWhiteSpace(meta.IsoOrGainText) && meta.IsoOrGainText != "—")
+                    {
+                        sb.AppendLine($"Sensibilité : {meta.IsoOrGainText}");
+                    }
+                    if (!string.IsNullOrWhiteSpace(meta.Telescope))
+                    {
+                        sb.AppendLine($"Optique : {meta.Telescope}");
+                    }
+                    if (meta.TimestampUtc.HasValue)
+                    {
+                        sb.AppendLine($"Date de prise de vue : {meta.TimestampUtc.Value:yyyy-MM-dd HH:mm:ss} UTC");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(parsed.Software))
+                    {
+                        sb.AppendLine($"Logiciel : {parsed.Software}");
+                    }
+                    sb.AppendLine($"Dimensions décodées : {w} x {h}");
+                    if (parsed.RawSensorWidth > 0 && parsed.RawSensorHeight > 0)
+                    {
+                        sb.AppendLine($"Capteur RAW d'origine : {parsed.RawSensorWidth} x {parsed.RawSensorHeight} ({parsed.RawSensorBits}-bit)");
+                    }
+                    if (!string.IsNullOrWhiteSpace(parsed.CfaPattern))
+                    {
+                        sb.AppendLine($"Matrice Bayer CFA : {parsed.CfaPattern}");
+                    }
+                    sb.AppendLine($"Taille du fichier : {fi.Length:N0} octets");
+
+                    string badge = parsed.RawSensorBits > 0 ? $"DNG {parsed.RawSensorBits}-bit" : $"DNG {depth}-bit";
+
+                    summary = new MediaFileSummary(
+                        filePath,
+                        badge,
+                        1,
+                        w,
+                        h,
+                        1.0,
+                        fi.Length,
+                        sb.ToString(),
+                        meta);
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to OpenCV native fallback if custom parser fails
+        }
+
+        // Fallback: uncompressed TIFF DNG handled natively by OpenCV
+        try
+        {
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (!mat.Empty())
             {
@@ -67,6 +140,7 @@ public static class DngReader
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Format : DNG (Digital Negative)");
+                if (!string.IsNullOrWhiteSpace(meta.Camera)) sb.AppendLine($"Appareil : {meta.Camera}");
                 sb.AppendLine($"Dimensions : {w} x {h}");
                 sb.AppendLine($"Profondeur : {depth}-bit");
                 sb.AppendLine($"Canaux : {mat.Channels()}");
@@ -87,69 +161,31 @@ public static class DngReader
         }
         catch
         {
-            // Fall through to manual TIFF/DNG structure parsing
+            // Ignore
         }
 
-        // OpenCV failed or empty; parse TIFF IFDs
-        try
-        {
-            var parsed = ParseDngMetadata(filePath);
-            if (parsed == null) return false;
-
-            // Try decoding embedded image preview
-            using var decoded = DecodeEmbeddedImage(filePath, parsed);
-            if (decoded == null || decoded.Empty()) return false;
-
-            var fi = new FileInfo(filePath);
-            var meta = AstroMetadataExtractor.Extract(filePath);
-            int w = decoded.Width;
-            int h = decoded.Height;
-            int depth = parsed.RawSensorBits > 0 ? parsed.RawSensorBits : (decoded.ElemSize1() * 8);
-
-            var sb = new StringBuilder();
-            sb.AppendLine("Format : DNG (Digital Negative - Image Brute)");
-            if (!string.IsNullOrWhiteSpace(parsed.CameraMake) || !string.IsNullOrWhiteSpace(parsed.CameraModel))
-            {
-                sb.AppendLine($"Appareil : {parsed.CameraMake} {parsed.CameraModel}".Trim());
-            }
-            if (!string.IsNullOrWhiteSpace(parsed.Software))
-            {
-                sb.AppendLine($"Logiciel : {parsed.Software}");
-            }
-            sb.AppendLine($"Dimensions décodées : {w} x {h}");
-            if (parsed.RawSensorWidth > 0 && parsed.RawSensorHeight > 0)
-            {
-                sb.AppendLine($"Capteur RAW d'origine : {parsed.RawSensorWidth} x {parsed.RawSensorHeight} ({parsed.RawSensorBits}-bit)");
-            }
-            if (!string.IsNullOrWhiteSpace(parsed.CfaPattern))
-            {
-                sb.AppendLine($"Matrice Bayer CFA : {parsed.CfaPattern}");
-            }
-            sb.AppendLine($"Taille du fichier : {fi.Length:N0} octets");
-
-            string badge = parsed.RawSensorBits > 0 ? $"DNG {parsed.RawSensorBits}-bit" : $"DNG {depth}-bit";
-
-            summary = new MediaFileSummary(
-                filePath,
-                badge,
-                1,
-                w,
-                h,
-                1.0,
-                fi.Length,
-                sb.ToString(),
-                meta);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return false;
     }
 
     public static Mat? Decode(string filePath)
     {
         if (!File.Exists(filePath)) return null;
+
+        // Try decoding embedded image stream first (fast and completely silent)
+        try
+        {
+            var parsed = ParseDngMetadata(filePath);
+            if (parsed != null)
+            {
+                var mat = DecodeEmbeddedImage(filePath, parsed);
+                if (mat != null && !mat.Empty())
+                    return mat;
+            }
+        }
+        catch
+        {
+            // Ignore and try native fallback
+        }
 
         try
         {
@@ -159,20 +195,10 @@ public static class DngReader
         }
         catch
         {
-            // Ignore OpenCV native decode failure
+            // Ignore
         }
 
-        try
-        {
-            var parsed = ParseDngMetadata(filePath);
-            if (parsed == null) return null;
-
-            return DecodeEmbeddedImage(filePath, parsed);
-        }
-        catch
-        {
-            return null;
-        }
+        return null;
     }
 
     private sealed class ParsedDng

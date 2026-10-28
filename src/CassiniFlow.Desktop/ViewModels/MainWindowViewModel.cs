@@ -46,7 +46,10 @@ public sealed partial class SourceFileItem : ObservableObject
     public string ExposureInfo => Metadata.EffectiveExposureText;
     public string ShutterSpeedInfo => Metadata.EffectiveShutterSpeedText;
     public string IsoOrGainInfo => Metadata.IsoOrGainText;
-    public string CameraInfo => Metadata.Camera ?? "u{2014}";
+    public string CameraInfo => Metadata.Camera ?? "-";
+    public string TelescopeInfo => Metadata.Telescope ?? "-";
+    public bool HasCameraInfo => !string.IsNullOrEmpty(Metadata.Camera);
+    public bool HasTelescopeInfo => !string.IsNullOrEmpty(Metadata.Telescope);
     public bool HasAstroDetails => Metadata.ExposureTimeSeconds.HasValue || Metadata.Iso.HasValue || Metadata.Gain.HasValue;
 }
 

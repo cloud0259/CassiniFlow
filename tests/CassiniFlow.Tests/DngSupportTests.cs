@@ -60,7 +60,7 @@ public class DngSupportTests
     }
 
     [Fact]
-    public void UniversalMediaReader_CanReadCameraDng_WithSubIfdAndJpegStream()
+    public void UniversalMediaReader_CanReadCameraDng_WithSubIfdAndJpegStream_AndExtractMetadata()
     {
         string path = @"d:\Astro\Soleil\Eclipse\12082026\raw\PXL_20260812_172214874.RAW-02.ORIGINAL.dng";
         if (!File.Exists(path)) return; // Test is executed if file is present on local machine
@@ -71,7 +71,14 @@ public class DngSupportTests
         Assert.StartsWith("DNG", summary.FormatBadge);
         Assert.True(summary.Width > 0);
         Assert.True(summary.Height > 0);
-        Assert.Contains("Pixel", summary.DetailedReport);
+
+        // Verify deep metadata extraction (standard EXIF tags)
+        Assert.NotNull(summary.Metadata);
+        Assert.False(string.IsNullOrEmpty(summary.Metadata.Camera));
+        Assert.Equal(100, summary.Metadata.Iso);
+        Assert.True(summary.Metadata.ExposureTimeSeconds.HasValue);
+        Assert.Contains("1/2023", summary.Metadata.EffectiveShutterSpeedText);
+        Assert.True(summary.Metadata.EffectiveExposureText.Contains("494") || summary.Metadata.EffectiveExposureText.Contains("µs") || summary.Metadata.EffectiveExposureText.Contains("ms"));
 
         // 2. ReadPreviewFrame
         var preview = UniversalMediaReader.ReadPreviewFrame(path, 0, maxPreviewDim: 640);
