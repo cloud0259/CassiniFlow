@@ -1,15 +1,14 @@
-﻿name: CI & Build Pipeline
+name: CI & Build Pipeline
 
 on:
   push:
     branches: [ "main" ]
-    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-and-test:
@@ -59,55 +58,3 @@ jobs:
           name: code-coverage-report
           path: "**/TestResults/**/coverage.cobertura.xml"
           if-no-files-found: ignore
-
-  publish-binaries:
-    name: Publish Artifacts (${{ matrix.target.name }})
-    needs: build-and-test
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    runs-on: ${{ matrix.target.os }}
-    strategy:
-      matrix:
-        target:
-          - name: win-x64
-            os: windows-latest
-            rid: win-x64
-          - name: linux-x64
-            os: ubuntu-latest
-            rid: linux-x64
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Publish CassiniFlow Desktop
-        run: >
-          dotnet publish src/CassiniFlow.Desktop/CassiniFlow.Desktop.csproj
-          -c Release
-          -r ${{ matrix.target.rid }}
-          --self-contained false
-          -o publish/CassiniFlow-Desktop-${{ matrix.target.name }}
-
-      - name: Publish CassiniFlow CLI
-        run: >
-          dotnet publish src/CassiniFlow.Cli/CassiniFlow.Cli.csproj
-          -c Release
-          -r ${{ matrix.target.rid }}
-          --self-contained false
-          -o publish/CassiniFlow-Cli-${{ matrix.target.name }}
-
-      - name: Upload Desktop Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: CassiniFlow-Desktop-${{ matrix.target.name }}
-          path: publish/CassiniFlow-Desktop-${{ matrix.target.name }}
-
-      - name: Upload CLI Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: CassiniFlow-Cli-${{ matrix.target.name }}
-          path: publish/CassiniFlow-Cli-${{ matrix.target.name }}
