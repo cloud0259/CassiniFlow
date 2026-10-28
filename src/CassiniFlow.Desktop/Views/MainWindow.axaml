@@ -14,13 +14,6 @@
         Icon="/Assets/cassiniflow.ico"
         DragDrop.AllowDrop="True">
 
-    <Window.Styles>
-        <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="8,5"/>
-        </Style>
-    </Window.Styles>
-
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
@@ -80,15 +73,15 @@
             </Grid>
         </Border>
 
-        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX AVEC SÉPARATEURS MINCES -->
-        <Grid Grid.Row="1" ColumnDefinitions="28*,Auto,44*,Auto,28*">
+        <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX CONTINUS ET SANS ESPACES VIDES -->
+        <Grid Grid.Row="1" ColumnDefinitions="26*,Auto,48*,Auto,26*">
 
             <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
-            <Border Grid.Column="0" MinWidth="260" MaxWidth="500" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="5,5,3,5" IsEnabled="{Binding !IsProcessing}">
+            <Border Grid.Column="0" MinWidth="250" MaxWidth="480" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="4" IsEnabled="{Binding !IsProcessing}">
                 <views:SourceFilesView />
             </Border>
 
-            <!-- SPLITTER GAUCHE / CENTRE (Étroit 2px) -->
+            <!-- SPLITTER GAUCHE / CENTRE (Fin 2px continu) -->
             <GridSplitter Grid.Column="1" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
 
             <!-- VOLET CENTRAL : VIEWER PLANÉTAIRE & NAVIGATION HAUTE RÉSOLUTION -->
@@ -96,51 +89,156 @@
                 <views:FrameViewerView />
             </Border>
 
-            <!-- SPLITTER CENTRE / DROITE (Étroit 2px) -->
+            <!-- SPLITTER CENTRE / DROITE (Fin 2px continu) -->
             <GridSplitter Grid.Column="3" Width="2" Background="{DynamicResource AppBorderBrush}" ResizeDirection="Columns" />
 
-            <!-- VOLET DROIT : PIPELINE DE CALCUL & PARAMÈTRES SÉQUENTIELS -->
-            <Border Grid.Column="4" MinWidth="280" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="4,5,5,5">
-                <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+            <!-- VOLET DROIT : PIPELINE EN CARTES ACCORDÉON -->
+            <Border Grid.Column="4" MinWidth="290" MaxWidth="520" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="4">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="2,2,4,4">
 
-                    <!-- Utilisation d'un WrapPanel pour empêcher le débordement horizontal des onglets quand le volet est réduit -->
-                    <TabControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </TabControl.ItemsPanel>
+                        <!-- CARTE 1 : MODE DE TRAITEMENT & PRESETS (DÉPLACÉ DU VOLET GAUCHE) -->
+                        <Expander Classes="accordion-card" IsExpanded="True">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="Mode &amp; Presets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="10,8">
+                                <StackPanel Spacing="10">
+                                    <!-- Mode de traitement -->
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{loc:Tr SourceFiles.ModeTitle}" Classes="label" FontWeight="SemiBold"/>
+                                        <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="12" Margin="0,2"/>
+                                        <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="12" Margin="0,2"/>
+                                    </StackPanel>
 
-                    <!-- 1. CALIBRATION & ENTRÉE -->
-                    <TabItem Header="{loc:Tr Tab.InputOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:InputOptionsView />
-                    </TabItem>
+                                    <Separator Background="{DynamicResource AppBorderBrush}"/>
 
-                    <!-- 2. STABILISATION & CENTRAGE -->
-                    <TabItem Header="{loc:Tr Tab.ProcessingOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:ProcessingOptionsView />
-                    </TabItem>
+                                    <!-- Presets d'optimisation -->
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{loc:Tr SourceFiles.PresetsTitle}" Classes="label" FontWeight="SemiBold"/>
+                                        <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetIss}"/>
+                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/>
+                                        </ComboBox>
+                                    </StackPanel>
 
-                    <!-- 3. TRI QUALITÉ SEEING -->
-                    <TabItem Header="{loc:Tr Tab.QualityOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:QualityOptionsView />
-                    </TabItem>
+                                    <Separator Background="{DynamicResource AppBorderBrush}"/>
 
-                    <!-- 4. ANIMATION -->
-                    <TabItem Header="{loc:Tr Tab.AnimationOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:AnimationOptionsView />
-                    </TabItem>
+                                    <!-- Plage de trames avec plein d'espace horizontal -->
+                                    <StackPanel Spacing="6">
+                                        <CheckBox Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="12"/>
+                                        <Grid ColumnDefinitions="Auto,*,Auto,*" IsEnabled="{Binding LimitFrameRange}" Margin="2,0,0,0">
+                                            <TextBlock Grid.Column="0" Text="{loc:Tr SourceFiles.Start}" Classes="label" Margin="0,0,6,0"/>
+                                            <controls:NumberStepper Grid.Column="1" Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0"/>
+                                            <TextBlock Grid.Column="2" Text="{loc:Tr SourceFiles.End}" Classes="label" Margin="10,0,6,0"/>
+                                            <controls:NumberStepper Grid.Column="3" Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
 
-                    <!-- 5. EXPORT & SORTIE -->
-                    <TabItem Header="{loc:Tr Tab.OutputOptions}" IsEnabled="{Binding !IsProcessing}">
-                        <views:OutputOptionsView />
-                    </TabItem>
+                        <!-- CARTE 2 : CALIBRATION & ENTRÉE -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.InputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:InputOptionsView />
+                            </Border>
+                        </Expander>
 
-                    <!-- 6. EXÉCUTION & CONSOLE -->
-                    <TabItem Header="{loc:Tr Tab.DoProcessing}">
-                        <views:DoProcessingView />
-                    </TabItem>
+                        <!-- CARTE 3 : STABILISATION & CENTRAGE -->
+                        <Expander Classes="accordion-card" IsExpanded="True" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.ProcessingOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:ProcessingOptionsView />
+                            </Border>
+                        </Expander>
 
-                </TabControl>
+                        <!-- CARTE 4 : TRI QUALITÉ SEEING -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="4" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.QualityOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:QualityOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 5 : ANIMATION -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="5" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AnimationOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:AnimationOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 6 : EXPORT & SORTIE -->
+                        <Expander Classes="accordion-card" IsExpanded="False" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="6" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.OutputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:OutputOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 7 : EXÉCUTION & CONSOLE -->
+                        <Expander Classes="accordion-card" IsExpanded="True">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="7" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.DoProcessing}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:DoProcessingView />
+                            </Border>
+                        </Expander>
+
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
         </Grid>

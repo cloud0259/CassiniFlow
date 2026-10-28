@@ -6,7 +6,7 @@
              x:Class="CassiniFlow.Desktop.Views.SourceFilesView"
              x:DataType="vm:MainWindowViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="2,2,2,2">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="2">
 
         <!-- Barre d'outils structurée en 2 rangées professionnelles -->
         <Border Grid.Row="0" Classes="groupbox" Padding="6,5" Margin="0,0,0,4">
@@ -90,34 +90,32 @@
             </Grid>
         </Border>
 
-        <!-- Bas du volet gauche : Options de session & Presets ULTRA-COMPACT SANS SCROLLBAR -->
-        <Border Grid.Row="2" Classes="groupbox" Padding="6,6">
-            <StackPanel Spacing="5">
-                <!-- Ligne 1 : Mode (Batch / Join) + Sélecteur de Preset -->
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="11" VerticalAlignment="Center"/>
-                        <RadioButton Content="{loc:Tr SourceFiles.JoinMode}" IsChecked="{Binding IsJoinMode}" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <ComboBox Grid.Column="2" SelectedIndex="{Binding SelectedPresetIndex}" FontSize="11" Padding="6,3" MinWidth="110" ToolTip.Tip="{loc:Tr SourceFiles.PresetsTitle}">
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/>
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetIss}"/>
-                        <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/>
-                    </ComboBox>
+        <!-- Bas du volet gauche : Inspecteur de Métadonnées du fichier sélectionné -->
+        <Border Grid.Row="2" Classes="groupbox" Padding="8,6">
+            <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="ℹ️ Métadonnées" Classes="grouptitle" Margin="0"/>
+                    <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,1" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding SelectedSourceFile.FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>
+                    </Border>
                 </Grid>
 
-                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,1"/>
+                <!-- Détails quand un fichier est sélectionné -->
+                <StackPanel Spacing="3" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding SelectedSourceFile.FileName}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.Resolution, StringFormat='Dim : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.Frames, StringFormat='Trames : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.FileSize, StringFormat='Taille : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.FpsInfo, StringFormat='Cadence : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                </StackPanel>
 
-                <!-- Ligne 2 : Plage de trames compacte (De ... à ...) -->
-                <Grid ColumnDefinitions="Auto,*,Auto,*" VerticalAlignment="Center">
-                    <CheckBox Grid.Column="0" Content="{loc:Tr SourceFiles.LimitRange}" IsChecked="{Binding LimitFrameRange}" FontSize="11" Margin="0,0,6,0"/>
-                    <controls:NumberStepper Grid.Column="1" Value="{Binding StartFrame}" Minimum="1" Maximum="999999" FormatString="0" IsEnabled="{Binding LimitFrameRange}" MinWidth="50"/>
-                    <TextBlock Grid.Column="2" Text="➔" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center" Margin="6,0"/>
-                    <controls:NumberStepper Grid.Column="3" Value="{Binding EndFrame}" Minimum="1" Maximum="999999" FormatString="0" IsEnabled="{Binding LimitFrameRange}" MinWidth="50"/>
-                </Grid>
+                <!-- Message quand aucun fichier n'est sélectionné -->
+                <TextBlock Text="Sélectionnez un fichier pour afficher ses métadonnées." FontSize="11" Foreground="{DynamicResource AppTextDimmed}" FontStyle="Italic" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNull}}"/>
             </StackPanel>
         </Border>
 

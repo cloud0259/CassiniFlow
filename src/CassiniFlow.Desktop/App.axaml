@@ -69,6 +69,16 @@
             <Setter Property="BorderBrush" Value="#EF4444"/>
             <Setter Property="Foreground" Value="#FCA5A5"/>
         </Style>
+
+        <!-- CARTES ACCORDÉON POUR LE PIPELINE DE TRAITEMENT -->
+        <Style Selector="Expander.accordion-card">
+            <Setter Property="Background" Value="{DynamicResource AppPanelBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
     </Application.Styles>
 
     <Application.Resources>
