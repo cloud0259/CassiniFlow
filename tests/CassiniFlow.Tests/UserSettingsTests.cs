@@ -38,6 +38,7 @@ public class UserSettingsTests
         Assert.Equal("fr", model.Language);
         Assert.Equal(80, model.MaxCpuUsagePercent);
         Assert.Equal(85, model.CpuWarningThresholdPercent);
+        Assert.False(model.HasSeenTutorial);
     }
 
     [Fact]

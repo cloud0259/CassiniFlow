@@ -22,12 +22,13 @@
     "French": "Français",
     "English": "English",
     "Theme": "Thème",
-    "ThemeDark": "🌙 Deep Space (Sombre)",
+    "ThemeDark": "\uD83C\uDF19 Deep Space (Sombre)",
     "ThemeLight": "☀️ Clean Lab (Clair)",
-    "ThemeNightVision": "🔴 Vision Nocturne (Rouge)",
+    "ThemeNightVision": "\uD83D\uDD34 Vision Nocturne (Rouge)",
     "ThemeToggleTip": "Changer de thème (Sombre / Clair / Vision Nocturne)",
     "Help": "_Aide",
-    "About": "À propos de CassiniFlow..."
+    "About": "À propos de CassiniFlow...",
+    "Tutorial": "Didacticiel interactif..."
   },
   "Toolbar": {
     "AddSourceFiles": "+ Ajouter Fichiers Sources...",
@@ -47,7 +48,7 @@
   "SourceFiles": {
     "Header": "Liste des fichiers vidéos et séquences d'images à traiter :",
     "AddFiles": "+ Ajouter des fichiers...",
-    "MeasureSizes": "📏 Mesurer les tailles",
+    "MeasureSizes": "\uD83D\uDCCF Mesurer les tailles",
     "MeasureSizesTip": "Mesure le diamètre de la planète dans chaque fichier",
     "SortAsc": "Trier ↑ taille",
     "SortAscTip": "Trier du plus petit au plus grand objet",
@@ -57,7 +58,7 @@
     "MoveUpTip": "Monter (Alt+↑)",
     "MoveDown": "▼ Descendre",
     "MoveDownTip": "Descendre (Alt+↓)",
-    "DeleteSelection": "🗑 Supprimer la sélection",
+    "DeleteSelection": "\uD83D\uDDD1 Supprimer la sélection",
     "DeleteSelectionTip": "Supprime les fichiers cochés (ou la ligne active si aucun n'est coché) - Suppr",
     "ClearList": "Vider la liste",
     "CheckAllTip": "Tout cocher / décocher",
@@ -182,7 +183,7 @@
     "StartProcessing": "▶ Lancer le traitement",
     "Cancel": "Annuler",
     "PlayGenerated": "▶ Lire la vidéo générée (VLC / Lecteur par défaut)",
-    "OpenOutput": "📂 Ouvrir le dossier de sortie",
+    "OpenOutput": "\uD83D\uDCC2 Ouvrir le dossier de sortie",
     "ExecutionLog": "Journal d'exécution :"
   },
   "Viewer": {
@@ -253,5 +254,23 @@
     "SaveSettings": "Enregistrer les préférences",
     "AutoSaveNote": "✓ Vos préférences sont automatiquement sauvegardées dans votre profil utilisateur.",
     "TotalCoresDetected": "Processeur détecté : {0} cœurs logiques"
+  },
+  "Tutorial": {
+    "Title": "Didacticiel Interactif",
+    "StepBadge": "Étape {0} / {1}",
+    "Previous": "◀ Précédent",
+    "Next": "Suivant ▶",
+    "Finish": "Terminer ✓",
+    "Quit": "✕ Quitter",
+    "Step1Title": "1. Fichiers sources (Importation)",
+    "Step1Desc": "Ajoutez vos vidéos planétaires (SER, AVI, MP4...) ou vos séquences d'images (PNG, TIFF, FITS, DNG). Vous pouvez les glisser-déposer directement dans l'application.",
+    "Step2Title": "2. Options d'Entrée & Débayérisation",
+    "Step2Desc": "Si vous utilisez une caméra couleur, activez le dématriçage (Bayer RGGB, etc.) pour restituer les couleurs, ou activez un binning pour réduire le bruit.",
+    "Step3Title": "3. Stabilisation & Centrage Planétaire",
+    "Step3Desc": "Activez la détection et le centrage d'objet pour caler la planète au milieu de chaque frame avec un recadrage (crop) adapté à sa taille.",
+    "Step4Title": "4. Tri par Qualité & Sélection",
+    "Step4Desc": "Laissez CassiniFlow évaluer la netteté de chaque trame et sélectionnez le pourcentage des meilleures frames à retenir afin d'éliminer la turbulence atmosphérique.",
+    "Step5Title": "5. Sortie & Exécution",
+    "Step5Desc": "Sélectionnez le format de sortie souhaité (SER 16-bit pour AutoStakkert!, AVI, TIFF) et lancez le traitement dans l'onglet Exécution !"
   }
 }

@@ -1,4 +1,4 @@
-name: CI & Build Pipeline
+﻿name: CI & Build Pipeline
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4

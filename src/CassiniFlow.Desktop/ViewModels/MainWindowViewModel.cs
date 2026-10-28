@@ -46,7 +46,10 @@ public sealed partial class SourceFileItem : ObservableObject
     public string ExposureInfo => Metadata.EffectiveExposureText;
     public string ShutterSpeedInfo => Metadata.EffectiveShutterSpeedText;
     public string IsoOrGainInfo => Metadata.IsoOrGainText;
-    public string CameraInfo => Metadata.Camera ?? "u{2014}";
+    public string CameraInfo => Metadata.Camera ?? "-";
+    public string TelescopeInfo => Metadata.Telescope ?? "-";
+    public bool HasCameraInfo => !string.IsNullOrEmpty(Metadata.Camera);
+    public bool HasTelescopeInfo => !string.IsNullOrEmpty(Metadata.Telescope);
     public bool HasAstroDetails => Metadata.ExposureTimeSeconds.HasValue || Metadata.Iso.HasValue || Metadata.Gain.HasValue;
 }
 
@@ -105,6 +108,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
     [ObservableProperty] private int _selectedPresetIndex = 0;
+    private bool _isAutoDetectingPreset;
+    private bool _userManuallySelectedPreset;
     [ObservableProperty] private int _maxCpuUsagePercent = 80;
     [ObservableProperty] private int _cpuWarningThresholdPercent = 85;
     [ObservableProperty] private bool _isCpuWarningActive;
@@ -313,6 +318,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedPresetIndexChanged(int value)
     {
+        if (!_isAutoDetectingPreset)
+        {
+            _userManuallySelectedPreset = true;
+        }
+
         int maxW = SelectedSourceFile?.Width ?? 4096;
         int maxH = SelectedSourceFile?.Height ?? 4096;
 
@@ -323,8 +333,17 @@ public partial class MainWindowViewModel : ObservableObject
                 CheckObjectPresent = true;
                 CentreObjectInFrame = true;
                 EnableCropping = true;
-                CropWidth = Math.Min(448, maxW);
-                CropHeight = Math.Min(448, maxH);
+                if (SelectedSourceFile?.PlanetDiameterPx is double planetD && planetD > 5)
+                {
+                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 1.6), 64, Math.Min(maxW, maxH)) & ~7;
+                    CropWidth = pCrop;
+                    CropHeight = pCrop;
+                }
+                else
+                {
+                    CropWidth = Math.Min(448, maxW);
+                    CropHeight = Math.Min(448, maxH);
+                }
                 EnableQuality = true;
                 SelectedQualityLimitModeIndex = 1;
                 QualityKeepValue = 25;
@@ -341,7 +360,16 @@ public partial class MainWindowViewModel : ObservableObject
                 CheckObjectPresent = true;
                 CentreObjectInFrame = true;
                 EnableCropping = true;
-                int discCrop = Math.Clamp((int)(Math.Min(maxW, maxH) * 0.65), 256, 1200) & ~3;
+                int discCrop;
+                if (SelectedSourceFile?.PlanetDiameterPx is double d && d > 10)
+                {
+                    // Encadrer correctement l'objet avec une marge de 15% à 25% autour du diamètre mesuré
+                    discCrop = Math.Clamp((int)Math.Ceiling(d * 1.20), 128, Math.Min(maxW, maxH)) & ~7;
+                }
+                else
+                {
+                    discCrop = Math.Clamp((int)(Math.Min(maxW, maxH) * 0.90), 256, Math.Min(maxW, maxH)) & ~7;
+                }
                 CropWidth = discCrop;
                 CropHeight = discCrop;
                 SelectedQualityAlgoIndex = 2;
@@ -516,6 +544,7 @@ public partial class MainWindowViewModel : ObservableObject
             IsBatchMode = false;
         }
 
+        _userManuallySelectedPreset = false;
         var firstNew = validItems[0];
         SelectedSourceFile ??= firstNew;
         ConsoleLogText = Loc.Pick(
@@ -545,11 +574,29 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    public bool? AreAllFilesChecked
+    {
+        get
+        {
+            if (SourceFiles.Count == 0) return false;
+            if (SourceFiles.All(f => f.IsChecked)) return true;
+            if (SourceFiles.All(f => !f.IsChecked)) return false;
+            return null;
+        }
+        set
+        {
+            bool target = value ?? true;
+            foreach (var f in SourceFiles) f.IsChecked = target;
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        }
+    }
+
     [RelayCommand]
     public void ToggleCheckAllFiles()
     {
         bool target = SourceFiles.Any(f => !f.IsChecked);
         foreach (var f in SourceFiles) f.IsChecked = target;
+        OnPropertyChanged(nameof(AreAllFilesChecked));
     }
 
 
@@ -601,9 +648,9 @@ public partial class MainWindowViewModel : ObservableObject
             _ => FormatObjectSizeSpread(sizes)
         };
 
-        // Reconnaissance automatique de l'objet présent (Planète / Lune / Soleil) et réglage de la dropdown
+        // Reconnaissance automatique de l'objet : uniquement si l'utilisateur n'a pas sélectionné manuellement un preset
         var targetFile = SelectedSourceFile;
-        if (targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
+        if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
         {
             try
             {
@@ -617,7 +664,15 @@ public partial class MainWindowViewModel : ObservableObject
                 if (classification.TargetType != CelestialTargetType.Unknown &&
                     classification.RecommendedPresetIndex > 0)
                 {
-                    SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    try
+                    {
+                        _isAutoDetectingPreset = true;
+                        SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    }
+                    finally
+                    {
+                        _isAutoDetectingPreset = false;
+                    }
                     ConsoleLogText += $"\n{Loc.Pick($"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé automatiquement.", $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" selected automatically.")}";
                 }
             }
@@ -643,7 +698,16 @@ public partial class MainWindowViewModel : ObservableObject
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
             {
-                SelectedPresetIndex = classification.RecommendedPresetIndex;
+                try
+                {
+                    _isAutoDetectingPreset = true;
+                    SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    _userManuallySelectedPreset = false;
+                }
+                finally
+                {
+                    _isAutoDetectingPreset = false;
+                }
                 ConsoleLogText = Loc.Pick(
                     $"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé ({classification.Details}).",
                     $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" activated ({classification.Details}).");
@@ -713,8 +777,137 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateCpuStatus();
         foreach (var f in SourceFiles) f.RefreshLocalizedText();
         if (SelectedSourceFile is not null) RequestPreviewUpdate(reloadFromDisk: false);
+        if (IsTutorialActive) UpdateTutorialStep();
     }
 
+    // Accordion Sections Expanders State
+    [ObservableProperty] private bool _isSection1Expanded = true;
+    [ObservableProperty] private bool _isSection2Expanded;
+    [ObservableProperty] private bool _isSection3Expanded = true;
+    [ObservableProperty] private bool _isSection4Expanded;
+    [ObservableProperty] private bool _isSection5Expanded;
+    [ObservableProperty] private bool _isSection6Expanded;
+    [ObservableProperty] private bool _isSection7Expanded = true;
+
+    // Interactive Tutorial Wizard
+    [ObservableProperty] private bool _isTutorialActive;
+    [ObservableProperty] private int _tutorialStepIndex;
+    [ObservableProperty] private string _tutorialStepTitle = string.Empty;
+    [ObservableProperty] private string _tutorialStepDescription = string.Empty;
+    [ObservableProperty] private string _tutorialStepBadge = string.Empty;
+    [ObservableProperty] private string _tutorialTargetBadge = string.Empty;
+    [ObservableProperty] private bool _canTutorialGoPrevious;
+    [ObservableProperty] private string _tutorialNextButtonText = "Suivant \u25B6";
+    [ObservableProperty] private Avalonia.Layout.HorizontalAlignment _tutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+    [ObservableProperty] private Avalonia.Layout.VerticalAlignment _tutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+    [ObservableProperty] private Avalonia.Thickness _tutorialMargin = new(16, 20, 0, 0);
+
+    [RelayCommand]
+    public void StartTutorial()
+    {
+        TutorialStepIndex = 0;
+        IsTutorialActive = true;
+        UpdateTutorialStep();
+    }
+
+    [RelayCommand]
+    public void NextTutorialStep()
+    {
+        if (TutorialStepIndex < 4)
+        {
+            TutorialStepIndex++;
+            UpdateTutorialStep();
+        }
+        else
+        {
+            CloseTutorial();
+        }
+    }
+
+    [RelayCommand]
+    public void PreviousTutorialStep()
+    {
+        if (TutorialStepIndex > 0)
+        {
+            TutorialStepIndex--;
+            UpdateTutorialStep();
+        }
+    }
+
+    [RelayCommand]
+    public void CloseTutorial()
+    {
+        IsTutorialActive = false;
+        UserSettingsService.MarkTutorialSeen();
+    }
+
+    public void UpdateTutorialStep()
+    {
+        CanTutorialGoPrevious = TutorialStepIndex > 0;
+        TutorialStepBadge = string.Format(Loc.Get("Tutorial.StepBadge"), TutorialStepIndex + 1, 5);
+        TutorialNextButtonText = TutorialStepIndex == 4
+            ? Loc.Get("Tutorial.Finish")
+            : Loc.Get("Tutorial.Next");
+
+        switch (TutorialStepIndex)
+        {
+            case 0:
+                SelectedTabIndex = 0;
+                IsSection1Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+                TutorialMargin = new Avalonia.Thickness(16, 20, 0, 0);
+                TutorialTargetBadge = Loc.Pick("\uD83D\uDC48 Volet Fichiers Sources", "\uD83D\uDC48 Source Files Pane");
+                TutorialStepTitle = Loc.Get("Tutorial.Step1Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step1Desc");
+                break;
+
+            case 1:
+                SelectedTabIndex = 1;
+                IsSection2Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+                TutorialMargin = new Avalonia.Thickness(0, 30, 16, 0);
+                TutorialTargetBadge = Loc.Pick("Options d'Entr\u00E9e \uD83D\uDC49", "Input Options \uD83D\uDC49");
+                TutorialStepTitle = Loc.Get("Tutorial.Step2Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step2Desc");
+                break;
+
+            case 2:
+                SelectedTabIndex = 2;
+                IsSection3Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+                TutorialMargin = new Avalonia.Thickness(0, 0, 16, 40);
+                TutorialTargetBadge = Loc.Pick("Stabilisation & Centrage \uD83D\uDC49", "Stabilization & Centering \uD83D\uDC49");
+                TutorialStepTitle = Loc.Get("Tutorial.Step3Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step3Desc");
+                break;
+
+            case 3:
+                SelectedTabIndex = 3;
+                IsSection4Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+                TutorialMargin = new Avalonia.Thickness(0, 60, 16, 0);
+                TutorialTargetBadge = Loc.Pick("Tri par Qualit\u00E9 \uD83D\uDC49", "Quality Sorting \uD83D\uDC49");
+                TutorialStepTitle = Loc.Get("Tutorial.Step4Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step4Desc");
+                break;
+
+            case 4:
+                SelectedTabIndex = 6;
+                IsSection6Expanded = true;
+                IsSection7Expanded = true;
+                TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+                TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
+                TutorialMargin = new Avalonia.Thickness(0, 0, 16, 20);
+                TutorialTargetBadge = Loc.Pick("Sortie & Ex\u00E9cution \uD83D\uDC49", "Output & Execution \uD83D\uDC49");
+                TutorialStepTitle = Loc.Get("Tutorial.Step5Title");
+                TutorialStepDescription = Loc.Get("Tutorial.Step5Desc");
+                break;
+        }
+    }
     public event Action? RequestOpenSettings;
 
     [RelayCommand]
