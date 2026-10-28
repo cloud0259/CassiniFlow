@@ -94,6 +94,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
     [ObservableProperty] private int _selectedPresetIndex = 0;
+    private bool _isAutoDetectingPreset;
+    private bool _userManuallySelectedPreset;
     [ObservableProperty] private int _maxCpuUsagePercent = 80;
     [ObservableProperty] private int _cpuWarningThresholdPercent = 85;
     [ObservableProperty] private bool _isCpuWarningActive;
@@ -300,6 +302,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedPresetIndexChanged(int value)
     {
+        if (!_isAutoDetectingPreset)
+        {
+            _userManuallySelectedPreset = true;
+        }
+
         int maxW = SelectedSourceFile?.Width ?? 4096;
         int maxH = SelectedSourceFile?.Height ?? 4096;
 
@@ -310,8 +317,17 @@ public partial class MainWindowViewModel : ObservableObject
                 CheckObjectPresent = true;
                 CentreObjectInFrame = true;
                 EnableCropping = true;
-                CropWidth = Math.Min(448, maxW);
-                CropHeight = Math.Min(448, maxH);
+                if (SelectedSourceFile?.PlanetDiameterPx is double planetD && planetD > 5)
+                {
+                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 1.6), 64, Math.Min(maxW, maxH)) & ~7;
+                    CropWidth = pCrop;
+                    CropHeight = pCrop;
+                }
+                else
+                {
+                    CropWidth = Math.Min(448, maxW);
+                    CropHeight = Math.Min(448, maxH);
+                }
                 EnableQuality = true;
                 SelectedQualityLimitModeIndex = 1;
                 QualityKeepValue = 25;
@@ -328,7 +344,16 @@ public partial class MainWindowViewModel : ObservableObject
                 CheckObjectPresent = true;
                 CentreObjectInFrame = true;
                 EnableCropping = true;
-                int discCrop = Math.Clamp((int)(Math.Min(maxW, maxH) * 0.65), 256, 1200) & ~3;
+                int discCrop;
+                if (SelectedSourceFile?.PlanetDiameterPx is double d && d > 10)
+                {
+                    // Encadrer correctement l'objet avec une marge de 15% à 25% autour du diamètre mesuré
+                    discCrop = Math.Clamp((int)Math.Ceiling(d * 1.20), 128, Math.Min(maxW, maxH)) & ~7;
+                }
+                else
+                {
+                    discCrop = Math.Clamp((int)(Math.Min(maxW, maxH) * 0.90), 256, Math.Min(maxW, maxH)) & ~7;
+                }
                 CropWidth = discCrop;
                 CropHeight = discCrop;
                 SelectedQualityAlgoIndex = 2;
@@ -475,6 +500,7 @@ public partial class MainWindowViewModel : ObservableObject
             IsBatchMode = false;
         }
 
+        _userManuallySelectedPreset = false;
         var firstNew = newItems[0];
         SelectedSourceFile ??= firstNew;
         ConsoleLogText = Loc.Pick(
@@ -578,9 +604,9 @@ public partial class MainWindowViewModel : ObservableObject
             _ => FormatObjectSizeSpread(sizes)
         };
 
-        // Reconnaissance automatique de l'objet présent (Planète / Lune / Soleil) et réglage de la dropdown
+        // Reconnaissance automatique de l'objet : uniquement si l'utilisateur n'a pas sélectionné manuellement un preset
         var targetFile = SelectedSourceFile;
-        if (targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
+        if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
         {
             try
             {
@@ -594,7 +620,15 @@ public partial class MainWindowViewModel : ObservableObject
                 if (classification.TargetType != CelestialTargetType.Unknown &&
                     classification.RecommendedPresetIndex > 0)
                 {
-                    SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    try
+                    {
+                        _isAutoDetectingPreset = true;
+                        SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    }
+                    finally
+                    {
+                        _isAutoDetectingPreset = false;
+                    }
                     ConsoleLogText += $"\n{Loc.Pick($"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé automatiquement.", $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" selected automatically.")}";
                 }
             }
@@ -620,7 +654,16 @@ public partial class MainWindowViewModel : ObservableObject
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
             {
-                SelectedPresetIndex = classification.RecommendedPresetIndex;
+                try
+                {
+                    _isAutoDetectingPreset = true;
+                    SelectedPresetIndex = classification.RecommendedPresetIndex;
+                    _userManuallySelectedPreset = false;
+                }
+                finally
+                {
+                    _isAutoDetectingPreset = false;
+                }
                 ConsoleLogText = Loc.Pick(
                     $"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé ({classification.Details}).",
                     $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" activated ({classification.Details}).");
