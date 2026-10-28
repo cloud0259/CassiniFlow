@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.AlignmentOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+
+        <!-- Tuiles d'alignement (Taille des zones AP) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr Tab.AlignmentOptions}" Classes="grouptitle"/>
+
+                <TextBlock Text="{loc:Tr Alignment.TileSize}" Classes="label"/>
+
+                <!-- Sélecteur rapide de taille de tuile -->
+                <Grid ColumnDefinitions="*,*,*,*,*">
+                    <Button Grid.Column="0" Content="24" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
+                        <Button.CommandParameter>
+                            <x:Int32>24</x:Int32>
+                        </Button.CommandParameter>
+                    </Button>
+                    <Button Grid.Column="1" Content="48" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
+                        <Button.CommandParameter>
+                            <x:Int32>48</x:Int32>
+                        </Button.CommandParameter>
+                    </Button>
+                    <Button Grid.Column="2" Content="104" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
+                        <Button.CommandParameter>
+                            <x:Int32>104</x:Int32>
+                        </Button.CommandParameter>
+                    </Button>
+                    <Button Grid.Column="3" Content="140" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
+                        <Button.CommandParameter>
+                            <x:Int32>140</x:Int32>
+                        </Button.CommandParameter>
+                    </Button>
+                    <Button Grid.Column="4" Content="200" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
+                        <Button.CommandParameter>
+                            <x:Int32>200</x:Int32>
+                        </Button.CommandParameter>
+                    </Button>
+                </Grid>
+
+                <!-- Réglage fin de la taille -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                    <TextBlock Grid.Column="0" Text="Taille personnalisée (px) :" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding AlignmentTileSize}" Minimum="16" Maximum="512" Increment="8" FormatString="0" Width="110"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+
+                <!-- Seuil de brillance min -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Alignment.MinBrightness}" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding MinBrightnessThreshold}" Minimum="1" Maximum="254" FormatString="0" Width="110"/>
+                </Grid>
+
+                <!-- Options d'élagage et multi-échelle -->
+                <CheckBox Content="{loc:Tr Alignment.Pruning}" IsChecked="{Binding EnablePruning}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr Alignment.MultiScale}" IsChecked="{Binding EnableMultiScaleGrid}" FontSize="12"/>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+
+                <!-- Boutons d'action -->
+                <Grid ColumnDefinitions="*,8,*">
+                    <Button Grid.Column="0" Content="{loc:Tr Alignment.PlacePoints}" Command="{Binding CalculateAlignmentGridCommand}"
+                            Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" FontSize="12"/>
+                    <Button Grid.Column="2" Content="{loc:Tr Alignment.ClearPoints}" Command="{Binding ClearAlignmentGridCommand}"
+                            Classes="secondary-cancel"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" FontSize="12"/>
+                </Grid>
+
+                <!-- Statut de la grille AP -->
+                <TextBlock Text="{Binding AlignmentStatusText}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}"
+                           HorizontalAlignment="Center" Margin="0,2,0,0" IsVisible="{Binding AlignmentStatusText.Length}"/>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>
+

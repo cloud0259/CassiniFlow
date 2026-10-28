@@ -1,4 +1,4 @@
-<Application xmlns="https://github.com/avaloniaui"
+﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:theme="using:CassiniFlow.Desktop.Theme"
              x:Class="CassiniFlow.Desktop.App"
@@ -78,6 +78,39 @@
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Margin" Value="0,0,0,6"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+
+        <!-- SLECTEUR DE MODE SEGMENT SOMBRE -->
+        <Style Selector="RadioButton.segment-button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.segment-button:checked">
+            <Setter Property="Background" Value="{DynamicResource AppAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="RadioButton.segment-button:pointerover:not(:checked)">
+            <Setter Property="Background" Value="{DynamicResource AppTableHeaderBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
         </Style>
     </Application.Styles>
 

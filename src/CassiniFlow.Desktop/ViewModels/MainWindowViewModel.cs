@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -61,6 +61,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
+    private AstroFrame? _lastProcessedPreviewFrame;
     private int _cachedRawFrameIndex = -1;
 
     // Conflated single-worker preview state (prevents queue backlog when dragging timeline slider on 4K MP4 videos)
@@ -261,7 +262,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _animationReverse = false;
     [ObservableProperty] private int _animationRepeatCount = 1;
 
-    // 6. Output Options (Default to index 0 = AVI compatible with VLC & AutoStakkert)
+    // 6. Output Options (Default to index 0 = AVI compatible with planetary processing engines)
     [ObservableProperty] private int _selectedOutputFormatIndex = 0;
     [ObservableProperty] private bool _matchInputFps = true;
     [ObservableProperty] private int _outputFps = 25;
@@ -787,7 +788,35 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isSection4Expanded;
     [ObservableProperty] private bool _isSection5Expanded;
     [ObservableProperty] private bool _isSection6Expanded;
-    [ObservableProperty] private bool _isSection7Expanded = true;
+    [ObservableProperty] private bool _isSection7Expanded;
+    [ObservableProperty] private bool _isSection8Expanded;
+    [ObservableProperty] private bool _isSection9Expanded = true;
+
+    // --- Mode de Traitement (Workflow) ---
+    [ObservableProperty] private StackingWorkflowMode _workflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+    [ObservableProperty] private bool _isWorkflowPreProcessingOnly;
+    [ObservableProperty] private bool _isWorkflowStackingOnly;
+    [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
+
+    // --- Points d'alignement (AP) ---
+    [ObservableProperty] private bool _isAlignmentGridVisible = true;
+    [ObservableProperty] private AlignmentGrid _currentAlignmentGrid = AlignmentGrid.Empty;
+    [ObservableProperty] private int _alignmentTileSize = 104;
+    [ObservableProperty] private int _minBrightnessThreshold = 15;
+    [ObservableProperty] private bool _enablePruning = true;
+    [ObservableProperty] private bool _enableMultiScaleGrid = true;
+    [ObservableProperty] private string _alignmentStatusText = string.Empty;
+
+    // --- Empilement Multi-Zones & Rendu ---
+    [ObservableProperty] private int _stackPercentage = 25;
+    [ObservableProperty] private int _stackFrameCount = 200;
+    [ObservableProperty] private int _selectedDrizzleIndex = 0;
+    [ObservableProperty] private bool _normalizeBrightness = true;
+    [ObservableProperty] private int _normalizeTargetPercent = 75;
+    [ObservableProperty] private bool _correctAtmosphericDispersion = true;
+    [ObservableProperty] private bool _sharpeningEnabled = true;
+    [ObservableProperty] private int _sharpeningBlendPercent = 10;
+    [ObservableProperty] private bool _featheringEnabled = true;
 
     // Interactive Tutorial Wizard
     [ObservableProperty] private bool _isTutorialActive;
@@ -1044,6 +1073,7 @@ public partial class MainWindowViewModel : ObservableObject
                     };
                 });
 
+                _lastProcessedPreviewFrame = processed;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
             }
             catch (Exception ex)
@@ -1132,6 +1162,26 @@ public partial class MainWindowViewModel : ObservableObject
         Options.OutputFilenameSuffix = OutputSuffix;
         Options.GenerateWinJuposFilenames = WinJuposNaming;
         Options.MaxCpuUsagePercent = Math.Clamp(MaxCpuUsagePercent, 10, 100);
+
+        Options.Stacking.WorkflowMode = WorkflowMode;
+        Options.Stacking.AlignmentTileSize = AlignmentTileSize;
+        Options.Stacking.MinBrightnessThreshold = MinBrightnessThreshold;
+        Options.Stacking.EnablePruning = EnablePruning;
+        Options.Stacking.EnableMultiScaleGrid = EnableMultiScaleGrid;
+        Options.Stacking.StackPercentages = [StackPercentage];
+        Options.Stacking.StackFrameCounts = [StackFrameCount];
+        Options.Stacking.Drizzle = SelectedDrizzleIndex switch
+        {
+            1 => DrizzleScale.Drizzle15,
+            2 => DrizzleScale.Drizzle30,
+            _ => DrizzleScale.None
+        };
+        Options.Stacking.NormalizeBrightness = NormalizeBrightness;
+        Options.Stacking.NormalizeTargetPercent = NormalizeTargetPercent;
+        Options.Stacking.CorrectAtmosphericDispersion = CorrectAtmosphericDispersion;
+        Options.Stacking.SharpeningEnabled = SharpeningEnabled;
+        Options.Stacking.SharpeningBlendPercent = SharpeningBlendPercent;
+        Options.Stacking.FeatheringEnabled = FeatheringEnabled;
     }
 
 
@@ -1206,6 +1256,61 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+
+    [RelayCommand]
+    public void SetWorkflowMode(string mode)
+    {
+        switch (mode.ToLowerInvariant())
+        {
+            case "prep":
+            case "preprocessingonly":
+                WorkflowMode = StackingWorkflowMode.PreProcessingOnly;
+                IsWorkflowPreProcessingOnly = true;
+                IsWorkflowStackingOnly = false;
+                IsWorkflowDirectStreamAllInOne = false;
+                break;
+            case "stack":
+            case "stackingonly":
+                WorkflowMode = StackingWorkflowMode.StackingOnly;
+                IsWorkflowPreProcessingOnly = false;
+                IsWorkflowStackingOnly = true;
+                IsWorkflowDirectStreamAllInOne = false;
+                break;
+            case "all":
+            case "directstreamallinone":
+            default:
+                WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+                IsWorkflowPreProcessingOnly = false;
+                IsWorkflowStackingOnly = false;
+                IsWorkflowDirectStreamAllInOne = true;
+                break;
+        }
+    }
+
+    [RelayCommand]
+    public void SetAlignmentTileSize(int size)
+    {
+        AlignmentTileSize = size;
+        CalculateAlignmentGrid();
+    }
+
+    [RelayCommand]
+    public void CalculateAlignmentGrid()
+    {
+        var frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+        if (frame is null) return;
+
+        SyncOptionsFromUi();
+        CurrentAlignmentGrid = AlignmentGridGenerator.GenerateGrid(frame, Options.Stacking);
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+    }
+
+    [RelayCommand]
+    public void ClearAlignmentGrid()
+    {
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
+        AlignmentStatusText = string.Empty;
+    }
 
     [RelayCommand]
     public void CancelProcessing()

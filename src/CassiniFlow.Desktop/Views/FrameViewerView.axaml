@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -18,6 +18,7 @@
                 <WrapPanel Orientation="Horizontal">
                     <CheckBox Content="{loc:Tr Viewer.ShowCropped}" IsChecked="{Binding PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
                     <CheckBox Content="{loc:Tr Viewer.ShowOverlay}" IsChecked="{Binding ShowOverlayBoxes}" IsEnabled="{Binding !PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
+                    <CheckBox Content="{loc:Tr Viewer.ShowAlignmentGrid}" IsChecked="{Binding IsAlignmentGridVisible}" FontSize="12" Margin="0,0,14,0"/>
                     <CheckBox Content="{loc:Tr Viewer.TestThreshold}" IsChecked="{Binding ShowDetectedPixelsRed}" FontSize="12"/>
                 </WrapPanel>
             </StackPanel>

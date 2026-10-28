@@ -162,7 +162,7 @@ public static class BmpAndAviWriter
     }
 
     /// <summary>
-    /// Writes a standard uncompressed DIB AVI 1.0 container compatible with RegiStax / AutoStakkert!.
+    /// Writes a standard uncompressed DIB AVI 1.0 container compatible with astronomical processing engines.
     /// </summary>
     public static void WriteUncompressedAvi(string outputPath, IReadOnlyList<AstroFrame> frames, int fps = 20, bool safeFrameWidth = true)
     {

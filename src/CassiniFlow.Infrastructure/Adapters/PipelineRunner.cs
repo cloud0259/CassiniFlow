@@ -260,6 +260,11 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return new PipelineRunSummary(false, TimeSpan.Zero, 0, 0, 0, 0, 0, string.Empty);
         }
 
+        if (options.Stacking.WorkflowMode is StackingWorkflowMode.StackingOnly or StackingWorkflowMode.DirectStreamAllInOne)
+        {
+            return await StackingPipelineRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
+        }
+
         var sw = Stopwatch.StartNew();
         Directory.CreateDirectory(outputDirectory);
         _ = ImageProcessor.GetGainGammaLut(options.InputGain, options.Gamma);

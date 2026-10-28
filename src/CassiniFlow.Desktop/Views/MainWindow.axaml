@@ -57,6 +57,37 @@
                     </MenuItem>
                 </Menu>
 
+                <!-- SELECTEUR DE MODE DE TRAITEMENT (SOBRE, SANS ICONES) -->
+                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="{DynamicResource AppPanelSubtleBackground}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1" CornerRadius="4" Padding="2"
+                        IsEnabled="{Binding !IsProcessing}">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <RadioButton Content="{loc:Tr Workflow.PreProcessingOnly}"
+                                     IsChecked="{Binding IsWorkflowPreProcessingOnly}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="prep"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.PreProcessingOnlyTip}"/>
+                        <RadioButton Content="{loc:Tr Workflow.StackingOnly}"
+                                     IsChecked="{Binding IsWorkflowStackingOnly}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="stackingonly"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.StackingOnlyTip}"/>
+                        <RadioButton Content="{loc:Tr Workflow.DirectStreamAllInOne}"
+                                     IsChecked="{Binding IsWorkflowDirectStreamAllInOne}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="directstream"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.DirectStreamAllInOneTip}"/>
+                    </StackPanel>
+                </Border>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding CanAddFiles}" FontSize="12" Padding="10,5"/>
                     
@@ -245,12 +276,42 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 5 : ANIMATION -->
+                        <!-- CARTE 5 : POINTS D'ALIGNEMENT -->
                         <Expander Classes="accordion-card" IsExpanded="{Binding IsSection5Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
                                         <TextBlock Text="5" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AlignmentOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:AlignmentOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 6 : EMPILEMENT MULTI-ZONES & RENDU -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection6Expanded}" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="6" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.StackingOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:StackingOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 7 : ANIMATION -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection7Expanded}" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="7" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AnimationOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -260,12 +321,12 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 6 : EXPORT & SORTIE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection6Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <!-- CARTE 8 : EXPORT & SORTIE -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection8Expanded}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="6" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="8" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.OutputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -275,12 +336,12 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 7 : EXÉCUTION & CONSOLE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection7Expanded}">
+                        <!-- CARTE 9 : EXÃ‰CUTION & CONSOLE -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection9Expanded}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="7" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="9" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.DoProcessing}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -289,8 +350,7 @@
                                 <views:DoProcessingView />
                             </Border>
                         </Expander>
-
-                    </StackPanel>
+                        </StackPanel>
                 </ScrollViewer>
             </Border>
 

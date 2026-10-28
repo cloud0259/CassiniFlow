@@ -1,4 +1,4 @@
-﻿namespace CassiniFlow.Domain.Models;
+namespace CassiniFlow.Domain.Models;
 
 /// <summary>
 /// Enumeration of all CassiniFlow enums extracted from CassiniFlow v2.5.9 via REA.
@@ -182,4 +182,18 @@ public enum DateTimeFilenameFormat
     Custom1 = 9,
     Custom2 = 10,
     Custom3 = 11
+}
+
+public enum StackingWorkflowMode
+{
+    PreProcessingOnly = 0,
+    StackingOnly = 1,
+    DirectStreamAllInOne = 2
+}
+
+public enum DrizzleScale
+{
+    None = 0,
+    Drizzle15 = 1,
+    Drizzle30 = 2
 }

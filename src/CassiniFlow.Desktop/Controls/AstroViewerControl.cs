@@ -34,6 +34,9 @@ public sealed class AstroViewerControl : Control
     private static readonly Pen AoiPen = new(new SolidColorBrush(Color.Parse("#eab308")), 1.5, new DashStyle([6, 4], 0));
     private static readonly Pen AfbPen = new(new SolidColorBrush(Color.Parse("#06b6d4")), 2.0);
     private static readonly Pen FrameBorderPen = new(BorderBrushColor, 1.0);
+    private static readonly Pen ActiveApPen = new(new SolidColorBrush(Color.Parse("#10b981")), 1.2);
+    private static readonly Pen PrunedApPen = new(new SolidColorBrush(Color.FromArgb(50, 239, 68, 68)), 1.0);
+    private static readonly Pen AnchorPen = new(new SolidColorBrush(Color.Parse("#fbbf24")), 1.8);
 
     public AstroViewerControl()
     {
@@ -64,6 +67,16 @@ public sealed class AstroViewerControl : Control
         if (DataContext is MainWindowViewModel vm)
         {
             vm.PreviewReady += OnPreviewReady;
+            vm.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName is nameof(MainWindowViewModel.IsAlignmentGridVisible)
+                    or nameof(MainWindowViewModel.CurrentAlignmentGrid)
+                    or nameof(MainWindowViewModel.ShowOverlayBoxes)
+                    or nameof(MainWindowViewModel.PreviewCroppedOutput))
+                {
+                    InvalidateVisual();
+                }
+            };
         }
     }
 
@@ -183,6 +196,11 @@ public sealed class AstroViewerControl : Control
         double displayScale,
         double fullToScreenScale)
     {
+        if (vm.IsAlignmentGridVisible && vm.CurrentAlignmentGrid is not null && vm.CurrentAlignmentGrid.Points.Count > 0)
+        {
+            DrawAlignmentGridOverlay(context, vm.CurrentAlignmentGrid, destRect, displayScale, fullToScreenScale);
+        }
+
         if (!vm.ShowOverlayBoxes || vm.PreviewCroppedOutput || _renderedDetection is null)
             return;
 
@@ -202,6 +220,37 @@ public sealed class AstroViewerControl : Control
                     DrawDefaultCropOverlay(context, vm, destRect, fullToScreenScale);
                 }
                 break;
+        }
+    }
+
+    private static void DrawAlignmentGridOverlay(
+        DrawingContext context,
+        AlignmentGrid grid,
+        Rect destRect,
+        double displayScale,
+        double fullToScreenScale)
+    {
+        foreach (var ap in grid.Points)
+        {
+            double cx = destRect.X + (ap.X * displayScale);
+            double cy = destRect.Y + (ap.Y * displayScale);
+            double halfSize = (ap.Size / 2.0) * fullToScreenScale;
+
+            var pen = ap.IsActive ? ActiveApPen : PrunedApPen;
+            context.DrawRectangle(null, pen, new Rect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2));
+
+            if (ap.IsActive)
+            {
+                context.DrawEllipse(ActiveApPen.Brush, null, new Point(cx, cy), 1.5, 1.5);
+            }
+        }
+
+        if (grid.AnchorPoint.X >= 0 && grid.AnchorPoint.Y >= 0)
+        {
+            double ax = destRect.X + (grid.AnchorPoint.X * displayScale);
+            double ay = destRect.Y + (grid.AnchorPoint.Y * displayScale);
+            context.DrawEllipse(null, AnchorPen, new Point(ax, ay), 6, 6);
+            context.DrawEllipse(AnchorPen.Brush, null, new Point(ax, ay), 2, 2);
         }
     }
 
