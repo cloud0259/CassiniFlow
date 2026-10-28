@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Domain.Services;

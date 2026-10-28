@@ -4,7 +4,7 @@ using OpenCvSharp;
 namespace CassiniFlow.Infrastructure.Adapters;
 
 /// <summary>
-/// Moteur de corrélation de phase sub-pixel pour le recalage multi-zones.
+/// Moteur de corrélation de phase sub-pixel pour le recalage multi-zones et global.
 /// </summary>
 public static class FastCrossCorrelation
 {
@@ -17,7 +17,6 @@ public static class FastCrossCorrelation
 
         try
         {
-            // Convertir vers float32 mono pour Cv2.PhaseCorrelate
             int w = current.Width;
             int h = current.Height;
 
@@ -46,38 +45,49 @@ public static class FastCrossCorrelation
         AstroFrame reference,
         int centerX,
         int centerY,
-        int size)
+        int size,
+        double globalShiftX = 0,
+        double globalShiftY = 0)
     {
         try
         {
             int half = size / 2;
-            int x0 = Math.Max(0, centerX - half);
-            int y0 = Math.Max(0, centerY - half);
-            int x1 = Math.Min(current.Width, centerX + half);
-            int y1 = Math.Min(current.Height, centerY + half);
-            int tw = x1 - x0;
-            int th = y1 - y0;
+            int refX0 = Math.Max(0, centerX - half);
+            int refY0 = Math.Max(0, centerY - half);
+            int refX1 = Math.Min(reference.Width, centerX + half);
+            int refY1 = Math.Min(reference.Height, centerY + half);
+            int tw = refX1 - refX0;
+            int th = refY1 - refY0;
 
-            if (tw < 8 || th < 8) return (0, 0);
+            if (tw < 8 || th < 8) return (globalShiftX, globalShiftY);
+
+            // Dans l'image courante, la structure est décalée d'environ (-globalShiftX, -globalShiftY)
+            int curCenterX = (int)Math.Round(centerX - globalShiftX);
+            int curCenterY = (int)Math.Round(centerY - globalShiftY);
+            int curX0 = Math.Clamp(curCenterX - half, 0, Math.Max(0, current.Width - tw));
+            int curY0 = Math.Clamp(curCenterY - half, 0, Math.Max(0, current.Height - th));
 
             using var tile1 = new Mat(th, tw, MatType.CV_32FC1);
             using var tile2 = new Mat(th, tw, MatType.CV_32FC1);
 
-            FillFloatSubRegion(current, tile1, x0, y0, tw, th);
-            FillFloatSubRegion(reference, tile2, x0, y0, tw, th);
+            FillFloatSubRegion(current, tile1, curX0, curY0, tw, th);
+            FillFloatSubRegion(reference, tile2, refX0, refY0, tw, th);
 
-            var shift = Cv2.PhaseCorrelate(tile1, tile2, null!, out _);
-            // Si le décalage calculé est aberrent (> demi-taille de tuile), retourner 0
-            if (Math.Abs(shift.X) > half || Math.Abs(shift.Y) > half)
+            var residualShift = Cv2.PhaseCorrelate(tile1, tile2, null!, out _);
+
+            // Si le décalage résiduel est cohérent (turbulence locale < demi-tuile)
+            if (Math.Abs(residualShift.X) <= half && Math.Abs(residualShift.Y) <= half)
             {
-                return (0, 0);
+                double totalShiftX = (curX0 - refX0) + residualShift.X;
+                double totalShiftY = (curY0 - refY0) + residualShift.Y;
+                return (totalShiftX, totalShiftY);
             }
 
-            return (shift.X, shift.Y);
+            return (globalShiftX, globalShiftY);
         }
         catch
         {
-            return (0, 0);
+            return (globalShiftX, globalShiftY);
         }
     }
 
@@ -106,7 +116,7 @@ public static class FastCrossCorrelation
                 }
                 else
                 {
-                    ushort* srcRow = pData + y * w * 3;
+                    ushort* srcRow = pData + (y * w * 3);
                     for (int x = 0; x < w; x++)
                     {
                         int idx = x * 3;

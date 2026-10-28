@@ -36,10 +36,21 @@
                 </StackPanel>
             </Border>
 
-            <Border Grid.Row="2" Classes="groupbox" MinHeight="160">
+            <Border Grid.Row="2" Classes="groupbox" MinHeight="180">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Text="{loc:Tr DoProcessing.ExecutionLog}" Classes="grouptitle"/>
-                    <TextBox Grid.Row="1" Text="{Binding ConsoleLogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas, Monospace" FontSize="12" Background="{DynamicResource AppConsoleLogBg}" Foreground="{DynamicResource AppTextPrimary}"/>
+                    <TextBox Grid.Row="1"
+                             Text="{Binding ConsoleLogText}"
+                             IsReadOnly="True"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             ScrollViewer.VerticalScrollBarVisibility="Visible"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             Height="260"
+                             FontFamily="Consolas, Monospace"
+                             FontSize="12"
+                             Background="{DynamicResource AppConsoleLogBg}"
+                             Foreground="{DynamicResource AppTextPrimary}"/>
                 </Grid>
             </Border>
 

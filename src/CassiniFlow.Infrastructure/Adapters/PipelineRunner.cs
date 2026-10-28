@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
@@ -48,9 +48,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.DarkDataHasBayer,
             masterFlat);
 
-        if (options.DebayerEnabled && work.Channels == 1 && work.IsBayerRaw)
+        if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
         {
-            work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+            work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
         }
 
         if (options.Binning != BinningMode.Disabled)
@@ -1134,9 +1134,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             var work = raw;
             work.FrameIndex = globalFrameBase + (raw.FrameIndex - startIdx);
 
-            if (options.DebayerEnabled && work.Channels == 1 && work.IsBayerRaw)
+            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1298,9 +1298,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             int done = Interlocked.Increment(ref scannedCount);
             var work = raw;
 
-            if (options.DebayerEnabled && work.Channels == 1 && work.IsBayerRaw)
+            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1434,9 +1434,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             cancellationToken.ThrowIfCancellationRequested();
             var work = raw;
 
-            if (options.DebayerEnabled && work.Channels == 1 && work.IsBayerRaw)
+            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(

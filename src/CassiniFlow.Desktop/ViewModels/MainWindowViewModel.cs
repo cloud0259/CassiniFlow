@@ -573,6 +573,14 @@ public partial class MainWindowViewModel : ObservableObject
         _userManuallySelectedPreset = false;
         var firstNew = validItems[0];
         SelectedSourceFile ??= firstNew;
+        if (firstNew.FormatBadge.Contains("Bayer", StringComparison.OrdinalIgnoreCase))
+        {
+            DebayerEnabled = true;
+            if (firstNew.FormatBadge.Contains("BGGR", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 1;
+            else if (firstNew.FormatBadge.Contains("RGGB", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 2;
+            else if (firstNew.FormatBadge.Contains("GRBG", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 3;
+            else if (firstNew.FormatBadge.Contains("GBRG", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 0;
+        }
         ConsoleLogText = Loc.Pick(
             $"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).",
             $"{SourceFiles.Count} file(s) in the list. Selected: {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames at {firstNew.FpsInfo}).");
