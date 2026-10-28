@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -71,8 +71,8 @@
                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <TextBlock Grid.Column="1" Text="{Binding FileName}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <Border Grid.Column="2" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="5,1" Margin="4,0,0,0">
-                                            <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>
+                                        <Border Grid.Column="2" VerticalAlignment="Center" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,2" Margin="4,0,0,0">
+                                            <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
                                         </Border>
                                     </Grid>
                                     <!-- Ligne 2 : Frames • Taille • Résolution • Diamètre • Expo/Gain -->
@@ -97,8 +97,8 @@
             <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="ℹ️ Métadonnées" Classes="grouptitle" Margin="0"/>
-                    <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,1" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <TextBlock Text="{Binding SelectedSourceFile.FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>
+                    <Border VerticalAlignment="Center" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,2" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding SelectedSourceFile.FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
                     </Border>
                 </Grid>
 
