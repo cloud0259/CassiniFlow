@@ -21,7 +21,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <Menu Grid.Column="0" VerticalAlignment="Center" IsEnabled="{Binding !IsProcessing}">
                     <MenuItem Header="{loc:Tr Menu.File}">
-                        <MenuItem Header="{loc:Tr Menu.AddFiles}" Click="OnAddVideoFilesClick"/>
+                        <MenuItem Header="{loc:Tr Menu.AddFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding CanAddFiles}"/>
                         <MenuItem Header="{loc:Tr Menu.RemoveSelected}" Command="{Binding RemoveSelectedFileCommand}"/>
                         <MenuItem Header="{loc:Tr Menu.ClearAll}" Command="{Binding ClearAllFilesCommand}"/>
                         <Separator/>
@@ -58,7 +58,7 @@
                 </Menu>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding !IsProcessing}" FontSize="12" Padding="10,5"/>
+                    <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding CanAddFiles}" FontSize="12" Padding="10,5"/>
                     
                     <!-- Bouton Lancer le traitement (quand inactif) -->
                     <Button Content="{loc:Tr Toolbar.StartProcessing}" Command="{Binding RunProcessingCommand}" IsVisible="{Binding !IsProcessing}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" Padding="14,5"/>

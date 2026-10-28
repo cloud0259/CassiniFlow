@@ -9,7 +9,7 @@
     <Grid RowDefinitions="Auto,*,Auto" Margin="2">
 
         <!-- Barre d'outils structurée en 2 rangées professionnelles -->
-        <Border Grid.Row="0" Classes="groupbox" Padding="6,5" Margin="0,0,0,4">
+        <Border Grid.Row="0" Classes="groupbox" Padding="6,5" Margin="0,0,0,4" IsEnabled="{Binding !IsLoadingFiles}">
             <StackPanel Spacing="5">
                 <!-- Rangée 1 : Actions principales (Ajouter & Mesurer) -->
                 <Grid ColumnDefinitions="*,Auto">
@@ -89,6 +89,22 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                <!-- Overlay de chargement (Bloque l'ajout d'autres fichiers et affiche l'avancement) -->
+                <Border Grid.Row="0" Grid.RowSpan="2"
+                        Background="#E00B1120"
+                        IsVisible="{Binding IsLoadingFiles}"
+                        CornerRadius="4"
+                        ZIndex="100">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Margin="20">
+                        <ProgressBar IsIndeterminate="True"
+                                     Width="220" Height="6"/>
+                        <TextBlock Text="{Binding LoadingStatusText}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AppAccent}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
