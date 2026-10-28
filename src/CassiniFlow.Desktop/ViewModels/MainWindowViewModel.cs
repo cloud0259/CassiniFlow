@@ -504,11 +504,29 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    public bool? AreAllFilesChecked
+    {
+        get
+        {
+            if (SourceFiles.Count == 0) return false;
+            if (SourceFiles.All(f => f.IsChecked)) return true;
+            if (SourceFiles.All(f => !f.IsChecked)) return false;
+            return null;
+        }
+        set
+        {
+            bool target = value ?? true;
+            foreach (var f in SourceFiles) f.IsChecked = target;
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        }
+    }
+
     [RelayCommand]
     public void ToggleCheckAllFiles()
     {
         bool target = SourceFiles.Any(f => !f.IsChecked);
         foreach (var f in SourceFiles) f.IsChecked = target;
+        OnPropertyChanged(nameof(AreAllFilesChecked));
     }
 
 
