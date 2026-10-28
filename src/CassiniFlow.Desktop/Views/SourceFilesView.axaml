@@ -107,7 +107,7 @@
                     <TextBlock Text="{Binding SelectedSourceFile.FileName}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                     <Grid ColumnDefinitions="*,*">
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.Resolution, StringFormat='Dim : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.Frames, StringFormat='Trames : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.Frames, StringFormat='Frames : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                     </Grid>
                     <Grid ColumnDefinitions="*,*">
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.FileSize, StringFormat='Taille : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
