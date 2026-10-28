@@ -9,24 +9,41 @@
     <StackPanel Spacing="10" Margin="2,4,2,2">
         <Border Classes="groupbox" Padding="10,8">
             <StackPanel Spacing="8">
-                <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
-                <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
-                    <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
-                </ComboBox>
+                <!-- Mode Prétraitement Seul : Formats Vidéo & Séquences -->
+                <StackPanel Spacing="8" IsVisible="{Binding IsWorkflowPreProcessingOnly}">
+                    <TextBlock Text="{loc:Tr OutputOptions.FormatTitle}" Classes="grouptitle"/>
+                    <ComboBox SelectedIndex="{Binding SelectedOutputFormatIndex}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatAvi}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatMp4}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatSer}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatBmp}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatPng}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatTiff}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.FormatFits}"/>
+                    </ComboBox>
 
-                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+                    <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
-                <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
-                <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !MatchInputFps}">
-                    <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.CustomFps}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
-                    <controls:NumberStepper Grid.Column="1" Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="110"/>
-                </Grid>
+                    <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
+                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !MatchInputFps}">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.CustomFps}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="110"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Mode Empilement Seul / Flux Direct : Format Image Haute Dynamique Unique -->
+                <StackPanel Spacing="8" IsVisible="{Binding !IsWorkflowPreProcessingOnly}">
+                    <TextBlock Text="Format d'image empilée (Sortie unique)" Classes="grouptitle"/>
+                    <ComboBox SelectedIndex="{Binding SelectedStackingImageFormatIndex}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="TIFF 16-bit (Recommandé - Standard astronomique)"/>
+                        <ComboBoxItem Content="FITS (Format scientifique astronomique)"/>
+                        <ComboBoxItem Content="PNG 16-bit (Image universelle non compressée)"/>
+                    </ComboBox>
+
+                    <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2,0,0">
+                        <TextBlock Text="L'empilement produit une image composite haute dynamique unique issue de la fusion des meilleures trames." FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
 
                 <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 

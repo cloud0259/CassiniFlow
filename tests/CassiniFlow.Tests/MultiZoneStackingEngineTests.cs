@@ -155,4 +155,38 @@ public class MultiZoneStackingEngineTests
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
     }
+
+    [Fact]
+    public async Task StackingPipeline_StackingOnlyMode_ExecutesBoundedStreamingWithoutFreezing()
+    {
+        string tempAvi = Path.Combine(Path.GetTempPath(), $"stack_only_test_{Guid.NewGuid():N}.avi");
+        string tempOutDir = Path.Combine(Path.GetTempPath(), $"stack_only_out_{Guid.NewGuid():N}");
+
+        try
+        {
+            var frames = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, frameCount: 8, width: 96, height: 96);
+            UniversalMediaReader.WriteVideoFile(tempAvi, frames, 25.0, false);
+
+            var options = new ProcessingOptions
+            {
+                OutputFormat = OutputFormat.Fits
+            };
+            options.Stacking.WorkflowMode = StackingWorkflowMode.StackingOnly;
+            options.Stacking.AlignmentTileSize = 32;
+            options.Stacking.StackPercentages = [50.0];
+
+            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+
+            Assert.True(summary.Success);
+            Assert.Equal(1, summary.OutputFramesWritten);
+            Assert.True(File.Exists(summary.OutputFilePath));
+            Assert.EndsWith(".fit", summary.OutputFilePath, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            if (File.Exists(tempAvi)) File.Delete(tempAvi);
+            if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -404,6 +404,31 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnDebayerEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedBayerPatternIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedDebayerAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+
+    partial void OnAlignmentTileSizeChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsTileSize24));
+        OnPropertyChanged(nameof(IsTileSize48));
+        OnPropertyChanged(nameof(IsTileSize104));
+        OnPropertyChanged(nameof(IsTileSize140));
+        OnPropertyChanged(nameof(IsTileSize200));
+        CalculateAlignmentGrid();
+    }
+
+    partial void OnCurrentAlignmentGridChanged(AlignmentGrid value)
+    {
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    partial void OnSelectedStackingImageFormatIndexChanged(int value)
+    {
+        SelectedOutputFormatIndex = value switch
+        {
+            1 => 6, // FITS
+            2 => 4, // PNG
+            _ => 5  // TIFF
+        };
+    }
     partial void OnSelectedBinningIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedStabilisationModeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnCheckObjectPresentChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -807,6 +832,19 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _enableMultiScaleGrid = true;
     [ObservableProperty] private string _alignmentStatusText = string.Empty;
 
+    public bool IsTileSize24 => AlignmentTileSize == 24;
+    public bool IsTileSize48 => AlignmentTileSize == 48;
+    public bool IsTileSize104 => AlignmentTileSize == 104;
+    public bool IsTileSize140 => AlignmentTileSize == 140;
+    public bool IsTileSize200 => AlignmentTileSize == 200;
+
+    public string ActivePointsCountText => CurrentAlignmentGrid.ActiveCount > 0 
+        ? $"{CurrentAlignmentGrid.ActiveCount} AP" 
+        : "-";
+
+    // --- Format Image EmpilÃ©e (Sortie unique) ---
+    [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
+
     // --- Empilement Multi-Zones & Rendu ---
     [ObservableProperty] private int _stackPercentage = 25;
     [ObservableProperty] private int _stackFrameCount = 200;
@@ -1197,7 +1235,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (IsProcessing) return;
 
-        SelectedTabIndex = 5;
+        IsSection9Expanded = true;
         IsProcessing = true;
         HasCompletedOutput = false;
         SyncOptionsFromUi();
@@ -1226,12 +1264,12 @@ public partial class MainWindowViewModel : ObservableObject
             string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
             ConsoleLogText = Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Démarrage du traitement ({filesToRun.Count} fichier(s), {modeLabel})...", $"[{DateTime.Now:HH:mm:ss}] Starting processing ({filesToRun.Count} file(s), {modeLabel})...");
 
-            var summary = await PipelineRunner.ExecuteFilesAsync(
+            var summary = await Task.Run(() => PipelineRunner.ExecuteFilesAsync(
                 filesToRun,
                 Options,
                 outDir,
                 progress,
-                _processingCts.Token);
+                _processingCts.Token));
 
             LastOutputFilePath = summary.OutputFilePath;
             HasCompletedOutput = summary.Success && File.Exists(summary.OutputFilePath);
@@ -1274,6 +1312,11 @@ public partial class MainWindowViewModel : ObservableObject
                 WorkflowMode = StackingWorkflowMode.StackingOnly;
                 IsWorkflowPreProcessingOnly = false;
                 IsWorkflowStackingOnly = true;
+                if (SelectedOutputFormatIndex is 0 or 1 or 2)
+                {
+                    SelectedOutputFormatIndex = 5;
+                    SelectedStackingImageFormatIndex = 0;
+                }
                 IsWorkflowDirectStreamAllInOne = false;
                 break;
             case "all":
@@ -1283,6 +1326,11 @@ public partial class MainWindowViewModel : ObservableObject
                 IsWorkflowPreProcessingOnly = false;
                 IsWorkflowStackingOnly = false;
                 IsWorkflowDirectStreamAllInOne = true;
+                if (SelectedOutputFormatIndex is 0 or 1 or 2)
+                {
+                    SelectedOutputFormatIndex = 5;
+                    SelectedStackingImageFormatIndex = 0;
+                }
                 break;
         }
     }

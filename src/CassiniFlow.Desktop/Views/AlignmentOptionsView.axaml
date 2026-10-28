@@ -15,34 +15,51 @@
 
                 <TextBlock Text="{loc:Tr Alignment.TileSize}" Classes="label"/>
 
-                <!-- Sélecteur rapide de taille de tuile -->
-                <Grid ColumnDefinitions="*,*,*,*,*">
-                    <Button Grid.Column="0" Content="24" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
-                        <Button.CommandParameter>
-                            <x:Int32>24</x:Int32>
-                        </Button.CommandParameter>
-                    </Button>
-                    <Button Grid.Column="1" Content="48" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
-                        <Button.CommandParameter>
-                            <x:Int32>48</x:Int32>
-                        </Button.CommandParameter>
-                    </Button>
-                    <Button Grid.Column="2" Content="104" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
-                        <Button.CommandParameter>
-                            <x:Int32>104</x:Int32>
-                        </Button.CommandParameter>
-                    </Button>
-                    <Button Grid.Column="3" Content="140" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
-                        <Button.CommandParameter>
-                            <x:Int32>140</x:Int32>
-                        </Button.CommandParameter>
-                    </Button>
-                    <Button Grid.Column="4" Content="200" Command="{Binding SetAlignmentTileSizeCommand}" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11">
-                        <Button.CommandParameter>
-                            <x:Int32>200</x:Int32>
-                        </Button.CommandParameter>
-                    </Button>
-                </Grid>
+                <!-- Sélecteur rapide de taille de tuile avec mise en valeur active -->
+                <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="2">
+                    <Grid ColumnDefinitions="*,*,*,*,*">
+                        <RadioButton Grid.Column="0" Content="24" IsChecked="{Binding IsTileSize24}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>24</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="1" Content="48" IsChecked="{Binding IsTileSize48}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>48</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="2" Content="104" IsChecked="{Binding IsTileSize104}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>104</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="3" Content="140" IsChecked="{Binding IsTileSize140}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>140</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="4" Content="200" IsChecked="{Binding IsTileSize200}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>200</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                    </Grid>
+                </Border>
 
                 <!-- Réglage fin de la taille -->
                 <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
@@ -74,12 +91,25 @@
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" FontSize="12"/>
                 </Grid>
 
-                <!-- Statut de la grille AP -->
-                <TextBlock Text="{Binding AlignmentStatusText}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}"
-                           HorizontalAlignment="Center" Margin="0,2,0,0" IsVisible="{Binding AlignmentStatusText.Length}"/>
+                <!-- Badge de mise en valeur du nombre de points d'alignement -->
+                <Border Background="{DynamicResource AppPanelSubtleBackground}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,4,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Points d'alignement calculés" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="{Binding AlignmentStatusText}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"
+                                       IsVisible="{Binding AlignmentStatusText.Length}"/>
+                            <TextBlock Text="Aucun point placé (cliquez sur 'Placer les points')" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"
+                                       IsVisible="{Binding !AlignmentStatusText.Length}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="{DynamicResource AppAccent}" CornerRadius="3" Padding="10,4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActivePointsCountText}" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                        </Border>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Border>
 
     </StackPanel>
 </UserControl>
-
