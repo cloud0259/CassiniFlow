@@ -75,12 +75,14 @@
                                             <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>
                                         </Border>
                                     </Grid>
-                                    <!-- Ligne 2 : Frames • Taille • Résolution • Diamètre -->
+                                    <!-- Ligne 2 : Frames • Taille • Résolution • Diamètre • Expo/Gain -->
                                     <WrapPanel Grid.Row="1" Margin="24,3,0,0" Orientation="Horizontal">
                                         <TextBlock Text="{Binding Frames, StringFormat='{}{0} fr'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
-                                        <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}"/>
+                                        <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding ExposureInfo, StringFormat='{}⏱ {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0" IsVisible="{Binding HasAstroDetails}"/>
+                                        <TextBlock Text="{Binding IsoOrGainInfo}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" IsVisible="{Binding HasAstroDetails}"/>
                                     </WrapPanel>
                                 </Grid>
                             </Border>
@@ -111,7 +113,14 @@
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.FileSize, StringFormat='Taille : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.FpsInfo, StringFormat='Cadence : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                     </Grid>
-                    <TextBlock Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.ExposureInfo, StringFormat='Exp : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.ShutterSpeedInfo, StringFormat='Vitesse : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.IsoOrGainInfo, StringFormat='Sensib. : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Message quand aucun fichier n'est sélectionné -->

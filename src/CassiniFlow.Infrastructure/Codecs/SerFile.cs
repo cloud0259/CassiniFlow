@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.IO.MemoryMappedFiles;
 using System.Text;
 using CassiniFlow.Domain.Models;
@@ -224,6 +224,9 @@ public sealed class SerFile : IDisposable
 
         return frame;
     }
+
+    public long GetRawTimestamp(int frameIndex) =>
+        (frameIndex >= 0 && frameIndex < _frameTimestamps.Length) ? _frameTimestamps[frameIndex] : 0;
 
     public static unsafe void WriteSerFile(string outputPath, SerHeader templateHeader, IReadOnlyList<AstroFrame> frames)
     {

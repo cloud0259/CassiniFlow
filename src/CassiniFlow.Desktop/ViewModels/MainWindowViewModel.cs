@@ -41,6 +41,13 @@ public sealed partial class SourceFileItem : ObservableObject
     public string FpsInfo => $"{Fps:F1} fps";
     public string FileSize { get; init; } = string.Empty;
     public string DetailedReport { get; init; } = string.Empty;
+
+    public AstroMediaMetadata Metadata { get; init; } = AstroMediaMetadata.Empty;
+    public string ExposureInfo => Metadata.EffectiveExposureText;
+    public string ShutterSpeedInfo => Metadata.EffectiveShutterSpeedText;
+    public string IsoOrGainInfo => Metadata.IsoOrGainText;
+    public string CameraInfo => Metadata.Camera ?? "u{2014}";
+    public bool HasAstroDetails => Metadata.ExposureTimeSeconds.HasValue || Metadata.Iso.HasValue || Metadata.Gain.HasValue;
 }
 
 public partial class MainWindowViewModel : ObservableObject
@@ -435,7 +442,8 @@ public partial class MainWindowViewModel : ObservableObject
                         Height = summary.Height,
                         Fps = summary.Fps,
                         FileSize = sizeStr,
-                        DetailedReport = summary.DetailedReport
+                        DetailedReport = summary.DetailedReport,
+                        Metadata = summary.Metadata ?? AstroMediaMetadata.Empty
                     };
 
                     newItems.Add(item);

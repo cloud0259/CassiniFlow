@@ -1,7 +1,8 @@
-using System.Text;
+﻿using System.Text;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Codecs;
+using CassiniFlow.Infrastructure.Metadata;
 using CassiniFlow.Infrastructure.WinJupos;
 using OpenCvSharp;
 
@@ -15,7 +16,8 @@ public sealed record MediaFileSummary(
     int Height,
     double Fps,
     long FileSizeBytes,
-    string DetailedReport);
+    string DetailedReport,
+    AstroMediaMetadata? Metadata = null);
 
 public sealed record UniversalPreviewFrame(
     AstroFrame Frame,
@@ -96,6 +98,7 @@ public static class UniversalMediaReader
     {
         var fi = new FileInfo(filePath);
         string ext = fi.Extension.ToLowerInvariant();
+        var astroMeta = AstroMetadataExtractor.Extract(filePath);
 
         if (ext == ".ser")
         {
@@ -110,7 +113,8 @@ public static class UniversalMediaReader
                 h.ImageHeight,
                 60.0,
                 fi.Length,
-                h.FormatDetailedReport(filePath, fi.Length));
+                h.FormatDetailedReport(filePath, fi.Length),
+                astroMeta);
         }
 
         if (ext is ".fit" or ".fits" or ".fts")
@@ -126,19 +130,20 @@ public static class UniversalMediaReader
                 meta.Height,
                 1.0,
                 fi.Length,
-                meta.FormatDetailedReport(filePath));
+                meta.FormatDetailedReport(filePath),
+                astroMeta);
         }
 
         if (VideoExtensions.Contains(ext))
         {
             if (!IsOpenCvNativeAvailable)
             {
-                return FfmpegCliBackend.InspectVideo(filePath);
+                return FfmpegCliBackend.InspectVideo(filePath) with { Metadata = astroMeta };
             }
 
             using var cap = new VideoCapture(filePath);
             if (!cap.IsOpened())
-                return FfmpegCliBackend.InspectVideo(filePath);
+                return FfmpegCliBackend.InspectVideo(filePath) with { Metadata = astroMeta };
 
             int frames = Math.Max(1, cap.FrameCount);
             int w = Math.Max(1, cap.FrameWidth);
@@ -164,7 +169,8 @@ public static class UniversalMediaReader
                 h,
                 fps,
                 fi.Length,
-                sb.ToString());
+                sb.ToString(),
+                astroMeta);
         }
 
         if (ImageExtensions.Contains(ext))
