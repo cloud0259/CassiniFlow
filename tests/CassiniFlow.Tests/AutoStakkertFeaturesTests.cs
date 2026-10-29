@@ -6,6 +6,7 @@ using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class AutoStakkertFeaturesTests
 {
     [Fact]

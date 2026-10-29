@@ -138,6 +138,30 @@ public partial class MainWindowViewModel : ObservableObject
         };
         _selectedLanguageIndex = string.Equals(UserSettingsService.Current.Language, "en", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
+        _winJuposNaming = UserSettingsService.Current.WinJuposNaming;
+        _selectedOutputFormatIndex = Math.Clamp(UserSettingsService.Current.SelectedOutputFormatIndex, 0, 5);
+        _selectedStackingImageFormatIndex = Math.Clamp(UserSettingsService.Current.SelectedStackingImageFormatIndex, 0, 2);
+        if (!string.IsNullOrEmpty(UserSettingsService.Current.OutputSuffix))
+        {
+            _outputSuffix = UserSettingsService.Current.OutputSuffix;
+        }
+        _customOutputDirectory = UserSettingsService.Current.CustomOutputDirectory;
+        _autoRotateAlign = UserSettingsService.Current.AutoRotateAlign;
+        if (UserSettingsService.Current.CropWidth > 0)
+        {
+            _cropWidth = UserSettingsService.Current.CropWidth;
+        }
+        if (UserSettingsService.Current.CropHeight > 0)
+        {
+            _cropHeight = UserSettingsService.Current.CropHeight;
+        }
+        _enableCropping = UserSettingsService.Current.EnableCropping;
+        _enableQuality = UserSettingsService.Current.EnableQualityEstimation;
+        if (UserSettingsService.Current.QualityFramesToKeep > 0)
+        {
+            _qualityKeepValue = UserSettingsService.Current.QualityFramesToKeep;
+        }
+
         Loc.LanguageChanged += RefreshLocalizedTexts;
         ThemeManager.ThemeChanged += OnThemeChanged;
 
@@ -451,6 +475,32 @@ public partial class MainWindowViewModel : ObservableObject
             2 => 4, // PNG
             _ => 5  // TIFF
         };
+        UserSettingsService.Current.SelectedStackingImageFormatIndex = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnSelectedOutputFormatIndexChanged(int value)
+    {
+        UserSettingsService.Current.SelectedOutputFormatIndex = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnWinJuposNamingChanged(bool value)
+    {
+        UserSettingsService.Current.WinJuposNaming = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnOutputSuffixChanged(string value)
+    {
+        UserSettingsService.Current.OutputSuffix = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnCustomOutputDirectoryChanged(string value)
+    {
+        UserSettingsService.Current.CustomOutputDirectory = value;
+        UserSettingsService.Save();
     }
     partial void OnSelectedBinningIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedStabilisationModeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -514,7 +564,12 @@ public partial class MainWindowViewModel : ObservableObject
         if (value) PreviewCroppedOutput = true;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
-    partial void OnAutoRotateAlignChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+        partial void OnAutoRotateAlignChanged(bool value)
+    {
+        UserSettingsService.Current.AutoRotateAlign = value;
+        UserSettingsService.Save();
+        RequestPreviewUpdate(reloadFromDisk: false);
+    }
 
     public void SetAnchorOrCropTarget(int x, int y)
     {
@@ -1346,6 +1401,18 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task SaveUserSettings()
     {
         UserSettingsService.UpdateCpuSettings(MaxCpuUsagePercent, CpuWarningThresholdPercent);
+        UserSettingsService.UpdateProcessingSettings(
+            WinJuposNaming,
+            SelectedOutputFormatIndex,
+            SelectedStackingImageFormatIndex,
+            OutputSuffix,
+            CustomOutputDirectory,
+            AutoRotateAlign,
+            CropWidth,
+            CropHeight,
+            EnableCropping,
+            EnableQuality,
+            QualityKeepValue);
         IsSettingsSavedFeedbackVisible = true;
         await Task.Delay(2500);
         IsSettingsSavedFeedbackVisible = false;

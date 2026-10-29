@@ -1,11 +1,13 @@
 using System.IO;
 using CassiniFlow.Desktop.Services;
+using CassiniFlow.Desktop.ViewModels;
 using CassiniFlow.Infrastructure.Adapters;
 using CassiniFlow.Domain.Models;
 using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class UserSettingsTests
 {
     [Fact]
@@ -39,6 +41,14 @@ public class UserSettingsTests
         Assert.Equal(80, model.MaxCpuUsagePercent);
         Assert.Equal(85, model.CpuWarningThresholdPercent);
         Assert.False(model.HasSeenTutorial);
+        Assert.False(model.WinJuposNaming);
+        Assert.Equal(0, model.SelectedOutputFormatIndex);
+        Assert.Equal(0, model.SelectedStackingImageFormatIndex);
+        Assert.Equal("_cassiniflow", model.OutputSuffix);
+        Assert.False(model.AutoRotateAlign);
+        Assert.Equal(448, model.CropWidth);
+        Assert.Equal(448, model.CropHeight);
+        Assert.True(model.EnableCropping);
     }
 
     [Fact]
@@ -54,5 +64,67 @@ public class UserSettingsTests
 
         // Restore default
         UserSettingsService.UpdateCpuSettings(80, 85);
+    }
+
+    [Fact]
+    public void UserSettingsService_UpdateProcessingSettings_PersistsValues()
+    {
+        UserSettingsService.UpdateProcessingSettings(
+            winJuposNaming: true,
+            outputFormatIndex: 2,
+            stackingFormatIndex: 1,
+            outputSuffix: "_custom",
+            customOutputDir: @"C:\CustomOutput",
+            autoRotate: true,
+            cropWidth: 512,
+            cropHeight: 512,
+            enableCropping: true,
+            enableQuality: true,
+            qualityKeep: 40);
+
+        Assert.True(UserSettingsService.Current.WinJuposNaming);
+        Assert.Equal(2, UserSettingsService.Current.SelectedOutputFormatIndex);
+        Assert.Equal(1, UserSettingsService.Current.SelectedStackingImageFormatIndex);
+        Assert.Equal("_custom", UserSettingsService.Current.OutputSuffix);
+        Assert.Equal(@"C:\CustomOutput", UserSettingsService.Current.CustomOutputDirectory);
+        Assert.True(UserSettingsService.Current.AutoRotateAlign);
+        Assert.Equal(512, UserSettingsService.Current.CropWidth);
+        Assert.Equal(512, UserSettingsService.Current.CropHeight);
+        Assert.True(UserSettingsService.Current.EnableCropping);
+        Assert.True(UserSettingsService.Current.EnableQualityEstimation);
+        Assert.Equal(40, UserSettingsService.Current.QualityFramesToKeep);
+
+        // Restore default
+        UserSettingsService.UpdateProcessingSettings(
+            winJuposNaming: false,
+            outputFormatIndex: 0,
+            stackingFormatIndex: 0,
+            outputSuffix: "_cassiniflow",
+            customOutputDir: string.Empty,
+            autoRotate: false,
+            cropWidth: 448,
+            cropHeight: 448,
+            enableCropping: true,
+            enableQuality: false,
+            qualityKeep: 25);
+    }
+
+    [Fact]
+    public void MainWindowViewModel_InitializesAndPersistsWinJuposSetting()
+    {
+        // Arrange: set WinJupos to true in UserSettings
+        UserSettingsService.Current.WinJuposNaming = true;
+
+        // Act: construct MainWindowViewModel
+        var vm = new MainWindowViewModel();
+
+        // Assert: VM loaded setting
+        Assert.True(vm.WinJuposNaming);
+
+        // Act: change through VM
+        vm.WinJuposNaming = false;
+
+        // Assert: automatically persisted
+        Assert.False(UserSettingsService.Current.WinJuposNaming);
     }
 }
