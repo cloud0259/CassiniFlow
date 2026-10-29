@@ -59,6 +59,15 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<SourceFileItem> SourceFiles { get; } = [];
 
+    public ObservableCollection<string> DarkFiles { get; } = [];
+    public ObservableCollection<string> FlatFiles { get; } = [];
+    public ObservableCollection<string> FlatDarkFiles { get; } = [];
+
+    [ObservableProperty] private string _darkCountText = "0 dark(s)";
+    [ObservableProperty] private string _flatCountText = "0 flat(s)";
+    [ObservableProperty] private string _flatDarkCountText = "0 flat-dark(s)";
+    [ObservableProperty] private bool _hasCalibrationFiles = false;
+
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
     private AstroFrame? _lastProcessedPreviewFrame;
@@ -686,6 +695,74 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(AreAllFilesChecked));
     }
 
+
+    [RelayCommand]
+    public void AddDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !DarkFiles.Contains(p)) DarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void ClearDarkFiles()
+    {
+        DarkFiles.Clear();
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void AddFlatFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatFiles.Contains(p)) FlatFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void ClearFlatFiles()
+    {
+        FlatFiles.Clear();
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void AddFlatDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatDarkFiles.Contains(p)) FlatDarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void ClearFlatDarkFiles()
+    {
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+    }
+
+    [RelayCommand]
+    public void ClearAllCalibrationFiles()
+    {
+        DarkFiles.Clear();
+        FlatFiles.Clear();
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+    }
+
+    private void UpdateCalibrationStatus()
+    {
+        DarkCountText = $"{DarkFiles.Count} dark(s)";
+        FlatCountText = $"{FlatFiles.Count} flat(s)";
+        FlatDarkCountText = $"{FlatDarkFiles.Count} flat-dark(s)";
+        HasCalibrationFiles = DarkFiles.Count > 0 || FlatFiles.Count > 0 || FlatDarkFiles.Count > 0;
+    }
 
     [RelayCommand]
     public void MoveSelectedFileUp() => MoveSelectedFile(-1);
@@ -1498,7 +1575,12 @@ public partial class MainWindowViewModel : ObservableObject
         Options.StartFrame = Math.Max(1, StartFrame);
         Options.EndFrame = Math.Max(Options.StartFrame, EndFrame);
 
-        Options.DarkFrameSubtract = DarkSubtractEnabled;
+        Options.DarkFiles = DarkFiles.ToList();
+        Options.FlatFiles = FlatFiles.ToList();
+        Options.FlatDarkFiles = FlatDarkFiles.ToList();
+        Options.DarkFrameSubtract = DarkSubtractEnabled || DarkFiles.Count > 0;
+        Options.FlatFrameCalibrate = FlatFiles.Count > 0;
+        Options.FlatDarkFrameSubtract = FlatDarkFiles.Count > 0;
         Options.HotPixelThreshold = HotPixelThreshold;
         Options.DebayerEnabled = DebayerEnabled;
         Options.DebayerPattern = (BayerPattern)Math.Clamp(SelectedBayerPatternIndex, 0, 3);

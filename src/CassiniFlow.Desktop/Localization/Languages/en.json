@@ -52,6 +52,11 @@
     "SourceFiles": {
         "Header": "Video files and image sequences to process:",
         "AddFiles": "+ Add files...",
+        "AddCalibration": "Calibration (+D/F/FD)",
+        "AddDarks": "Add Darks...",
+        "AddFlats": "Add Flats...",
+        "AddFlatDarks": "Add Flat-Darks...",
+        "ClearCalibration": "Clear",
         "MeasureSizes": "📏 Measure sizes",
         "MeasureSizesTip": "Measures the planet diameter in each file",
         "SortAsc": "Sort ↑ size",

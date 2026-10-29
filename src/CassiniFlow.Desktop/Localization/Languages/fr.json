@@ -52,6 +52,11 @@
     "SourceFiles": {
         "Header": "Liste des fichiers vidéos et séquences d\u0027images à traiter :",
         "AddFiles": "+ Ajouter des fichiers...",
+        "AddCalibration": "Calibration (+D/F/FD)",
+        "AddDarks": "Ajouter Darks...",
+        "AddFlats": "Ajouter Flats...",
+        "AddFlatDarks": "Ajouter Flat-Darks...",
+        "ClearCalibration": "Effacer",
         "MeasureSizes": "📏 Mesurer les tailles",
         "MeasureSizesTip": "Mesure le diamètre de la planète dans chaque fichier",
         "SortAsc": "Trier ↑ taille",
