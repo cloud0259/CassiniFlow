@@ -5,6 +5,7 @@ using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class CelestialTargetClassifierTests
 {
     [Fact]
@@ -229,5 +230,178 @@ public class CelestialTargetClassifierTests
         Assert.True(result.DetectedMoonsCount >= 2, $"Expected at least 2 moons, got {result.DetectedMoonsCount}");
         Assert.Contains("Jupiter", result.ObjectSummary(isFrench: true));
         Assert.Contains("lunes", result.ObjectSummary(isFrench: true));
+    }
+
+    [Fact]
+    public void Classify_HighGainNoiseWithoutMoons_DetectsZeroMoons()
+    {
+        // Disque de Jupiter sans lune, avec 20 pixels chauds / bruit isolÃ©s Ã©parpillÃ©s
+        int w = 500, h = 500;
+        var frame = new AstroFrame(w, h, 3, 16);
+        int cx = 250, cy = 250, r = 25;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - cx, dy = y - cy;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    frame.Data[idx] = 40000;
+                    frame.Data[idx + 1] = 38000;
+                    frame.Data[idx + 2] = 34000;
+                }
+            }
+        }
+
+        // Bruit de fond alÃ©atoire et pixels chauds isolÃ©s
+        var rng = new Random(42);
+        for (int i = 0; i < 25; i++)
+        {
+            int hx = rng.Next(20, w - 20);
+            int hy = rng.Next(20, h - 20);
+            int dx = hx - cx, dy = hy - cy;
+            if (dx * dx + dy * dy > (r * 1.5) * (r * 1.5))
+            {
+                int idx = (hy * w + hx) * 3;
+                frame.Data[idx] = (ushort)rng.Next(3000, 45000); // Hot pixel isolÃ© (mono-pixel)
+            }
+        }
+
+        var result = CelestialTargetClassifier.Classify(frame, measuredDiameterPx: 50.0, originalWidth: w, originalHeight: h);
+
+        Assert.Equal(CelestialTargetType.Planet, result.TargetType);
+        Assert.Equal("Jupiter", result.SpecificBodyNameFr);
+        Assert.Equal(0, result.DetectedMoonsCount);
+        Assert.Equal("Jupiter", result.ObjectSummary(isFrench: true));
+        Assert.DoesNotContain("lune", result.ObjectSummary(isFrench: true));
+    }
+
+    [Fact]
+    public void ClassifyVideo_MoonsFluctuatingAcrossFrames_DetectsAllThreeMoons()
+    {
+        // Simulation d'une vidÃ©o de 5 frames oÃ¹ 3 lunes sont prÃ©sentes,
+        // mais avec une visibilitÃ© intermittente due au seeing atmosphÃ©rique.
+        int w = 600, h = 600;
+        int cx = 300, cy = 300, r = 28;
+
+        // 3 lunes alignÃ©es sur l'Ã©quateur jovien Ã  X = -110, -60, +85
+        int[] moonPositions = [-110, -60, 85];
+
+        // PrÃ©sence par frame (5 frames) :
+        // Frame 0 : seulement lune 1 (visibilitÃ© partielle sur frame 0)
+        // Frame 1 : lunes 0 et 1
+        // Frame 2 : lunes 0, 1 et 2 (toutes visibles)
+        // Frame 3 : lunes 1 et 2
+        // Frame 4 : lunes 0 et 2
+        bool[][] moonMask = [
+            [false, true, false],
+            [true, true, false],
+            [true, true, true],
+            [false, true, true],
+            [true, false, true]
+        ];
+
+        var frames = new List<AstroFrame>();
+        for (int f = 0; f < 5; f++)
+        {
+            var frame = new AstroFrame(w, h, 3, 16);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int dx = x - cx, dy = y - cy;
+                    if (dx * dx + dy * dy <= r * r)
+                    {
+                        int idx = (y * w + x) * 3;
+                        frame.Data[idx] = 38000;
+                        frame.Data[idx + 1] = 36000;
+                        frame.Data[idx + 2] = 32000;
+                    }
+                }
+            }
+
+            for (int m = 0; m < 3; m++)
+            {
+                if (!moonMask[f][m]) continue;
+                int mx = moonPositions[m];
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int px = cx + mx + dx;
+                        int py = cy + dy;
+                        int idx = (py * w + px) * 3;
+                        frame.Data[idx] = 28000;
+                        frame.Data[idx + 1] = 28000;
+                        frame.Data[idx + 2] = 28000;
+                    }
+                }
+            }
+            frames.Add(frame);
+        }
+
+        var result = CelestialTargetClassifier.ClassifyVideo(
+            filePath: "jupiter_fluctuating.ser",
+            frameCount: 5,
+            measuredDiameterPx: 56.0,
+            frameLoader: (path, idx, maxDim) => (frames[idx], w, h));
+
+        Assert.Equal(CelestialTargetType.Planet, result.TargetType);
+        Assert.Equal("Jupiter", result.SpecificBodyNameFr);
+        Assert.Equal(3, result.DetectedMoonsCount);
+        Assert.Contains("3", result.ObjectSummary(isFrench: true));
+        Assert.Contains("lunes", result.ObjectSummary(isFrench: true));
+    }
+
+    [Fact]
+    public void ClassifyVideo_NoiseOnlyVideo_DetectsZeroMoons()
+    {
+        // 5 frames avec bruit alÃ©atoire et aucun corps cÃ©leste externe
+        int w = 400, h = 400;
+        int cx = 200, cy = 200, r = 25;
+        var rng = new Random(12345);
+
+        var frames = new List<AstroFrame>();
+        for (int f = 0; f < 5; f++)
+        {
+            var frame = new AstroFrame(w, h, 3, 16);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int dx = x - cx, dy = y - cy;
+                    if (dx * dx + dy * dy <= r * r)
+                    {
+                        int idx = (y * w + x) * 3;
+                        frame.Data[idx] = 42000;
+                        frame.Data[idx + 1] = 39000;
+                        frame.Data[idx + 2] = 35000;
+                    }
+                }
+            }
+
+            // Bruit ephemere different sur chaque frame
+            for (int i = 0; i < 15; i++)
+            {
+                int rx = rng.Next(10, w - 10);
+                int ry = rng.Next(10, h - 10);
+                int idx = (ry * w + rx) * 3;
+                frame.Data[idx] = (ushort)rng.Next(2500, 20000);
+            }
+            frames.Add(frame);
+        }
+
+        var result = CelestialTargetClassifier.ClassifyVideo(
+            filePath: "jupiter_noisy.ser",
+            frameCount: 5,
+            measuredDiameterPx: 50.0,
+            frameLoader: (path, idx, maxDim) => (frames[idx], w, h));
+
+        Assert.Equal(CelestialTargetType.Planet, result.TargetType);
+        Assert.Equal("Jupiter", result.SpecificBodyNameFr);
+        Assert.Equal(0, result.DetectedMoonsCount);
+        Assert.DoesNotContain("lune", result.ObjectSummary(isFrench: true));
     }
 }

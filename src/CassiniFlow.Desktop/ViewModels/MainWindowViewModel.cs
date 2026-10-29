@@ -778,22 +778,14 @@ public partial class MainWindowViewModel : ObservableObject
                 }
                 catch { }
 
-                if (PlanetSizeAnalyzer.PreviewFrameLoader is not null)
+                try
                 {
-                    try
-                    {
-                        var preview = PlanetSizeAnalyzer.PreviewFrameLoader(it.FullPath, 0, 960);
-                        if (preview.Frame is not null)
-                        {
-                            classification = CelestialTargetClassifier.Classify(
-                                preview.Frame,
-                                d,
-                                preview.OriginalWidth,
-                                preview.OriginalHeight);
-                        }
-                    }
-                    catch { }
+                    classification = CelestialTargetClassifier.ClassifyVideo(
+                        it.FullPath,
+                        it.Frames,
+                        d);
                 }
+                catch { }
 
                 int step = current;
                 var classResult = classification;
@@ -861,17 +853,15 @@ public partial class MainWindowViewModel : ObservableObject
     public void AutoDetectPreset()
     {
         var item = SelectedSourceFile;
-        if (item is null || PlanetSizeAnalyzer.PreviewFrameLoader is null) return;
+        if (item is null) return;
 
         try
         {
-            var preview = PlanetSizeAnalyzer.PreviewFrameLoader(item.FullPath, 0, 960);
-            var classification = CelestialTargetClassifier.Classify(
-                preview.Frame,
-                item.PlanetDiameterPx,
-                preview.OriginalWidth,
-                preview.OriginalHeight);
-
+            var classification = CelestialTargetClassifier.ClassifyVideo(
+                item.FullPath,
+                item.Frames,
+                item.PlanetDiameterPx);
+            if (classification is null || classification.TargetType == CelestialTargetType.Unknown) return;
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
             {

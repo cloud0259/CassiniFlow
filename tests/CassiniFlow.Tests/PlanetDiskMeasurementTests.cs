@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CassiniFlow.Domain.Models;
@@ -153,6 +153,89 @@ public class PlanetDiskMeasurementTests
             Assert.Contains("🪐", item.IdentifiedObjectBadge);
             Assert.Contains("Mars", vm.ConsoleLogText);
             Assert.Contains("🪐", vm.ConsoleLogText);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+        }
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_AnalyzePlanetSizes_JupiterWithFluctuatingMoons_IdentifiesThreeMoons()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "jupiter_multi.ser",
+            FullPath = "e:\\jupiter_multi.ser",
+            Frames = 50
+        };
+        vm.SourceFiles.Add(item);
+
+        int w = 500, h = 500, r = 25;
+        int[] moonPositions = [-95, -55, 75];
+        bool[][] moonMask = [
+            [false, true, false],
+            [true, true, false],
+            [true, true, true],
+            [false, true, true],
+            [true, false, true]
+        ];
+
+        var frames = new List<AstroFrame>();
+        for (int f = 0; f < 5; f++)
+        {
+            var frame = new AstroFrame(w, h, 3, 16);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int dx = x - 250, dy = y - 250;
+                    if (dx * dx + dy * dy <= r * r)
+                    {
+                        int idx = (y * w + x) * 3;
+                        frame.Data[idx] = 40000;
+                        frame.Data[idx + 1] = 38000;
+                        frame.Data[idx + 2] = 33000;
+                    }
+                }
+            }
+            for (int m = 0; m < 3; m++)
+            {
+                if (!moonMask[f][m]) continue;
+                int mx = moonPositions[m];
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int px = 250 + mx + dx;
+                        int py = 250 + dy;
+                        int idx = (py * w + px) * 3;
+                        frame.Data[idx] = 30000;
+                        frame.Data[idx + 1] = 30000;
+                        frame.Data[idx + 2] = 30000;
+                    }
+                }
+            }
+            frames.Add(frame);
+        }
+
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) =>
+            {
+                int f = Math.Clamp(frameIdx % 5, 0, 4);
+                return (frames[f], w, h);
+            };
+
+            await vm.AnalyzePlanetSizes();
+
+            Assert.True(item.HasIdentifiedObject);
+            Assert.Contains("Jupiter", item.IdentifiedObjectText);
+            Assert.Contains("3", item.IdentifiedObjectText);
+            Assert.Contains("Jupiter", vm.ConsoleLogText);
+            Assert.Contains("3", vm.ConsoleLogText);
         }
         finally
         {
