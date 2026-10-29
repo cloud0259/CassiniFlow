@@ -142,6 +142,33 @@ public partial class MainWindowViewModel : ObservableObject
         ThemeManager.ThemeChanged += OnThemeChanged;
 
         UpdateCpuStatus();
+
+        SourceFiles.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null)
+            {
+                foreach (SourceFileItem item in e.NewItems)
+                {
+                    item.PropertyChanged += OnSourceFileItemPropertyChanged;
+                }
+            }
+            if (e.OldItems != null)
+            {
+                foreach (SourceFileItem item in e.OldItems)
+                {
+                    item.PropertyChanged -= OnSourceFileItemPropertyChanged;
+                }
+            }
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        };
+    }
+
+    private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+        {
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        }
     }
 
     partial void OnMaxCpuUsagePercentChanged(int value)
