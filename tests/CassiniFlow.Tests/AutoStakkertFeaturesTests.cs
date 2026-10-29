@@ -212,4 +212,38 @@ public class AutoStakkertFeaturesTests
         Assert.Single(vm.CurrentAlignmentGrid.Points);
         Assert.Equal(200, vm.CurrentAlignmentGrid.Points[0].X);
     }
+
+    [Fact]
+    public void AlignmentGrid_IsRecalculated_WhenCropSizeChanges()
+    {
+        var vm = new MainWindowViewModel();
+        vm.EnableCropping = true;
+        vm.CropWidth = 200;
+        vm.CropHeight = 200;
+
+        // Simuler un frame en mémoire
+        var testFrame = new AstroFrame(400, 400, 1, 16);
+        for (int y = 150; y < 250; y++)
+            for (int x = 150; x < 250; x++)
+                testFrame.Data[y * 400 + x] = 30000;
+
+        vm.GetType().GetField("_lastProcessedPreviewFrame", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(vm, testFrame);
+
+        // 1. Calculer la grille initiale
+        vm.CalculateAlignmentGrid();
+        Assert.True(vm.CurrentAlignmentGrid.Points.Count > 0);
+        Assert.Equal(200, vm.CurrentAlignmentGrid.FrameWidth);
+        Assert.Equal(200, vm.CurrentAlignmentGrid.FrameHeight);
+
+        // 2. Modifier CropWidth
+        vm.CropWidth = 300;
+        Assert.Equal(300, vm.CurrentAlignmentGrid.FrameWidth);
+        Assert.Equal(200, vm.CurrentAlignmentGrid.FrameHeight);
+
+        // 3. Modifier CropHeight
+        vm.CropHeight = 300;
+        Assert.Equal(300, vm.CurrentAlignmentGrid.FrameWidth);
+        Assert.Equal(300, vm.CurrentAlignmentGrid.FrameHeight);
+    }
 }

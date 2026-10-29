@@ -459,11 +459,39 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnAutoThresholdChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnDetectionThresholdChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedShadowEdgeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnEnableCroppingChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropWidthChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropHeightChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropOffsetXChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropOffsetYChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableCroppingChanged(bool value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropWidthChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropHeightChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropOffsetXChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropOffsetYChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+
+    private void RecalculateAlignmentGridIfActive()
+    {
+        if (CurrentAlignmentGrid is not null && CurrentAlignmentGrid.Points.Count > 0)
+        {
+            CalculateAlignmentGrid();
+        }
+    }
     partial void OnInputGainChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnGammaChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnHistogramStretchEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -1446,6 +1474,12 @@ public partial class MainWindowViewModel : ObservableObject
                 _lastProcessedPreviewFrame = processed;
                 _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
+
+                if (EnableCropping && CurrentAlignmentGrid is not null && CurrentAlignmentGrid.Points.Count > 0
+                    && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
+                }
             }
             catch (Exception ex)
             {
@@ -1751,9 +1785,8 @@ public partial class MainWindowViewModel : ObservableObject
                 // La trame déjà prévisualisée est déjà parfaitement recadrée et centrée
                 frame = _lastProcessedPreviewFrame;
             }
-            else if (_cachedPreviewResult?.Frame is not null)
+            else if ((_cachedPreviewResult?.Frame ?? _lastProcessedPreviewFrame) is { } baseFrame)
             {
-                var baseFrame = _cachedPreviewResult.Frame;
                 int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
                     ? _lastDetection.CentroidX
                     : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
@@ -1815,9 +1848,8 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 frame = _lastProcessedPreviewFrame;
             }
-            else if (_cachedPreviewResult?.Frame is not null)
+            else if ((_cachedPreviewResult?.Frame ?? _lastProcessedPreviewFrame) is { } baseFrame)
             {
-                var baseFrame = _cachedPreviewResult.Frame;
                 int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
                     ? _lastDetection.CentroidX
                     : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
