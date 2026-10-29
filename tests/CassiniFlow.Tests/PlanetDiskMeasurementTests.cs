@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class PlanetDiskMeasurementTests
 {
     [Fact]
@@ -107,5 +109,54 @@ public class PlanetDiskMeasurementTests
 
         vm.IsMeasuringPlanetSizes = false;
         Assert.True(vm.CanAddFiles);
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_AnalyzePlanetSizes_IdentifiesObjectAndLogs()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars_test.ser",
+            FullPath = "e:\\mars_test.ser",
+            Frames = 100
+        };
+        vm.SourceFiles.Add(item);
+
+        int w = 200, h = 200, r = 25;
+        var frame = new AstroFrame(w, h, 3, 16);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - 100;
+                int dy = y - 100;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    frame.Data[idx] = 45000;     // Red (Mars ocre)
+                    frame.Data[idx + 1] = 25000; // Green
+                    frame.Data[idx + 2] = 20000; // Blue
+                }
+            }
+        }
+
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+
+            await vm.AnalyzePlanetSizes();
+
+            Assert.True(item.HasIdentifiedObject);
+            Assert.Contains("Mars", item.IdentifiedObjectText);
+            Assert.Contains("🪐", item.IdentifiedObjectBadge);
+            Assert.Contains("Mars", vm.ConsoleLogText);
+            Assert.Contains("🪐", vm.ConsoleLogText);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+        }
     }
 }
