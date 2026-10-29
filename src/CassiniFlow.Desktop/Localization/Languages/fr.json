@@ -334,5 +334,11 @@
         "RgbAlign": "Correction dispersion chromatique RVB",
         "Sharpen": "Accentuation haute fréquence (Masque 5x5)",
         "Feathering": "Lissage des coutures (Feathering)"
+    },
+    "Derotation": {
+        "Enable": "Activer la d\u00e9rotation de champ (Monture Dobson / Alt-Az)",
+        "Latitude": "Latitude du lieu (degr\u00e9s d\u00e9cimaux) :",
+        "Altitude": "Hauteur sur l'horizon (degr\u00e9s) :",
+        "Azimuth": "Azimut de la cible (Sud = 180\u00b0) :"
     }
 }

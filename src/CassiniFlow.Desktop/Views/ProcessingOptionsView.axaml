@@ -137,5 +137,29 @@
             </StackPanel>
         </Border>
 
+        <!-- DÃ©rotation de champ (Monture Dobson / Alt-Azimutale) -->
+        <Border Classes="groupbox" Padding="10,8" Margin="0,4,0,0">
+            <StackPanel Spacing="6">
+                <CheckBox Content="{loc:Tr Derotation.Enable}" IsChecked="{Binding EnableFieldDerotation}" FontWeight="SemiBold" FontSize="12"/>
+                <StackPanel Spacing="4" IsEnabled="{Binding EnableFieldDerotation}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr Derotation.Latitude}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding ObserverLatitudeDegrees}" Minimum="-90" Maximum="90" Increment="0.1" FormatString="0.00" Width="100"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr Derotation.Altitude}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding TargetAltitudeDegrees}" Minimum="1" Maximum="89" Increment="1" FormatString="0" Width="100"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr Derotation.Azimuth}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding TargetAzimuthDegrees}" Minimum="0" Maximum="360" Increment="1" FormatString="0" Width="100"/>
+                    </Grid>
+                    <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2,0,0">
+                        <TextBlock Text="{Binding DerotationInfoText}" FontSize="11" Foreground="{DynamicResource AppAccent}" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
     </StackPanel>
 </UserControl>

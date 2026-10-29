@@ -1646,6 +1646,19 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.FlipVerticalY,
             options.Rotation);
 
+        if (options.EnableFieldDerotation)
+        {
+            double safeFps = (double)options.WinJuposInputFps > 0 ? (double)options.WinJuposInputFps : 30.0;
+            double angle = FieldDerotationEngine.ComputeFrameDerotationAngle(
+                work.FrameIndex,
+                Math.Max(100, work.FrameIndex + 1),
+                safeFps,
+                options.ObserverLatitudeDegrees,
+                options.TargetAltitudeDegrees,
+                options.TargetAzimuthDegrees);
+            work = FieldDerotationEngine.ApplyDerotation(work, angle);
+        }
+
         work.DetectedCentroidX = det.CentroidX;
         work.DetectedCentroidY = det.CentroidY;
         if (recomputeQuality)
