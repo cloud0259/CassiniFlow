@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.StackingReferenceOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="10">
+
+        <!-- 1. Stabilisation d'Image (Image Stabilization) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr StackingStab.ImageStabilization}" Classes="grouptitle"/>
+
+                <!-- Mode de suivi : Surface vs Planète (COG) -->
+                <Grid ColumnDefinitions="*,*">
+                    <RadioButton Grid.Column="0" Content="{loc:Tr StackingStab.Surface}" IsChecked="{Binding IsStabilisationSurface}" FontSize="12" GroupName="StabModeGroup"/>
+                    <RadioButton Grid.Column="1" Content="{loc:Tr StackingStab.PlanetCog}" IsChecked="{Binding IsStabilisationPlanetCog}" FontSize="12" GroupName="StabModeGroup"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <!-- Désactiver la stabilisation -->
+                <CheckBox Content="{loc:Tr StackingStab.DisableStabilization}" IsChecked="{Binding DisableStabilisation}" FontSize="12" ToolTip.Tip="{loc:Tr StackingStab.DisableStabilizationTip}"/>
+
+                <!-- Canevas de sortie : Recadrer (Crop) vs Agrandir (Expand) -->
+                <TextBlock Text="{loc:Tr StackingStab.CanvasMode}" Classes="label" Margin="0,4,0,0"/>
+                <Grid ColumnDefinitions="*,*">
+                    <RadioButton Grid.Column="0" Content="{loc:Tr StackingStab.Crop}" IsChecked="{Binding IsCanvasCrop}" FontSize="12" GroupName="CanvasGroup"/>
+                    <RadioButton Grid.Column="1" Content="{loc:Tr StackingStab.Expand}" IsChecked="{Binding IsCanvasExpand}" FontSize="12" GroupName="CanvasGroup"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. Estimateur de Qualité (Quality Estimator) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr StackingStab.QualityEstimator}" Classes="grouptitle"/>
+
+                <!-- Robuste au bruit (Noise Robust 1..8) -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr StackingStab.NoiseRobust}" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding NoiseRobust}" Minimum="1" Maximum="8" FormatString="0" Width="100"/>
+                </Grid>
+                <TextBlock Text="{Binding NoiseRobustText}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" Margin="0,-2,0,4"/>
+
+                <!-- Portée du calcul : Locale (AP) vs Globale (Frame) -->
+                <TextBlock Text="{loc:Tr StackingStab.QualityScope}" Classes="label"/>
+                <Grid ColumnDefinitions="*,*">
+                    <RadioButton Grid.Column="0" Content="{loc:Tr StackingStab.LocalAp}" IsChecked="{Binding IsQualityLocalAp}" FontSize="12" GroupName="QualityScopeGroup" ToolTip.Tip="{loc:Tr StackingStab.LocalApTip}"/>
+                    <RadioButton Grid.Column="1" Content="{loc:Tr StackingStab.GlobalFrame}" IsChecked="{Binding IsQualityGlobalFrame}" FontSize="12" GroupName="QualityScopeGroup" ToolTip.Tip="{loc:Tr StackingStab.GlobalFrameTip}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. Trame de Référence (Reference Frame) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr StackingStab.ReferenceFrame}" Classes="grouptitle"/>
+
+                <!-- Double Stack Reference -->
+                <CheckBox Content="{loc:Tr StackingStab.DoubleStackReference}" IsChecked="{Binding DoubleStackReference}" FontSize="12" FontWeight="SemiBold" ToolTip.Tip="{loc:Tr StackingStab.DoubleStackReferenceTip}"/>
+
+                <!-- Mode de sélection : Automatique vs Manuelle -->
+                <Grid ColumnDefinitions="*,*">
+                    <RadioButton Grid.Column="0" Content="{loc:Tr StackingStab.ReferenceAuto}" IsChecked="{Binding IsReferenceAutomatic}" FontSize="12" GroupName="RefModeGroup"/>
+                    <RadioButton Grid.Column="1" Content="{loc:Tr StackingStab.ReferenceManual}" IsChecked="{Binding IsReferenceManual}" FontSize="12" GroupName="RefModeGroup"/>
+                </Grid>
+
+                <!-- Trame manuelle -->
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsReferenceManual}" Margin="0,4,0,0">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr StackingStab.ManualFrameIndex}" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding ManualReferenceFrameIndex}" Minimum="0" Maximum="{Binding MaxAvailableFrames}" FormatString="0" Width="100"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>
+

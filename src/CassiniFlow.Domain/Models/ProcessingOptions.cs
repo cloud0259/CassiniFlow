@@ -1,4 +1,4 @@
-﻿namespace CassiniFlow.Domain.Models;
+namespace CassiniFlow.Domain.Models;
 
 /// <summary>
 /// Complete configuration model covering all ~130 CassiniFlow v2.5.9 parameters extracted via REA.
@@ -9,6 +9,7 @@ public sealed class ProcessingOptions
     // --- 1. Source Files & Mode ---
     public ProcessingRunMode RunMode { get; set; } = ProcessingRunMode.BatchMode;
     public OptimisationPreset ActivePreset { get; set; } = OptimisationPreset.None;
+    public StackingOptions Stacking { get; set; } = new();
     public List<string> ImageFiles { get; set; } = [];
     public List<string> DarkFiles { get; set; } = [];
     public List<string> FlatFiles { get; set; } = [];

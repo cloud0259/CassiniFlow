@@ -1,4 +1,4 @@
-﻿using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Domain.Ports.Inbound;
 
@@ -55,4 +55,9 @@ public interface IMeasurePlanetUseCase
 public interface IMeasureOrientationUseCase
 {
     Task<(double AngleDegrees, double Elongation)?> MeasureOrientationAsync(string filePath, int frameCount, int samples = 9);
+}
+
+public interface IGenerateAlignmentGridUseCase
+{
+    AlignmentGrid GenerateGrid(AstroFrame frame, StackingOptions options);
 }

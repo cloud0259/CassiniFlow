@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -61,6 +61,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
+    private AstroFrame? _lastProcessedPreviewFrame;
+    private DetectionResult? _lastDetection;
     private int _cachedRawFrameIndex = -1;
 
     // Conflated single-worker preview state (prevents queue backlog when dragging timeline slider on 4K MP4 videos)
@@ -104,6 +106,7 @@ public partial class MainWindowViewModel : ObservableObject
     // 1. Source Files & Preset ("Optimise Options For")
     [ObservableProperty] private bool _isBatchMode = true;
     [ObservableProperty] private bool _isJoinMode;
+    partial void OnIsJoinModeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private bool _limitFrameRange;
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
@@ -261,7 +264,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _animationReverse = false;
     [ObservableProperty] private int _animationRepeatCount = 1;
 
-    // 6. Output Options (Default to index 0 = AVI compatible with VLC & AutoStakkert)
+    // 6. Output Options (Default to index 0 = AVI compatible with planetary processing engines)
     [ObservableProperty] private int _selectedOutputFormatIndex = 0;
     [ObservableProperty] private bool _matchInputFps = true;
     [ObservableProperty] private int _outputFps = 25;
@@ -276,6 +279,24 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _processingProgress;
     [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
+    partial void OnLastOutputFilePathChanged(string value) => OnPropertyChanged(nameof(PlayOrOpenOutputText));
+
+    public string PlayOrOpenOutputText
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(LastOutputFilePath))
+            {
+                return Loc.Pick("Ouvrir le résultat", "Open result");
+            }
+            string ext = Path.GetExtension(LastOutputFilePath).ToLowerInvariant();
+            if (ext is ".tif" or ".tiff" or ".png" or ".fit" or ".fits" or ".jpg" or ".jpeg")
+            {
+                return Loc.Pick("Afficher l'image", "View Image");
+            }
+            return Loc.Pick("Lire la vidéo", "Play Video");
+        }
+    }
     [ObservableProperty] private string _lastOutputDirectory = string.Empty;
     [ObservableProperty] private bool _hasCompletedOutput;
     [ObservableProperty] private string _summaryStatsText = Loc.Tr("Aucun traitement exécuté.", "No processing run yet.");
@@ -291,6 +312,7 @@ public partial class MainWindowViewModel : ObservableObject
             _cachedPreviewResult = null;
             _cachedRawFilePath = null;
             ViewerTitle = Loc.Tr("Aucun fichier sélectionné", "No file selected");
+            UpdateAvailableFrames();
             FrameDimensionsText = "—";
             PreviewReady?.Invoke(null, null, 1.0);
             return;
@@ -313,6 +335,7 @@ public partial class MainWindowViewModel : ObservableObject
             CropHeight = Math.Max(64, value.Height & ~3);
         }
 
+        UpdateAvailableFrames();
         RequestPreviewUpdate(reloadFromDisk: true);
     }
 
@@ -335,14 +358,15 @@ public partial class MainWindowViewModel : ObservableObject
                 EnableCropping = true;
                 if (SelectedSourceFile?.PlanetDiameterPx is double planetD && planetD > 5)
                 {
-                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 1.6), 64, Math.Min(maxW, maxH)) & ~7;
+                    // Multiplicateur 2.5 pour englober confortablement les anneaux (ex: Saturne) et une marge de sécurité
+                    int pCrop = Math.Clamp((int)Math.Ceiling(planetD * 2.5), 96, Math.Min(maxW, maxH)) & ~7;
                     CropWidth = pCrop;
                     CropHeight = pCrop;
                 }
                 else
                 {
-                    CropWidth = Math.Min(448, maxW);
-                    CropHeight = Math.Min(448, maxH);
+                    CropWidth = Math.Min(512, maxW);
+                    CropHeight = Math.Min(512, maxH);
                 }
                 EnableQuality = true;
                 SelectedQualityLimitModeIndex = 1;
@@ -403,6 +427,31 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnDebayerEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedBayerPatternIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedDebayerAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+
+    partial void OnAlignmentTileSizeChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsTileSize24));
+        OnPropertyChanged(nameof(IsTileSize48));
+        OnPropertyChanged(nameof(IsTileSize104));
+        OnPropertyChanged(nameof(IsTileSize140));
+        OnPropertyChanged(nameof(IsTileSize200));
+        CalculateAlignmentGrid();
+    }
+
+    partial void OnCurrentAlignmentGridChanged(AlignmentGrid value)
+    {
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    partial void OnSelectedStackingImageFormatIndexChanged(int value)
+    {
+        SelectedOutputFormatIndex = value switch
+        {
+            1 => 6, // FITS
+            2 => 4, // PNG
+            _ => 5  // TIFF
+        };
+    }
     partial void OnSelectedBinningIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedStabilisationModeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnCheckObjectPresentChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -410,11 +459,39 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnAutoThresholdChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnDetectionThresholdChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedShadowEdgeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnEnableCroppingChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropWidthChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropHeightChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropOffsetXChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnCropOffsetYChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableCroppingChanged(bool value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropWidthChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropHeightChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropOffsetXChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+    partial void OnCropOffsetYChanged(int value)
+    {
+        RequestPreviewUpdate(reloadFromDisk: false);
+        RecalculateAlignmentGridIfActive();
+    }
+
+    private void RecalculateAlignmentGridIfActive()
+    {
+        if (CurrentAlignmentGrid is not null && CurrentAlignmentGrid.Points.Count > 0)
+        {
+            CalculateAlignmentGrid();
+        }
+    }
     partial void OnInputGainChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnGammaChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnHistogramStretchEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -547,10 +624,19 @@ public partial class MainWindowViewModel : ObservableObject
         _userManuallySelectedPreset = false;
         var firstNew = validItems[0];
         SelectedSourceFile ??= firstNew;
+        if (firstNew.FormatBadge.Contains("Bayer", StringComparison.OrdinalIgnoreCase))
+        {
+            DebayerEnabled = true;
+            if (firstNew.FormatBadge.Contains("BGGR", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 1;
+            else if (firstNew.FormatBadge.Contains("RGGB", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 2;
+            else if (firstNew.FormatBadge.Contains("GRBG", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 3;
+            else if (firstNew.FormatBadge.Contains("GBRG", StringComparison.OrdinalIgnoreCase)) SelectedBayerPatternIndex = 0;
+        }
         ConsoleLogText = Loc.Pick(
             $"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).",
             $"{SourceFiles.Count} file(s) in the list. Selected: {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames at {firstNew.FpsInfo}).");
 
+        UpdateAvailableFrames();
         await AnalyzePlanetSizes();
     }
 
@@ -571,6 +657,7 @@ public partial class MainWindowViewModel : ObservableObject
         SelectedSourceFile = SourceFiles.Count > 0
             ? SourceFiles[Math.Clamp(idx, 0, SourceFiles.Count - 1)]
             : null;
+        UpdateAvailableFrames();
     }
 
 
@@ -783,11 +870,350 @@ public partial class MainWindowViewModel : ObservableObject
     // Accordion Sections Expanders State
     [ObservableProperty] private bool _isSection1Expanded = true;
     [ObservableProperty] private bool _isSection2Expanded;
-    [ObservableProperty] private bool _isSection3Expanded = true;
+    [ObservableProperty] private bool _isSection3Expanded;
     [ObservableProperty] private bool _isSection4Expanded;
     [ObservableProperty] private bool _isSection5Expanded;
     [ObservableProperty] private bool _isSection6Expanded;
-    [ObservableProperty] private bool _isSection7Expanded = true;
+    [ObservableProperty] private bool _isSection7Expanded;
+    [ObservableProperty] private bool _isSection8Expanded;
+    [ObservableProperty] private bool _isSection9Expanded;
+    [ObservableProperty] private bool _isSection10Expanded;
+
+    private bool _isTogglingAccordion;
+
+    private void CollapseOtherSections(int sectionNumber)
+    {
+        if (_isTogglingAccordion) return;
+        try
+        {
+            _isTogglingAccordion = true;
+            if (sectionNumber != 1) IsSection1Expanded = false;
+            if (sectionNumber != 2) IsSection2Expanded = false;
+            if (sectionNumber != 3) IsSection3Expanded = false;
+            if (sectionNumber != 4) IsSection4Expanded = false;
+            if (sectionNumber != 5) IsSection5Expanded = false;
+            if (sectionNumber != 6) IsSection6Expanded = false;
+            if (sectionNumber != 7) IsSection7Expanded = false;
+            if (sectionNumber != 8) IsSection8Expanded = false;
+            if (sectionNumber != 9) IsSection9Expanded = false;
+            if (sectionNumber != 10) IsSection10Expanded = false;
+        }
+        finally
+        {
+            _isTogglingAccordion = false;
+        }
+    }
+
+    partial void OnIsSection1ExpandedChanged(bool value) { if (value) CollapseOtherSections(1); }
+    partial void OnIsSection2ExpandedChanged(bool value) { if (value) CollapseOtherSections(2); }
+    partial void OnIsSection3ExpandedChanged(bool value) { if (value) CollapseOtherSections(3); }
+    partial void OnIsSection4ExpandedChanged(bool value) { if (value) CollapseOtherSections(4); }
+    partial void OnIsSection5ExpandedChanged(bool value) { if (value) CollapseOtherSections(5); }
+    partial void OnIsSection6ExpandedChanged(bool value) { if (value) CollapseOtherSections(6); }
+    partial void OnIsSection7ExpandedChanged(bool value) { if (value) CollapseOtherSections(7); }
+    partial void OnIsSection8ExpandedChanged(bool value) { if (value) CollapseOtherSections(8); }
+    partial void OnIsSection9ExpandedChanged(bool value) { if (value) CollapseOtherSections(9); }
+    partial void OnIsSection10ExpandedChanged(bool value) { if (value) CollapseOtherSections(10); }
+
+    // --- Mode de Traitement (Workflow) ---
+    [ObservableProperty] private StackingWorkflowMode _workflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+    [ObservableProperty] private bool _isWorkflowPreProcessingOnly;
+    [ObservableProperty] private bool _isWorkflowStackingOnly;
+    [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
+
+    public string Section1Title => Loc.Pick("Mode & Presets", "Mode & Presets");
+    public string Section5Title => Loc.Pick("Stabilisation & Référence", "Stabilisation & Reference");
+
+    public bool IsSection1Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection8Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection9Visible => true;
+    public bool IsSection10Visible => true;
+
+    public string Section1BadgeText => "1";
+    public string Section2BadgeText => "2";
+    public string Section3BadgeText => "3";
+    public string Section4BadgeText => "4";
+
+    public string Section5BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "1",
+        _ => "5"
+    };
+
+    public string Section6BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "2",
+        _ => "6"
+    };
+
+    public string Section7BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "3",
+        _ => "7"
+    };
+
+    public string Section8BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.PreProcessingOnly => "5",
+        _ => "8"
+    };
+
+    public string Section9BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "4",
+        StackingWorkflowMode.PreProcessingOnly => "6",
+        _ => "9"
+    };
+
+    public string Section10BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "5",
+        StackingWorkflowMode.PreProcessingOnly => "7",
+        _ => "10"
+    };
+
+    partial void OnWorkflowModeChanged(StackingWorkflowMode value)
+    {
+        IsWorkflowPreProcessingOnly = value == StackingWorkflowMode.PreProcessingOnly;
+        IsWorkflowStackingOnly = value == StackingWorkflowMode.StackingOnly;
+        IsWorkflowDirectStreamAllInOne = value == StackingWorkflowMode.DirectStreamAllInOne;
+
+        OnPropertyChanged(nameof(Section1Title));
+        OnPropertyChanged(nameof(Section5Title));
+        OnPropertyChanged(nameof(IsSection1Visible));
+        OnPropertyChanged(nameof(IsSection2Visible));
+        OnPropertyChanged(nameof(IsSection3Visible));
+        OnPropertyChanged(nameof(IsSection4Visible));
+        OnPropertyChanged(nameof(IsSection5Visible));
+        OnPropertyChanged(nameof(IsSection6Visible));
+        OnPropertyChanged(nameof(IsSection7Visible));
+        OnPropertyChanged(nameof(IsSection8Visible));
+        OnPropertyChanged(nameof(IsSection9Visible));
+        OnPropertyChanged(nameof(IsSection10Visible));
+
+        OnPropertyChanged(nameof(Section1BadgeText));
+        OnPropertyChanged(nameof(Section2BadgeText));
+        OnPropertyChanged(nameof(Section3BadgeText));
+        OnPropertyChanged(nameof(Section4BadgeText));
+        OnPropertyChanged(nameof(Section5BadgeText));
+        OnPropertyChanged(nameof(Section6BadgeText));
+        OnPropertyChanged(nameof(Section7BadgeText));
+        OnPropertyChanged(nameof(Section8BadgeText));
+        OnPropertyChanged(nameof(Section9BadgeText));
+        OnPropertyChanged(nameof(Section10BadgeText));
+
+        if (!IsSection1Visible) IsSection1Expanded = false;
+        if (!IsSection2Visible) IsSection2Expanded = false;
+        if (!IsSection3Visible) IsSection3Expanded = false;
+        if (!IsSection4Visible) IsSection4Expanded = false;
+        if (!IsSection5Visible) IsSection5Expanded = false;
+        if (!IsSection6Visible) IsSection6Expanded = false;
+        if (!IsSection7Visible) IsSection7Expanded = false;
+        if (!IsSection8Visible) IsSection8Expanded = false;
+
+        if (!IsAnyVisibleSectionExpanded())
+        {
+            if (IsSection1Visible) IsSection1Expanded = true;
+            else if (IsSection5Visible) IsSection5Expanded = true;
+        }
+    }
+
+    private bool IsAnyVisibleSectionExpanded()
+    {
+        return (IsSection1Visible && IsSection1Expanded) ||
+               (IsSection2Visible && IsSection2Expanded) ||
+               (IsSection3Visible && IsSection3Expanded) ||
+               (IsSection4Visible && IsSection4Expanded) ||
+               (IsSection5Visible && IsSection5Expanded) ||
+               (IsSection6Visible && IsSection6Expanded) ||
+               (IsSection7Visible && IsSection7Expanded) ||
+               (IsSection8Visible && IsSection8Expanded) ||
+               (IsSection9Visible && IsSection9Expanded) ||
+               (IsSection10Visible && IsSection10Expanded);
+    }
+
+    // --- Options d'Alignement Global, Qualité & Référence (AutoStakkert style) ---
+    [ObservableProperty] private StackingStabilisationMode _stackingStabilisationMode = StackingStabilisationMode.PlanetCog;
+    [ObservableProperty] private bool _disableStabilisation = false;
+    [ObservableProperty] private StackingCanvasMode _stackingCanvasMode = StackingCanvasMode.Crop;
+    [ObservableProperty] private int _noiseRobust = 2;
+    [ObservableProperty] private QualityAnalysisScope _qualityScope = QualityAnalysisScope.LocalAp;
+    [ObservableProperty] private bool _doubleStackReference = true;
+    [ObservableProperty] private ReferenceFrameMode _referenceFrameMode = ReferenceFrameMode.Automatic;
+    [ObservableProperty] private int _manualReferenceFrameIndex = 0;
+
+    partial void OnStackingStabilisationModeChanged(StackingStabilisationMode value)
+    {
+        OnPropertyChanged(nameof(IsStabilisationPlanetCog));
+        OnPropertyChanged(nameof(IsStabilisationSurface));
+    }
+
+    partial void OnStackingCanvasModeChanged(StackingCanvasMode value)
+    {
+        OnPropertyChanged(nameof(IsCanvasCrop));
+        OnPropertyChanged(nameof(IsCanvasExpand));
+    }
+
+    partial void OnNoiseRobustChanged(int value)
+    {
+        OnPropertyChanged(nameof(NoiseRobustText));
+    }
+
+    partial void OnQualityScopeChanged(QualityAnalysisScope value)
+    {
+        OnPropertyChanged(nameof(IsQualityLocalAp));
+        OnPropertyChanged(nameof(IsQualityGlobalFrame));
+    }
+
+    partial void OnReferenceFrameModeChanged(ReferenceFrameMode value)
+    {
+        OnPropertyChanged(nameof(IsReferenceAutomatic));
+        OnPropertyChanged(nameof(IsReferenceManual));
+    }
+
+    public bool IsStabilisationPlanetCog
+    {
+        get => StackingStabilisationMode == StackingStabilisationMode.PlanetCog;
+        set { if (value) StackingStabilisationMode = StackingStabilisationMode.PlanetCog; }
+    }
+
+    public bool IsStabilisationSurface
+    {
+        get => StackingStabilisationMode == StackingStabilisationMode.Surface;
+        set { if (value) StackingStabilisationMode = StackingStabilisationMode.Surface; }
+    }
+
+    public bool IsCanvasCrop
+    {
+        get => StackingCanvasMode == StackingCanvasMode.Crop;
+        set { if (value) StackingCanvasMode = StackingCanvasMode.Crop; }
+    }
+
+    public bool IsCanvasExpand
+    {
+        get => StackingCanvasMode == StackingCanvasMode.Expand;
+        set { if (value) StackingCanvasMode = StackingCanvasMode.Expand; }
+    }
+
+    public bool IsQualityLocalAp
+    {
+        get => QualityScope == QualityAnalysisScope.LocalAp;
+        set { if (value) QualityScope = QualityAnalysisScope.LocalAp; }
+    }
+
+    public bool IsQualityGlobalFrame
+    {
+        get => QualityScope == QualityAnalysisScope.GlobalFrame;
+        set { if (value) QualityScope = QualityAnalysisScope.GlobalFrame; }
+    }
+
+    public bool IsReferenceAutomatic
+    {
+        get => ReferenceFrameMode == ReferenceFrameMode.Automatic;
+        set { if (value) ReferenceFrameMode = ReferenceFrameMode.Automatic; }
+    }
+
+    public bool IsReferenceManual
+    {
+        get => ReferenceFrameMode == ReferenceFrameMode.Manual;
+        set { if (value) ReferenceFrameMode = ReferenceFrameMode.Manual; }
+    }
+
+    public string NoiseRobustText => NoiseRobust switch
+    {
+        1 => Loc.Pick("1 — SNR maximal (Lune / Soleil net)", "1 — Max SNR (Sharp Moon/Sun)"),
+        2 => Loc.Pick("2 — SNR très élevé (Défaut)", "2 — Very high SNR (Default)"),
+        3 => Loc.Pick("3 — SNR élevé (Planétaire standard)", "3 — High SNR (Standard planetary)"),
+        4 => Loc.Pick("4 — Bruit modéré (Gain moyen)", "4 — Moderate noise (Medium gain)"),
+        5 => Loc.Pick("5 — Bruit moyen (Forte amplification)", "5 — Medium noise (High gain)"),
+        6 => Loc.Pick("6 — Faible SNR (Cible sombre / Saturne)", "6 — Low SNR (Dark target / Saturn)"),
+        7 => Loc.Pick("7 — Très faible SNR (Turbulence / Faint)", "7 — Very low SNR (Turbulence / Faint)"),
+        8 => Loc.Pick("8 — Bruit extrême (Ultra faible luminosité)", "8 — Extreme noise (Ultra faint)"),
+        _ => $"{NoiseRobust}"
+    };
+
+    // --- Points d'alignement (AP) ---
+    [ObservableProperty] private bool _isAlignmentGridVisible = true;
+    [ObservableProperty] private AlignmentGrid _currentAlignmentGrid = AlignmentGrid.Empty;
+    [ObservableProperty] private int _alignmentTileSize = 104;
+    [ObservableProperty] private int _minBrightnessThreshold = 15;
+    [ObservableProperty] private bool _enablePruning = true;
+    [ObservableProperty] private bool _enableMultiScaleGrid = true;
+    [ObservableProperty] private string _alignmentStatusText = string.Empty;
+
+    public bool IsTileSize24 => AlignmentTileSize == 24;
+    public bool IsTileSize48 => AlignmentTileSize == 48;
+    public bool IsTileSize104 => AlignmentTileSize == 104;
+    public bool IsTileSize140 => AlignmentTileSize == 140;
+    public bool IsTileSize200 => AlignmentTileSize == 200;
+
+    public string ActivePointsCountText => CurrentAlignmentGrid.ActiveCount > 0 
+        ? $"{CurrentAlignmentGrid.ActiveCount} AP" 
+        : "-";
+
+    // --- Format Image Empilee (Sortie unique) ---
+    [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
+
+    // --- Empilement Multi-Zones & Rendu ---
+    [ObservableProperty] private int _stackPercentage1 = 0;
+    [ObservableProperty] private int _stackPercentage2 = 0;
+    [ObservableProperty] private int _stackPercentage3 = 0;
+
+    public int StackPercentage
+    {
+        get => StackPercentage1 > 0 ? StackPercentage1 : (StackPercentage2 > 0 ? StackPercentage2 : (StackPercentage3 > 0 ? StackPercentage3 : 25));
+        set => StackPercentage1 = value;
+    }
+
+    public List<double> GetActiveStackPercentages()
+    {
+        var list = new List<double>();
+        if (StackPercentage1 > 0) list.Add(StackPercentage1);
+        if (StackPercentage2 > 0) list.Add(StackPercentage2);
+        if (StackPercentage3 > 0) list.Add(StackPercentage3);
+        return list.Distinct().OrderBy(p => p).ToList();
+    }
+    [ObservableProperty] private int _stackFrameCount = 1000;
+    [ObservableProperty] private int _maxAvailableFrames = 999999;
+
+    public void UpdateAvailableFrames()
+    {
+        if (SourceFiles.Count == 0)
+        {
+            MaxAvailableFrames = 999999;
+            return;
+        }
+
+        int available;
+        if (SourceFiles.Count > 1 && IsJoinMode)
+        {
+            available = Math.Max(1, SourceFiles.Sum(f => Math.Max(1, f.Frames)));
+        }
+        else if (SelectedSourceFile is not null)
+        {
+            available = Math.Max(1, SelectedSourceFile.Frames);
+        }
+        else
+        {
+            available = Math.Max(1, SourceFiles.Max(f => Math.Max(1, f.Frames)));
+        }
+
+        MaxAvailableFrames = Math.Max(1, available);
+        StackFrameCount = MaxAvailableFrames;
+    }
+    [ObservableProperty] private int _selectedDrizzleIndex = 0;
+    [ObservableProperty] private bool _normalizeBrightness = true;
+    [ObservableProperty] private int _normalizeTargetPercent = 75;
+    [ObservableProperty] private bool _correctAtmosphericDispersion = true;
+    [ObservableProperty] private bool _sharpeningEnabled = true;
+    [ObservableProperty] private int _sharpeningBlendPercent = 10;
+    [ObservableProperty] private bool _featheringEnabled = true;
 
     // Interactive Tutorial Wizard
     [ObservableProperty] private bool _isTutorialActive;
@@ -897,8 +1323,8 @@ public partial class MainWindowViewModel : ObservableObject
 
             case 4:
                 SelectedTabIndex = 6;
-                IsSection6Expanded = true;
-                IsSection7Expanded = true;
+                IsSection10Expanded = true;
+                // Execution step
                 TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
                 TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
                 TutorialMargin = new Avalonia.Thickness(0, 0, 16, 20);
@@ -932,6 +1358,7 @@ public partial class MainWindowViewModel : ObservableObject
         SourceFiles.Clear();
         HasLoadedFiles = false;
         SelectedSourceFile = null;
+        UpdateAvailableFrames();
     }
 
 
@@ -1006,8 +1433,8 @@ public partial class MainWindowViewModel : ObservableObject
 
                 if (reloadDisk || _cachedPreviewResult is null || _cachedRawFilePath != source.FullPath || _cachedRawFrameIndex != targetFrameIdx)
                 {
-                    // Downscales 4K frames to max 640px for fast timeline scrubbing
-                    _cachedPreviewResult = UniversalMediaReader.ReadPreviewFrame(source.FullPath, targetFrameIdx, maxPreviewDim: 640, optionsSnapshot.SerBitDepthOverride);
+                    // Charge en résolution native (jusqu'à 4K) pour préserver la netteté et la cohérence 1:1 du recadrage
+                    _cachedPreviewResult = UniversalMediaReader.ReadPreviewFrame(source.FullPath, targetFrameIdx, maxPreviewDim: 4096, optionsSnapshot.SerBitDepthOverride);
                     _cachedRawFilePath = source.FullPath;
                     _cachedRawFrameIndex = targetFrameIdx;
                 }
@@ -1044,7 +1471,15 @@ public partial class MainWindowViewModel : ObservableObject
                     };
                 });
 
+                _lastProcessedPreviewFrame = processed;
+                _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
+
+                if (EnableCropping && CurrentAlignmentGrid is not null && CurrentAlignmentGrid.Points.Count > 0
+                    && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
+                }
             }
             catch (Exception ex)
             {
@@ -1132,6 +1567,36 @@ public partial class MainWindowViewModel : ObservableObject
         Options.OutputFilenameSuffix = OutputSuffix;
         Options.GenerateWinJuposFilenames = WinJuposNaming;
         Options.MaxCpuUsagePercent = Math.Clamp(MaxCpuUsagePercent, 10, 100);
+
+        Options.Stacking.WorkflowMode = WorkflowMode;
+        Options.Stacking.StabilisationMode = StackingStabilisationMode;
+        Options.Stacking.DisableStabilisation = DisableStabilisation;
+        Options.Stacking.CanvasMode = StackingCanvasMode;
+        Options.Stacking.NoiseRobust = NoiseRobust;
+        Options.Stacking.QualityScope = QualityScope;
+        Options.Stacking.DoubleStackReference = DoubleStackReference;
+        Options.Stacking.ReferenceMode = ReferenceFrameMode;
+        Options.Stacking.ManualReferenceFrameIndex = ManualReferenceFrameIndex;
+        Options.Stacking.AlignmentTileSize = AlignmentTileSize;
+        Options.Stacking.MinBrightnessThreshold = MinBrightnessThreshold;
+        Options.Stacking.EnablePruning = EnablePruning;
+        Options.Stacking.EnableMultiScaleGrid = EnableMultiScaleGrid;
+        var activePcts = GetActiveStackPercentages();
+        if (activePcts.Count == 0) activePcts = [25.0];
+        Options.Stacking.StackPercentages = activePcts;
+        Options.Stacking.StackFrameCounts = [StackFrameCount];
+        Options.Stacking.Drizzle = SelectedDrizzleIndex switch
+        {
+            1 => DrizzleScale.Drizzle15,
+            2 => DrizzleScale.Drizzle30,
+            _ => DrizzleScale.None
+        };
+        Options.Stacking.NormalizeBrightness = NormalizeBrightness;
+        Options.Stacking.NormalizeTargetPercent = NormalizeTargetPercent;
+        Options.Stacking.CorrectAtmosphericDispersion = CorrectAtmosphericDispersion;
+        Options.Stacking.SharpeningEnabled = SharpeningEnabled;
+        Options.Stacking.SharpeningBlendPercent = SharpeningBlendPercent;
+        Options.Stacking.FeatheringEnabled = FeatheringEnabled;
     }
 
 
@@ -1147,7 +1612,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (IsProcessing) return;
 
-        SelectedTabIndex = 5;
+        IsSection10Expanded = true;
         IsProcessing = true;
         HasCompletedOutput = false;
         SyncOptionsFromUi();
@@ -1167,38 +1632,38 @@ public partial class MainWindowViewModel : ObservableObject
         {
             ProcessingProgress = r.PercentComplete;
             ProcessingStageText = $"{Loc.TranslateRuntime(r.Stage)} ({r.PercentComplete}%)";
-            ConsoleLogText += $"\n[{DateTime.Now:HH:mm:ss}] {Loc.TranslateRuntime(r.LogMessage)}";
+            UpdateProgressLog(r);
         });
 
         try
         {
             var filesToRun = SourceFiles.Select(f => f.FullPath).ToList();
             string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
-            ConsoleLogText = Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Démarrage du traitement ({filesToRun.Count} fichier(s), {modeLabel})...", $"[{DateTime.Now:HH:mm:ss}] Starting processing ({filesToRun.Count} file(s), {modeLabel})...");
+            InitProcessingLog(filesToRun.Count);
 
-            var summary = await PipelineRunner.ExecuteFilesAsync(
+            var summary = await Task.Run(() => PipelineRunner.ExecuteFilesAsync(
                 filesToRun,
                 Options,
                 outDir,
                 progress,
-                _processingCts.Token);
+                _processingCts.Token));
 
             LastOutputFilePath = summary.OutputFilePath;
             HasCompletedOutput = summary.Success && File.Exists(summary.OutputFilePath);
 
             double fpsSpeed = summary.TotalInputFrames / Math.Max(0.001, summary.Elapsed.TotalSeconds);
             SummaryStatsText = Loc.Pick($"Frames lues : {summary.TotalInputFrames} | Frames écrites : {summary.OutputFramesWritten} | Rejetées : {summary.DiscardedNoPlanet + summary.DiscardedQuality} | Durée : {summary.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps)", $"Frames read: {summary.TotalInputFrames} | Frames written: {summary.OutputFramesWritten} | Rejected: {summary.DiscardedNoPlanet + summary.DiscardedQuality} | Duration: {summary.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps)");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Traitement terminé.\nDernier fichier généré : {summary.OutputFilePath}", $"\n[{DateTime.Now:HH:mm:ss}] Processing finished.\nLast file generated: {summary.OutputFilePath}");
+            FinishProcessingLog(summary);
         }
         catch (OperationCanceledException)
         {
             ProcessingStageText = Loc.Pick("Annulé par l'utilisateur", "Cancelled by user");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Traitement annulé.", $"\n[{DateTime.Now:HH:mm:ss}] Processing cancelled.");
+            AppendStatusLog(Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Traitement annulé.", $"[{DateTime.Now:HH:mm:ss}] Processing cancelled."));
         }
         catch (Exception ex)
         {
             ProcessingStageText = Loc.Pick("Erreur", "Error");
-            ConsoleLogText += Loc.Pick($"\n[{DateTime.Now:HH:mm:ss}] Erreur : {ex.Message}", $"\n[{DateTime.Now:HH:mm:ss}] Error: {ex.Message}");
+            AppendStatusLog(Loc.Pick($"[{DateTime.Now:HH:mm:ss}] Erreur : {ex.Message}", $"[{DateTime.Now:HH:mm:ss}] Error: {ex.Message}"));
         }
         finally
         {
@@ -1206,6 +1671,275 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+
+    private readonly List<string> _processingLogLines = [];
+    private string _currentProcessingStage = string.Empty;
+
+    private void InitProcessingLog(int fileCount)
+    {
+        _processingLogLines.Clear();
+        _currentProcessingStage = string.Empty;
+        string startTime = DateTime.Now.ToString("HH:mm:ss");
+        string modeLabel = IsJoinMode
+            ? Loc.Pick("Mode Fusion", "Join Mode")
+            : Loc.Pick("Mode Lot", "Batch Mode");
+        string line1 = Loc.Pick(
+            $"Heure de lancement : {startTime} ({fileCount} fichier(s), {modeLabel})",
+            $"Launch time: {startTime} ({fileCount} file(s), {modeLabel})");
+        _processingLogLines.Add(line1);
+        ConsoleLogText = line1;
+    }
+
+    private void UpdateProgressLog(PipelineProgressReport r)
+    {
+        string stage = r.Stage;
+        string msg = Loc.TranslateRuntime(r.LogMessage);
+
+        if (string.Equals(stage, _currentProcessingStage, StringComparison.Ordinal) && _processingLogLines.Count > 1)
+        {
+            _processingLogLines[^1] = msg;
+        }
+        else
+        {
+            _currentProcessingStage = stage;
+            _processingLogLines.Add(msg);
+        }
+
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    private void FinishProcessingLog(PipelineRunSummary summary)
+    {
+        string finishMsg = Loc.Pick(
+            $"[{DateTime.Now:HH:mm:ss}] Traitement terminé avec succès.\nDernier fichier généré : {summary.OutputFilePath}",
+            $"[{DateTime.Now:HH:mm:ss}] Processing finished successfully.\nLast file generated: {summary.OutputFilePath}");
+        _processingLogLines.Add(finishMsg);
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    private void AppendStatusLog(string message)
+    {
+        _processingLogLines.Add(message);
+        ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    [RelayCommand]
+    public void SetWorkflowMode(string mode)
+    {
+        switch (mode.ToLowerInvariant())
+        {
+            case "prep":
+            case "preprocessingonly":
+                WorkflowMode = StackingWorkflowMode.PreProcessingOnly;
+                IsWorkflowPreProcessingOnly = true;
+                IsWorkflowStackingOnly = false;
+                IsWorkflowDirectStreamAllInOne = false;
+                break;
+            case "stack":
+            case "stackingonly":
+                WorkflowMode = StackingWorkflowMode.StackingOnly;
+                IsWorkflowPreProcessingOnly = false;
+                IsWorkflowStackingOnly = true;
+                if (SelectedOutputFormatIndex is 0 or 1 or 2)
+                {
+                    SelectedOutputFormatIndex = 5;
+                    SelectedStackingImageFormatIndex = 0;
+                }
+                IsWorkflowDirectStreamAllInOne = false;
+                break;
+            case "all":
+            case "directstreamallinone":
+            default:
+                WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+                IsWorkflowPreProcessingOnly = false;
+                IsWorkflowStackingOnly = false;
+                IsWorkflowDirectStreamAllInOne = true;
+                if (SelectedOutputFormatIndex is 0 or 1 or 2)
+                {
+                    SelectedOutputFormatIndex = 5;
+                    SelectedStackingImageFormatIndex = 0;
+                }
+                break;
+        }
+    }
+
+    [RelayCommand]
+    public void SetAlignmentTileSize(int size)
+    {
+        AlignmentTileSize = size;
+        CalculateAlignmentGrid();
+    }
+
+    [RelayCommand]
+    public void CalculateAlignmentGrid()
+    {
+        SyncOptionsFromUi();
+
+        AstroFrame? frame = null;
+
+        if (EnableCropping)
+        {
+            if (PreviewCroppedOutput && _lastProcessedPreviewFrame is not null && 
+                _lastProcessedPreviewFrame.Width == CropWidth && _lastProcessedPreviewFrame.Height == CropHeight)
+            {
+                // La trame déjà prévisualisée est déjà parfaitement recadrée et centrée
+                frame = _lastProcessedPreviewFrame;
+            }
+            else if ((_cachedPreviewResult?.Frame ?? _lastProcessedPreviewFrame) is { } baseFrame)
+            {
+                int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidX
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
+                int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidY
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : baseFrame.Height / 2);
+
+                frame = ImageProcessor.CropAroundPoint(
+                    baseFrame,
+                    targetX,
+                    targetY,
+                    CropWidth,
+                    CropHeight,
+                    CropOffsetX,
+                    CropOffsetY,
+                    protectBayerEvenSteps: Options.ProtectBayerPattern);
+            }
+        }
+        else
+        {
+            frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+        }
+
+        if (frame is null) return;
+
+        CurrentAlignmentGrid = AlignmentGridGenerator.GenerateGrid(frame, Options.Stacking);
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    [RelayCommand]
+    public void ClearAlignmentGrid()
+    {
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
+        AlignmentStatusText = string.Empty;
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    public void AddManualAlignmentPoint(int x, int y)
+    {
+        int fw = CurrentAlignmentGrid.FrameWidth > 0 
+            ? CurrentAlignmentGrid.FrameWidth 
+            : (EnableCropping ? CropWidth : (_cachedPreviewResult?.Frame.Width ?? 0));
+        int fh = CurrentAlignmentGrid.FrameHeight > 0 
+            ? CurrentAlignmentGrid.FrameHeight 
+            : (EnableCropping ? CropHeight : (_cachedPreviewResult?.Frame.Height ?? 0));
+
+        if (fw > 0 && fh > 0)
+        {
+            if (x < 0 || x >= fw || y < 0 || y >= fh)
+                return;
+        }
+
+        AstroFrame? frame = null;
+        if (EnableCropping)
+        {
+            if (PreviewCroppedOutput && _lastProcessedPreviewFrame is not null &&
+                _lastProcessedPreviewFrame.Width == fw && _lastProcessedPreviewFrame.Height == fh)
+            {
+                frame = _lastProcessedPreviewFrame;
+            }
+            else if ((_cachedPreviewResult?.Frame ?? _lastProcessedPreviewFrame) is { } baseFrame)
+            {
+                int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidX
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
+                int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidY
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : baseFrame.Height / 2);
+
+                frame = ImageProcessor.CropAroundPoint(
+                    baseFrame,
+                    targetX,
+                    targetY,
+                    fw,
+                    fh,
+                    CropOffsetX,
+                    CropOffsetY,
+                    protectBayerEvenSteps: Options.ProtectBayerPattern);
+            }
+        }
+        else
+        {
+            frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+        }
+
+        int tileSize = AlignmentTileSize;
+        var existing = new List<AlignmentPoint>(CurrentAlignmentGrid.Points);
+
+        // Éviter les doublons trop proches (< 6px)
+        if (existing.Any(p => Math.Abs(p.X - x) < 6 && Math.Abs(p.Y - y) < 6))
+            return;
+
+        int newId = existing.Count > 0 ? existing.Max(p => p.Id) + 1 : 1;
+        var newPoint = AlignmentGridGenerator.CreateManualPoint(frame, newId, x, y, tileSize);
+        existing.Add(newPoint);
+
+        var anchor = CurrentAlignmentGrid.AnchorPoint.X >= 0
+            ? CurrentAlignmentGrid.AnchorPoint
+            : (fw > 0 && fh > 0 ? (fw / 2, fh / 2) : (-1, -1));
+
+        CurrentAlignmentGrid = new AlignmentGrid(
+            tileSize,
+            MinBrightnessThreshold,
+            existing,
+            anchor,
+            fw,
+            fh);
+
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    public void RemoveManualAlignmentPoint(int x, int y)
+    {
+        if (CurrentAlignmentGrid.Points.Count == 0)
+            return;
+
+        int tileSize = CurrentAlignmentGrid.TileSize > 0 ? CurrentAlignmentGrid.TileSize : AlignmentTileSize;
+        int toleranceSq = (tileSize / 2) * (tileSize / 2);
+
+        var matching = CurrentAlignmentGrid.Points
+            .Where(p =>
+            {
+                int dx = p.X - x;
+                int dy = p.Y - y;
+                return (dx * dx + dy * dy) <= Math.Max(toleranceSq, 16 * 16);
+            })
+            .ToList();
+
+        if (matching.Count == 0)
+            return;
+
+        var closest = matching.OrderBy(p =>
+        {
+            int dx = p.X - x;
+            int dy = p.Y - y;
+            return dx * dx + dy * dy;
+        }).First();
+
+        var existing = CurrentAlignmentGrid.Points.Where(p => p.Id != closest.Id).ToList();
+
+        CurrentAlignmentGrid = new AlignmentGrid(
+            CurrentAlignmentGrid.TileSize,
+            CurrentAlignmentGrid.MinBrightness,
+            existing,
+            CurrentAlignmentGrid.AnchorPoint,
+            CurrentAlignmentGrid.FrameWidth,
+            CurrentAlignmentGrid.FrameHeight);
+
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
 
     [RelayCommand]
     public void CancelProcessing()

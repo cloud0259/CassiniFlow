@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.StackingOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+
+        <!-- Paliers d'empilement & Quotas -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr Stacking.Percentages}" Classes="grouptitle"/>
+
+                <TextBlock Text="{loc:Tr Stacking.PercentagesHint}" Classes="hint" FontSize="11" Foreground="#94a3b8"/>
+
+                <Grid ColumnDefinitions="*,8,*,8,*" Margin="0,2">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier1}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage1}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier2}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage2}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier3}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage3}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.MaxQuota}" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding StackFrameCount}" Minimum="1" Maximum="{Binding MaxAvailableFrames}" FormatString="0" Width="110"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Suréchantillonnage Drizzle -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr Stacking.Drizzle}" Classes="grouptitle"/>
+
+                <ComboBox SelectedIndex="{Binding SelectedDrizzleIndex}" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="{loc:Tr Stacking.DrizzleNone}"/>
+                    <ComboBoxItem Content="{loc:Tr Stacking.Drizzle15}"/>
+                    <ComboBoxItem Content="{loc:Tr Stacking.Drizzle30}"/>
+                </ComboBox>
+            </StackPanel>
+        </Border>
+
+        <!-- Traitements d'amélioration astrophysique -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Amélioration &amp; Post-traitement" Classes="grouptitle"/>
+
+                <!-- Normalisation de la brillance -->
+                <CheckBox Content="{loc:Tr Stacking.Normalize}" IsChecked="{Binding NormalizeBrightness}" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto" Margin="20,0,0,0" IsEnabled="{Binding NormalizeBrightness}">
+                    <TextBlock Grid.Column="0" Text="Cible normalisation :" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding NormalizeTargetPercent}" Minimum="10" Maximum="100" FormatString="{}{0} %" Width="100"/>
+                </Grid>
+
+                <!-- Dispersion chromatique atmosphérique (RVB) -->
+                <CheckBox Content="{loc:Tr Stacking.RgbAlign}" IsChecked="{Binding CorrectAtmosphericDispersion}" FontSize="12"/>
+
+                <!-- Accentuation du bruit et des détails haute fréquence -->
+                <CheckBox Content="{loc:Tr Stacking.Sharpen}" IsChecked="{Binding SharpeningEnabled}" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto" Margin="20,0,0,0" IsEnabled="{Binding SharpeningEnabled}">
+                    <TextBlock Grid.Column="0" Text="Mélange accentué :" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding SharpeningBlendPercent}" Minimum="1" Maximum="100" FormatString="{}{0} %" Width="100"/>
+                </Grid>
+
+                <!-- Lissage des coutures entre tuiles (Feathering) -->
+                <CheckBox Content="{loc:Tr Stacking.Feathering}" IsChecked="{Binding FeatheringEnabled}" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>
+

@@ -96,25 +96,29 @@ public class LocalizationTests
     }
 
     [Fact]
-    public void Tabs_1To7_HaveFrenchAndEnglishTranslations()
+    public void Tabs_1To9_HaveFrenchAndEnglishTranslations()
     {
         Loc.SetLanguage(AppLanguage.French, save: false);
-        Assert.Equal("1. Fichiers sources", Loc.Get("Tab.SourceFiles"));
-        Assert.Equal("2. Options d'entrée", Loc.Get("Tab.InputOptions"));
-        Assert.Equal("3. Traitement & Centrage", Loc.Get("Tab.ProcessingOptions"));
-        Assert.Equal("4. Tri & Qualité", Loc.Get("Tab.QualityOptions"));
-        Assert.Equal("5. Animation", Loc.Get("Tab.AnimationOptions"));
-        Assert.Equal("6. Options de sortie", Loc.Get("Tab.OutputOptions"));
-        Assert.Equal("7. Exécution", Loc.Get("Tab.DoProcessing"));
+        Assert.Equal("Fichiers sources", Loc.Get("Tab.SourceFiles"));
+        Assert.Equal("Options d'entrée", Loc.Get("Tab.InputOptions"));
+        Assert.Equal("Traitement & Centrage", Loc.Get("Tab.ProcessingOptions"));
+        Assert.Equal("Tri & Qualité", Loc.Get("Tab.QualityOptions"));
+        Assert.Equal("Points d'alignement", Loc.Get("Tab.AlignmentOptions"));
+        Assert.Equal("Empilement & Rendu", Loc.Get("Tab.StackingOptions"));
+        Assert.Equal("Animation", Loc.Get("Tab.AnimationOptions"));
+        Assert.Equal("Options de sortie", Loc.Get("Tab.OutputOptions"));
+        Assert.Equal("Exécution", Loc.Get("Tab.DoProcessing"));
 
         Loc.SetLanguage(AppLanguage.English, save: false);
-        Assert.Equal("1. Source Files", Loc.Get("Tab.SourceFiles"));
-        Assert.Equal("2. Input Options", Loc.Get("Tab.InputOptions"));
-        Assert.Equal("3. Processing Options", Loc.Get("Tab.ProcessingOptions"));
-        Assert.Equal("4. Quality Options", Loc.Get("Tab.QualityOptions"));
-        Assert.Equal("5. Animation Options", Loc.Get("Tab.AnimationOptions"));
-        Assert.Equal("6. Output Options", Loc.Get("Tab.OutputOptions"));
-        Assert.Equal("7. Run Processing", Loc.Get("Tab.DoProcessing"));
+        Assert.Equal("Source Files", Loc.Get("Tab.SourceFiles"));
+        Assert.Equal("Input Options", Loc.Get("Tab.InputOptions"));
+        Assert.Equal("Processing Options", Loc.Get("Tab.ProcessingOptions"));
+        Assert.Equal("Quality Options", Loc.Get("Tab.QualityOptions"));
+        Assert.Equal("Alignment Points", Loc.Get("Tab.AlignmentOptions"));
+        Assert.Equal("Stacking & Render", Loc.Get("Tab.StackingOptions"));
+        Assert.Equal("Animation", Loc.Get("Tab.AnimationOptions"));
+        Assert.Equal("Output Options", Loc.Get("Tab.OutputOptions"));
+        Assert.Equal("Execution", Loc.Get("Tab.DoProcessing"));
 
         Loc.SetLanguage(AppLanguage.French, save: false);
     }

@@ -1,4 +1,4 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
         xmlns:views="using:CassiniFlow.Desktop.Views"
@@ -57,6 +57,37 @@
                     </MenuItem>
                 </Menu>
 
+                <!-- SELECTEUR DE MODE DE TRAITEMENT (SOBRE, SANS ICONES) -->
+                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="{DynamicResource AppPanelSubtleBackground}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1" CornerRadius="4" Padding="2"
+                        IsEnabled="{Binding !IsProcessing}">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <RadioButton Content="{loc:Tr Workflow.PreProcessingOnly}"
+                                     IsChecked="{Binding IsWorkflowPreProcessingOnly}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="prep"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.PreProcessingOnlyTip}"/>
+                        <RadioButton Content="{loc:Tr Workflow.StackingOnly}"
+                                     IsChecked="{Binding IsWorkflowStackingOnly}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="stackingonly"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.StackingOnlyTip}"/>
+                        <RadioButton Content="{loc:Tr Workflow.DirectStreamAllInOne}"
+                                     IsChecked="{Binding IsWorkflowDirectStreamAllInOne}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="directstream"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.DirectStreamAllInOneTip}"/>
+                    </StackPanel>
+                </Border>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Content="{loc:Tr Toolbar.AddSourceFiles}" Click="OnAddVideoFilesClick" IsEnabled="{Binding CanAddFiles}" FontSize="12" Padding="10,5"/>
                     
@@ -90,7 +121,7 @@
                 <Grid>
                     <views:FrameViewerView />
 
-                    <!-- Carte Didacticiel IntÃ©ractif Flottante PositionnÃ©e Dynamiquement -->
+                    <!-- Carte Didacticiel Interactif Flottante Positionnée Dynamiquement -->
                     <Border IsVisible="{Binding IsTutorialActive}"
                             HorizontalAlignment="{Binding TutorialHorizontalAlignment}"
                             VerticalAlignment="{Binding TutorialVerticalAlignment}"
@@ -103,7 +134,7 @@
                             Padding="14,12"
                             ZIndex="500">
                         <StackPanel Spacing="8">
-                            <!-- En-tÃªte : Badge Ã‰tape + Cible + Bouton Quitter -->
+                            <!-- En-tête : Badge Étape + Cible + Bouton Quitter -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
                                     <Border Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="6,2">
@@ -123,7 +154,7 @@
                             <!-- Corps : Explication concise -->
                             <TextBlock Text="{Binding TutorialStepDescription}" TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="{DynamicResource AppTextSecondary}"/>
 
-                            <!-- Pied : PrÃ©cÃ©dent & Suivant -->
+                            <!-- Pied : Précédent & Suivant -->
                             <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
                                 <Button Grid.Column="0" Content="{loc:Tr Tutorial.Previous}" Command="{Binding PreviousTutorialStepCommand}" IsEnabled="{Binding CanTutorialGoPrevious}" FontSize="11" Padding="10,4"/>
                                 <Button Grid.Column="2" Content="{Binding TutorialNextButtonText}" Command="{Binding NextTutorialStepCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="12,4"/>
@@ -141,14 +172,14 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="6" Margin="2,2,4,4">
 
-                        <!-- CARTE 1 : MODE DE TRAITEMENT & PRESETS (DÉPLACÉ DU VOLET GAUCHE) -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection1Expanded}">
+                        <!-- CARTE 1 : MODE DE TRAITEMENT & PRESETS (PIPP) -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection1Expanded}" IsVisible="{Binding IsSection1Visible}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section1BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Grid.Column="1" Text="Mode &amp; Presets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.ModePresets}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
                             </Expander.Header>
                             <Border Padding="10,8">
@@ -201,11 +232,11 @@
                         </Expander>
 
                         <!-- CARTE 2 : CALIBRATION & ENTRÉE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection2Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection2Expanded}" IsVisible="{Binding IsSection2Visible}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section2BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.InputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -216,11 +247,11 @@
                         </Expander>
 
                         <!-- CARTE 3 : STABILISATION & CENTRAGE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection3Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection3Expanded}" IsVisible="{Binding IsSection3Visible}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section3BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.ProcessingOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -231,11 +262,11 @@
                         </Expander>
 
                         <!-- CARTE 4 : TRI QUALITÉ SEEING -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection4Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection4Expanded}" IsVisible="{Binding IsSection4Visible}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="4" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section4BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.QualityOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -245,12 +276,57 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 5 : ANIMATION -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection5Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <!-- CARTE 5 : STABILISATION & RÉFÉRENCE (AUTOSTAKKERT) -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection5Expanded}" IsVisible="{Binding IsSection5Visible}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="5" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section5BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.StackingRefOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="6,8">
+                                <views:StackingReferenceOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 6 : POINTS D'ALIGNEMENT -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection6Expanded}" IsVisible="{Binding IsSection6Visible}" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="{Binding Section6BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AlignmentOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:AlignmentOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 7 : EMPILEMENT MULTI-ZONES & RENDU -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection7Expanded}" IsVisible="{Binding IsSection7Visible}" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="{Binding Section7BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{loc:Tr Tab.StackingOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Expander.Header>
+                            <Border Padding="4,6">
+                                <views:StackingOptionsView />
+                            </Border>
+                        </Expander>
+
+                        <!-- CARTE 8 : ANIMATION -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection8Expanded}" IsVisible="{Binding IsSection8Visible}" IsEnabled="{Binding !IsProcessing}">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                                        <TextBlock Text="{Binding Section8BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.AnimationOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -260,12 +336,12 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 6 : EXPORT & SORTIE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection6Expanded}" IsEnabled="{Binding !IsProcessing}">
+                        <!-- CARTE 9 : EXPORT & SORTIE -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection9Expanded}" IsVisible="{Binding IsSection9Visible}" IsEnabled="{Binding !IsProcessing}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="6" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section9BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.OutputOptions}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -275,12 +351,12 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 7 : EXÉCUTION & CONSOLE -->
-                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection7Expanded}">
+                        <!-- CARTE 10 : EXÉCUTION & CONSOLE -->
+                        <Expander Classes="accordion-card" IsExpanded="{Binding IsSection10Expanded}" IsVisible="{Binding IsSection10Visible}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
-                                        <TextBlock Text="7" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Section10BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Grid.Column="1" Text="{loc:Tr Tab.DoProcessing}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
@@ -289,8 +365,7 @@
                                 <views:DoProcessingView />
                             </Border>
                         </Expander>
-
-                    </StackPanel>
+                        </StackPanel>
                 </ScrollViewer>
             </Border>
 

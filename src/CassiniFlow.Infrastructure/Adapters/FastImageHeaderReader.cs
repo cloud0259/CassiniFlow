@@ -9,7 +9,7 @@ namespace CassiniFlow.Infrastructure.Adapters;
 /// <summary>
 /// Ultra-fast image header reader that extracts dimensions, bit-depth and channels
 /// directly from file headers (PNG, JPEG, TIFF/DNG, BMP) without decoding pixel data.
-/// Allows loading hundreds of images instantaneously (like PIPP).
+/// Allows loading hundreds of images instantaneously without loading pixel buffers.
 /// </summary>
 public static class FastImageHeaderReader
 {

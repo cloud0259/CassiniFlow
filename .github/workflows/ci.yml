@@ -27,7 +27,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1
+          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0t64 || sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4

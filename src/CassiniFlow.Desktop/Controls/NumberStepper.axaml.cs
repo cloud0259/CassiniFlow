@@ -166,6 +166,8 @@ public partial class NumberStepper : UserControl
 
         // Remplacer virgule par point pour supporter les saisies FR et US
         text = text.Replace(',', '.');
+        // Nettoyer les suffixes textuels comme "%" ou "px" pour extraire la valeur numérique pure
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"[^\d\.\-]", string.Empty);
 
         if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
         {
@@ -185,7 +187,16 @@ public partial class NumberStepper : UserControl
         try
         {
             string fmt = string.IsNullOrEmpty(FormatString) ? "0" : FormatString;
-            ValueTextBox.Text = Value.ToString(fmt, CultureInfo.InvariantCulture);
+            if (fmt.Contains("{0}"))
+            {
+                ValueTextBox.Text = string.Format(CultureInfo.InvariantCulture, fmt, Value);
+            }
+            else
+            {
+                // Échapper le caractère '%' pour éviter que .NET multiplie par 100
+                string safeFmt = fmt.Contains('\'') ? fmt : fmt.Replace("%", "'%'");
+                ValueTextBox.Text = Value.ToString(safeFmt, CultureInfo.InvariantCulture);
+            }
         }
         finally
         {

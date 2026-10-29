@@ -34,6 +34,9 @@ public sealed class AstroViewerControl : Control
     private static readonly Pen AoiPen = new(new SolidColorBrush(Color.Parse("#eab308")), 1.5, new DashStyle([6, 4], 0));
     private static readonly Pen AfbPen = new(new SolidColorBrush(Color.Parse("#06b6d4")), 2.0);
     private static readonly Pen FrameBorderPen = new(BorderBrushColor, 1.0);
+    private static readonly Pen ActiveApPen = new(new SolidColorBrush(Color.Parse("#10b981")), 1.2);
+    private static readonly Pen PrunedApPen = new(new SolidColorBrush(Color.FromArgb(50, 239, 68, 68)), 1.0);
+    private static readonly Pen AnchorPen = new(new SolidColorBrush(Color.Parse("#fbbf24")), 1.8);
 
     public AstroViewerControl()
     {
@@ -64,6 +67,16 @@ public sealed class AstroViewerControl : Control
         if (DataContext is MainWindowViewModel vm)
         {
             vm.PreviewReady += OnPreviewReady;
+            vm.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName is nameof(MainWindowViewModel.IsAlignmentGridVisible)
+                    or nameof(MainWindowViewModel.CurrentAlignmentGrid)
+                    or nameof(MainWindowViewModel.ShowOverlayBoxes)
+                    or nameof(MainWindowViewModel.PreviewCroppedOutput))
+                {
+                    InvalidateVisual();
+                }
+            };
         }
     }
 
@@ -85,13 +98,60 @@ public sealed class AstroViewerControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        _isDragging = true;
-        UpdateTargetFromPointer(e.GetPosition(this));
+
+        if (DataContext is not MainWindowViewModel vm || _renderedFrame is null)
+            return;
+
+        var pt = e.GetPosition(this);
+        var pointerPoint = e.GetCurrentPoint(this);
+
+        // Si la grille d'alignement est visible : clic gauche pour placer un AP, clic droit pour en retirer un
+        if (vm.IsAlignmentGridVisible)
+        {
+            if (!_lastImageDestRect.Contains(pt))
+                return;
+
+            double displayScale = _lastImageDestRect.Width / _renderedFrame.Width;
+            double localX = (pt.X - _lastImageDestRect.X) / displayScale;
+            double localY = (pt.Y - _lastImageDestRect.Y) / displayScale;
+
+            var (cropOffX, cropOffY) = GetGridCropOffset(vm, vm.CurrentAlignmentGrid);
+            int gridX = (int)Math.Round(localX + cropOffX);
+            int gridY = (int)Math.Round(localY + cropOffY);
+
+            if (pointerPoint.Properties.IsLeftButtonPressed)
+            {
+                vm.AddManualAlignmentPoint(gridX, gridY);
+                InvalidateVisual();
+            }
+            else if (pointerPoint.Properties.IsRightButtonPressed)
+            {
+                vm.RemoveManualAlignmentPoint(gridX, gridY);
+                InvalidateVisual();
+            }
+
+            return; // Le cadre de crop ne bouge jamais lors de l'interaction avec les points d'alignement
+        }
+
+        // Si la grille d'alignement n'est pas active et que le mode Surface (AFB) est sélectionné
+        if (vm.SelectedStabilisationModeIndex == 2)
+        {
+            _isDragging = true;
+            UpdateTargetFromPointer(pt);
+        }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+
+        if (DataContext is MainWindowViewModel vm)
+        {
+            Cursor = vm.IsAlignmentGridVisible
+                ? new Cursor(StandardCursorType.Cross)
+                : Cursor.Default;
+        }
+
         if (_isDragging)
         {
             UpdateTargetFromPointer(e.GetPosition(this));
@@ -183,6 +243,11 @@ public sealed class AstroViewerControl : Control
         double displayScale,
         double fullToScreenScale)
     {
+        if (vm.IsAlignmentGridVisible && vm.CurrentAlignmentGrid is not null && vm.CurrentAlignmentGrid.Points.Count > 0)
+        {
+            DrawAlignmentGridOverlay(context, vm, vm.CurrentAlignmentGrid, destRect, displayScale, fullToScreenScale);
+        }
+
         if (!vm.ShowOverlayBoxes || vm.PreviewCroppedOutput || _renderedDetection is null)
             return;
 
@@ -202,6 +267,133 @@ public sealed class AstroViewerControl : Control
                     DrawDefaultCropOverlay(context, vm, destRect, fullToScreenScale);
                 }
                 break;
+        }
+    }
+
+    private (double CropStartX, double CropStartY) GetCropBoxOriginInFullFrame(MainWindowViewModel vm, int fullWidth, int fullHeight)
+    {
+        double cw = vm.CropWidth;
+        double ch = vm.CropHeight;
+        if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
+
+        double targetX, targetY;
+        switch (vm.SelectedStabilisationModeIndex)
+        {
+            case 1: // Planetary / Object
+                targetX = (vm.CentreObjectInFrame && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidX
+                    : fullWidth / 2.0;
+                targetY = (vm.CentreObjectInFrame && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidY
+                    : fullHeight / 2.0;
+                break;
+
+            case 2: // Surface Feature (AFB)
+                targetX = vm.TargetBoxX;
+                targetY = vm.TargetBoxY;
+                break;
+
+            default:
+                targetX = fullWidth / 2.0;
+                targetY = fullHeight / 2.0;
+                break;
+        }
+
+        double startX = targetX - (cw / 2.0) - vm.CropOffsetX;
+        double startY = targetY - (ch / 2.0) - vm.CropOffsetY;
+        return (startX, startY);
+    }
+
+    private (double CropOffsetX, double CropOffsetY) GetGridCropOffset(MainWindowViewModel vm, AlignmentGrid? grid)
+    {
+        if (_renderedFrame is null)
+            return (0, 0);
+
+        if (!vm.EnableCropping)
+            return (0, 0);
+
+        bool isCurrentCropped = vm.PreviewCroppedOutput;
+        int gridW = grid?.FrameWidth ?? 0;
+        int gridH = grid?.FrameHeight ?? 0;
+
+        // Une grille est en coordonnées recadrées si sa dimension correspond à la zone de crop ou n'est pas encore définie
+        bool isGridInCropSpace = gridW <= 0 || (gridW <= vm.CropWidth + 2 && gridH <= vm.CropHeight + 2);
+
+        if (isGridInCropSpace)
+        {
+            if (isCurrentCropped)
+            {
+                // Vue recadrée + Grille en coordonnées recadrées : pas de décalage
+                return (0, 0);
+            }
+            else
+            {
+                // Vue plein cadre + Grille en coordonnées recadrées : on projette dans la boîte de crop
+                var (startX, startY) = GetCropBoxOriginInFullFrame(vm, _renderedFrame.Width, _renderedFrame.Height);
+                return (-startX, -startY);
+            }
+        }
+        else
+        {
+            if (isCurrentCropped)
+            {
+                // Vue recadrée + Grille en plein cadre : translation vers l'origine du crop
+                int fullW = vm.SelectedSourceFile?.Width ?? gridW;
+                int fullH = vm.SelectedSourceFile?.Height ?? gridH;
+                var (startX, startY) = GetCropBoxOriginInFullFrame(vm, fullW, fullH);
+                return (startX, startY);
+            }
+            else
+            {
+                // Vue plein cadre + Grille en plein cadre : pas de décalage
+                return (0, 0);
+            }
+        }
+    }
+
+    private void DrawAlignmentGridOverlay(
+        DrawingContext context,
+        MainWindowViewModel vm,
+        AlignmentGrid grid,
+        Rect destRect,
+        double displayScale,
+        double fullToScreenScale)
+    {
+        var (cropOffsetX, cropOffsetY) = GetGridCropOffset(vm, grid);
+
+        foreach (var ap in grid.Points)
+        {
+            // Ne pas afficher les points élagués (ciel noir) pour éviter l'encombrement visuel
+            if (!ap.IsActive)
+                continue;
+
+            double localX = ap.X - cropOffsetX;
+            double localY = ap.Y - cropOffsetY;
+
+            // Vérifier que le point se situe dans la zone de rendu active
+            if (_renderedFrame is not null && (localX < 0 || localX > _renderedFrame.Width || localY < 0 || localY > _renderedFrame.Height))
+                continue;
+
+            double cx = destRect.X + (localX * displayScale);
+            double cy = destRect.Y + (localY * displayScale);
+            double halfSize = (ap.Size / 2.0) * displayScale;
+
+            context.DrawRectangle(null, ActiveApPen, new Rect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2));
+            context.DrawEllipse(ActiveApPen.Brush, null, new Point(cx, cy), 1.5, 1.5);
+        }
+
+        if (grid.AnchorPoint.X >= 0 && grid.AnchorPoint.Y >= 0)
+        {
+            double localAnchorX = grid.AnchorPoint.X - cropOffsetX;
+            double localAnchorY = grid.AnchorPoint.Y - cropOffsetY;
+
+            if (_renderedFrame is null || (localAnchorX >= 0 && localAnchorX <= _renderedFrame.Width && localAnchorY >= 0 && localAnchorY <= _renderedFrame.Height))
+            {
+                double ax = destRect.X + (localAnchorX * displayScale);
+                double ay = destRect.Y + (localAnchorY * displayScale);
+                context.DrawEllipse(null, AnchorPen, new Point(ax, ay), 6, 6);
+                context.DrawEllipse(AnchorPen.Brush, null, new Point(ax, ay), 2, 2);
+            }
         }
     }
 

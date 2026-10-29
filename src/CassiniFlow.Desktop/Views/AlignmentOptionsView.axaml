@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.AlignmentOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+
+        <!-- Tuiles d'alignement (Taille des zones AP) -->
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Tr Tab.AlignmentOptions}" Classes="grouptitle"/>
+
+                <TextBlock Text="{loc:Tr Alignment.TileSize}" Classes="label"/>
+
+                <!-- Sélecteur rapide de taille de tuile avec mise en valeur active -->
+                <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="2">
+                    <Grid ColumnDefinitions="*,*,*,*,*">
+                        <RadioButton Grid.Column="0" Content="24" IsChecked="{Binding IsTileSize24}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>24</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="1" Content="48" IsChecked="{Binding IsTileSize48}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>48</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="2" Content="104" IsChecked="{Binding IsTileSize104}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>104</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="3" Content="140" IsChecked="{Binding IsTileSize140}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>140</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                        <RadioButton Grid.Column="4" Content="200" IsChecked="{Binding IsTileSize200}"
+                                     Command="{Binding SetAlignmentTileSizeCommand}"
+                                     GroupName="TileSizeGroup" Classes="segment-button"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <RadioButton.CommandParameter>
+                                <x:Int32>200</x:Int32>
+                            </RadioButton.CommandParameter>
+                        </RadioButton>
+                    </Grid>
+                </Border>
+
+                <!-- Réglage fin de la taille -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                    <TextBlock Grid.Column="0" Text="Taille personnalisée (px) :" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding AlignmentTileSize}" Minimum="16" Maximum="512" Increment="8" FormatString="0" Width="110"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+
+                <!-- Seuil de brillance min -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Alignment.MinBrightness}" Classes="label" VerticalAlignment="Center"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding MinBrightnessThreshold}" Minimum="1" Maximum="254" FormatString="0" Width="110"/>
+                </Grid>
+
+                <!-- Options d'élagage et multi-échelle -->
+                <CheckBox Content="{loc:Tr Alignment.Pruning}" IsChecked="{Binding EnablePruning}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr Alignment.MultiScale}" IsChecked="{Binding EnableMultiScaleGrid}" FontSize="12"/>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,4"/>
+
+                <!-- Boutons d'action -->
+                <Grid ColumnDefinitions="*,8,*">
+                    <Button Grid.Column="0" Content="{loc:Tr Alignment.PlacePoints}" Command="{Binding CalculateAlignmentGridCommand}"
+                            Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" FontSize="12"/>
+                    <Button Grid.Column="2" Content="{loc:Tr Alignment.ClearPoints}" Command="{Binding ClearAlignmentGridCommand}"
+                            Classes="secondary-cancel"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" FontSize="12"/>
+                </Grid>
+
+                <!-- Badge de mise en valeur du nombre de points d'alignement -->
+                <Border Background="{DynamicResource AppPanelSubtleBackground}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,4,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Points d'alignement calculés" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="{Binding AlignmentStatusText}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"
+                                       IsVisible="{Binding AlignmentStatusText.Length}"/>
+                            <TextBlock Text="Aucun point placé (cliquez sur 'Placer les points')" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"
+                                       IsVisible="{Binding !AlignmentStatusText.Length}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="{DynamicResource AppAccent}" CornerRadius="3" Padding="10,4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActivePointsCountText}" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Astuce d'interaction manuelle (AutoStakkert-style) -->
+                <Border Background="#121820" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,5" Margin="0,2,0,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="💡" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Tr Alignment.ManualTip}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

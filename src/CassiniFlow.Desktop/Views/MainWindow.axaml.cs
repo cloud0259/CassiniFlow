@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using Avalonia;
@@ -27,7 +27,7 @@ public partial class MainWindow : Window
             ApplyLanguage();
             UpdateMenuCheckStates();
 
-            // DÃ©marrage automatique du didacticiel au premier lancement
+            // Démarrage automatique du didacticiel au premier lancement
             if (DataContext is MainWindowViewModel vm && !UserSettingsService.Current.HasSeenTutorial)
             {
                 vm.StartTutorial();
