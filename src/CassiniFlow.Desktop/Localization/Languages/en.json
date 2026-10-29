@@ -1,4 +1,4 @@
-{
+﻿{
     "App": {
         "Title": "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
     },
@@ -188,9 +188,17 @@
         "FormatTiff": "TIFF - 8/16-bit image",
         "FormatFits": "FITS - Scientific astronomy format",
         "KeepFps": "Keep the source video frame rate (FPS)",
+        "KeepFpsTip": "Preserve original frames per second for generated video",
         "CustomFps": "Custom FPS:",
+        "StackingFormatTitle": "Stacked Image Format (Single output)",
+        "StackingFormatTiff": "TIFF 16-bit (Recommended - Astronomy standard)",
+        "StackingFormatFits": "FITS (Scientific astronomy format)",
+        "StackingFormatPng": "PNG 16-bit (Universal uncompressed image)",
+        "StackingFormatHint": "Stacking produces a single high-dynamic-range composite image from the fusion of the best frames.",
         "FileSuffix": "File suffix:",
+        "FileSuffixTip": "Suffix appended to the end of each generated file name",
         "WinJuposNaming": "WinJUPOS-compatible naming",
+        "WinJuposNamingTip": "Generates a filename with date, mid-time, and planet to ease derotation in WinJUPOS",
         "DestinationFolder": "Destination Folder",
         "DefaultFolderHint": "By default, a \u0027CassiniFlow_YYYYMMDD_HHMMss\u0027 sub-folder is created next to your source video.",
         "FolderWatermark": "Leave empty to create the folder next to the source file...",

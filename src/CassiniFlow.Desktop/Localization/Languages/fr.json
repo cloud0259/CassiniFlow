@@ -1,4 +1,4 @@
-{
+﻿{
     "App": {
         "Title": "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
     },
@@ -177,23 +177,31 @@
         "ReversePlayTip": "Joue les frames en sens inverse après la lecture directe",
         "RepeatCount": "Nombre de répétitions de la séquence complète :"
     },
-    "OutputOptions": {
+"OutputOptions": {
         "FormatTitle": "Format du Fichier de Sortie",
-        "FormatAvi": "AVI — Vidéo standard compatible lecteurs et moteurs de traitement plantaire",
-        "FormatMp4": "MP4 — Vidéo MPEG-4 universelle compatible VLC et tous lecteurs",
-        "FormatSer": "SER — Format astronomique sans perte",
+        "FormatAvi": "AVI \u2014 Vid\u00e9o standard compatible lecteurs et moteurs de traitement plan\u00e9taire",
+        "FormatMp4": "MP4 \u2014 Vid\u00e9o MPEG-4 universelle compatible VLC et tous lecteurs",
+        "FormatSer": "SER \u2014 Format astronomique sans perte",
         "FormatSerTip": "Flux astronomique 8/16-bit sans perte haute dynamique",
-        "FormatBmp": "BMP — Image / Séquence 24-bit",
-        "FormatPng": "PNG — Image sans perte",
-        "FormatTiff": "TIFF — Image 8/16-bit",
-        "FormatFits": "FITS — Format scientifique astronomique",
-        "KeepFps": "Conserver la cadence (FPS) de la vidéo source",
-        "CustomFps": "FPS personnalisé :",
+        "FormatBmp": "BMP \u2014 Image / S\u00e9quence 24-bit",
+        "FormatPng": "PNG \u2014 Image sans perte",
+        "FormatTiff": "TIFF \u2014 Image 8/16-bit",
+        "FormatFits": "FITS \u2014 Format scientifique astronomique",
+        "KeepFps": "Conserver la cadence (FPS) de la vid\u00e9o source",
+        "KeepFpsTip": "Conserver le nombre d\u0027images par seconde d\u0027origine pour la vid\u00e9o g\u00e9n\u00e9r\u00e9e",
+        "CustomFps": "FPS personnalis\u00e9 :",
+        "StackingFormatTitle": "Format d\u0027image empil\u00e9e (Sortie unique)",
+        "StackingFormatTiff": "TIFF 16-bit (Recommand\u00e9 - Standard astronomique)",
+        "StackingFormatFits": "FITS (Format scientifique astronomique)",
+        "StackingFormatPng": "PNG 16-bit (Image universelle non compress\u00e9e)",
+        "StackingFormatHint": "L\u0027empilement produit une image composite haute dynamique unique issue de la fusion des meilleures trames.",
         "FileSuffix": "Suffixe fichier :",
+        "FileSuffixTip": "Suffixe ajout\u00e9 \u00e0 la fin du nom de chaque fichier g\u00e9n\u00e9r\u00e9",
         "WinJuposNaming": "Nommage compatible WinJUPOS",
+        "WinJuposNamingTip": "G\u00e9n\u00e8re un nom de fichier contenant la date, l\u0027heure m\u00e9diane et la plan\u00e8te pour faciliter la d\u00e9rotation sous WinJUPOS",
         "DestinationFolder": "Dossier de Destination",
-        "DefaultFolderHint": "Par défaut, un sous-dossier \u0027CassiniFlow_YYYYMMDD_HHMMss\u0027 est créé à côté de votre vidéo source.",
-        "FolderWatermark": "Laisser vide pour créer le dossier à côté du fichier source...",
+        "DefaultFolderHint": "Par d\u00e9faut, un sous-dossier \u0027CassiniFlow_YYYYMMDD_HHMMss\u0027 est cr\u00e9\u00e9 \u00e0 c\u00f4t\u00e9 de votre vid\u00e9o source.",
+        "FolderWatermark": "Laisser vide pour cr\u00e9er le dossier \u00e0 c\u00f4t\u00e9 du fichier source...",
         "Browse": "Parcourir...",
         "OpenFolder": "Ouvrir le dossier"
     },

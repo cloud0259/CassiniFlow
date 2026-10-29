@@ -122,4 +122,24 @@ public class LocalizationTests
 
         Loc.SetLanguage(AppLanguage.French, save: false);
     }
+
+    [Fact]
+    public void Loc_OutputOptions_HasCompleteTranslationsInFrenchAndEnglish()
+    {
+        Loc.SetLanguage(AppLanguage.French, save: false);
+        Assert.Contains("empil", Loc.Get("OutputOptions.StackingFormatTitle"));
+        Assert.Contains("TIFF 16-bit", Loc.Get("OutputOptions.StackingFormatTiff"));
+        Assert.Contains("FITS", Loc.Get("OutputOptions.StackingFormatFits"));
+        Assert.Contains("PNG 16-bit", Loc.Get("OutputOptions.StackingFormatPng"));
+        Assert.Contains("fusion des meilleures trames", Loc.Get("OutputOptions.StackingFormatHint"));
+
+        Loc.SetLanguage(AppLanguage.English, save: false);
+        Assert.Equal("Stacked Image Format (Single output)", Loc.Get("OutputOptions.StackingFormatTitle"));
+        Assert.Contains("TIFF 16-bit", Loc.Get("OutputOptions.StackingFormatTiff"));
+        Assert.Contains("FITS", Loc.Get("OutputOptions.StackingFormatFits"));
+        Assert.Contains("PNG 16-bit", Loc.Get("OutputOptions.StackingFormatPng"));
+        Assert.Contains("fusion of the best frames", Loc.Get("OutputOptions.StackingFormatHint"));
+
+        Loc.SetLanguage(AppLanguage.French, save: false);
+    }
 }
