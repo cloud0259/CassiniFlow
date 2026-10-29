@@ -1,4 +1,4 @@
-{
+﻿{
     "App":  {
                 "Title":  "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
             },
@@ -151,8 +151,8 @@
                            "QualityWeighting":  "Weight the best frames (Quality Weighting)",
                            "LimitBestFrames":  "Limit the number of best frames kept",
                            "LimitingMode":  "Limiting mode:",
-                           "LimitFixed":  "Keep a fixed number of frames (Number of Frames)",
-                           "LimitPercent":  "Keep a percentage of the best frames (Percentage %)",
+                           "LimitFixed": "Fixed number of frames",
+                           "LimitPercent": "Percentage of best frames (%)",
                            "ValueToKeep":  "Value to keep:"
                        },
     "AnimationOptions":  {
@@ -293,6 +293,29 @@
                       "ClearPoints":  "Clear points",
                       "PointsActive":  "{0} active points out of {1}"
                   },
+    "StackingStab": {
+        "ImageStabilization": "Image Stabilization",
+        "Surface": "Surface",
+        "PlanetCog": "Planet (COG)",
+        "DisableStabilization": "Disable Stabilization",
+        "DisableStabilizationTip": "Check if the video is already pre-stabilized or cropped",
+        "CanvasMode": "Canvas Mode:",
+        "Crop": "Crop",
+        "Expand": "Expand",
+        "QualityEstimator": "Quality Estimator",
+        "NoiseRobust": "Noise Robust (SNR):",
+        "QualityScope": "Analysis Scope:",
+        "LocalAp": "Local (AP)",
+        "GlobalFrame": "Global (Frame)",
+        "LocalApTip": "Evaluates quality and ranks best frames independently for each Alignment Point",
+        "GlobalFrameTip": "Assigns a single quality score to the entire frame",
+        "ReferenceFrame": "Reference Frame",
+        "DoubleStackReference": "Double Stack Reference",
+        "DoubleStackReferenceTip": "Pre-stacks the top frames to create a crisp, noise-free reference",
+        "ReferenceAuto": "Automatic",
+        "ReferenceManual": "Manual",
+        "ManualFrameIndex": "Frame Index:"
+    },
     "Stacking":  {
                      "Percentages":  "Stacking tiers (% and count):",
                      "PercentagesHint":  "Generates a distinct file for each tier above 0%.",

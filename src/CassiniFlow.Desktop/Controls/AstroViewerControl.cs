@@ -198,7 +198,7 @@ public sealed class AstroViewerControl : Control
     {
         if (vm.IsAlignmentGridVisible && vm.CurrentAlignmentGrid is not null && vm.CurrentAlignmentGrid.Points.Count > 0)
         {
-            DrawAlignmentGridOverlay(context, vm.CurrentAlignmentGrid, destRect, displayScale, fullToScreenScale);
+            DrawAlignmentGridOverlay(context, vm, vm.CurrentAlignmentGrid, destRect, displayScale, fullToScreenScale);
         }
 
         if (!vm.ShowOverlayBoxes || vm.PreviewCroppedOutput || _renderedDetection is null)
@@ -223,34 +223,81 @@ public sealed class AstroViewerControl : Control
         }
     }
 
-    private static void DrawAlignmentGridOverlay(
+    private void DrawAlignmentGridOverlay(
         DrawingContext context,
+        MainWindowViewModel vm,
         AlignmentGrid grid,
         Rect destRect,
         double displayScale,
         double fullToScreenScale)
     {
+        double cropOffsetX = 0;
+        double cropOffsetY = 0;
+
+        if (_renderedFrame is not null && grid.FrameWidth > 0 && grid.FrameHeight > 0)
+        {
+            bool isCurrentCropped = vm.PreviewCroppedOutput;
+            bool wasGridCropped = grid.FrameWidth == _renderedFrame.Width && grid.FrameHeight == _renderedFrame.Height;
+
+            if (isCurrentCropped && !wasGridCropped)
+            {
+                int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidX
+                    : grid.FrameWidth / 2;
+                int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidY
+                    : grid.FrameHeight / 2;
+
+                cropOffsetX = targetX - (_renderedFrame.Width / 2.0) - vm.CropOffsetX;
+                cropOffsetY = targetY - (_renderedFrame.Height / 2.0) - vm.CropOffsetY;
+            }
+            else if (!isCurrentCropped && wasGridCropped)
+            {
+                int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidX
+                    : _renderedFrame.Width / 2;
+                int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidY
+                    : _renderedFrame.Height / 2;
+
+                cropOffsetX = -(targetX - (grid.FrameWidth / 2.0) - vm.CropOffsetX);
+                cropOffsetY = -(targetY - (grid.FrameHeight / 2.0) - vm.CropOffsetY);
+            }
+        }
+
         foreach (var ap in grid.Points)
         {
-            double cx = destRect.X + (ap.X * displayScale);
-            double cy = destRect.Y + (ap.Y * displayScale);
+            // Ne pas afficher les points élagués (ciel noir) pour éviter l'encombrement visuel
+            if (!ap.IsActive)
+                continue;
+
+            double localX = ap.X - cropOffsetX;
+            double localY = ap.Y - cropOffsetY;
+
+            // Vérifier que le point se situe dans la zone de rendu active
+            if (_renderedFrame is not null && (localX < 0 || localX > _renderedFrame.Width || localY < 0 || localY > _renderedFrame.Height))
+                continue;
+
+            double cx = destRect.X + (localX * displayScale);
+            double cy = destRect.Y + (localY * displayScale);
             double halfSize = (ap.Size / 2.0) * fullToScreenScale;
 
-            var pen = ap.IsActive ? ActiveApPen : PrunedApPen;
-            context.DrawRectangle(null, pen, new Rect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2));
-
-            if (ap.IsActive)
-            {
-                context.DrawEllipse(ActiveApPen.Brush, null, new Point(cx, cy), 1.5, 1.5);
-            }
+            context.DrawRectangle(null, ActiveApPen, new Rect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2));
+            context.DrawEllipse(ActiveApPen.Brush, null, new Point(cx, cy), 1.5, 1.5);
         }
 
         if (grid.AnchorPoint.X >= 0 && grid.AnchorPoint.Y >= 0)
         {
-            double ax = destRect.X + (grid.AnchorPoint.X * displayScale);
-            double ay = destRect.Y + (grid.AnchorPoint.Y * displayScale);
-            context.DrawEllipse(null, AnchorPen, new Point(ax, ay), 6, 6);
-            context.DrawEllipse(AnchorPen.Brush, null, new Point(ax, ay), 2, 2);
+            double localAnchorX = grid.AnchorPoint.X - cropOffsetX;
+            double localAnchorY = grid.AnchorPoint.Y - cropOffsetY;
+
+            if (_renderedFrame is null || (localAnchorX >= 0 && localAnchorX <= _renderedFrame.Width && localAnchorY >= 0 && localAnchorY <= _renderedFrame.Height))
+            {
+                double ax = destRect.X + (localAnchorX * displayScale);
+                double ay = destRect.Y + (localAnchorY * displayScale);
+                context.DrawEllipse(null, AnchorPen, new Point(ax, ay), 6, 6);
+                context.DrawEllipse(AnchorPen.Brush, null, new Point(ax, ay), 2, 2);
+            }
         }
     }
 

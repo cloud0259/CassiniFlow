@@ -179,12 +179,14 @@
                                     <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
                                         <TextBlock Text="{Binding Section1BadgeText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Grid.Column="1" Text="Mode &amp; Presets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Section1Title}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                                 </Grid>
                             </Expander.Header>
                             <Border Padding="10,8">
                                 <StackPanel Spacing="10">
-                                    <!-- Mode de traitement -->
+                                    <!-- Affiche Mode/Presets/Plage uniquement si NON StackingOnly -->
+                                    <StackPanel Spacing="10" IsVisible="{Binding !IsWorkflowStackingOnly}">
+                                        <!-- Mode de traitement -->
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="{loc:Tr SourceFiles.ModeTitle}" Classes="label" FontWeight="SemiBold"/>
                                         <RadioButton Content="{loc:Tr SourceFiles.BatchMode}" IsChecked="{Binding IsBatchMode}" FontSize="12" Margin="0,2"/>
@@ -227,9 +229,14 @@
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
+                                    <Separator Background="{DynamicResource AppBorderBrush}" IsVisible="{Binding IsWorkflowDirectStreamAllInOne}"/>
                                 </StackPanel>
-                            </Border>
-                        </Expander>
+
+                                <!-- Options d'alignement, qualite et reference (style AutoStakkert) -->
+                                <views:StackingReferenceOptionsView IsVisible="{Binding !IsWorkflowPreProcessingOnly}"/>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
 
                         <!-- CARTE 2 : CALIBRATION & ENTRÉE -->
                         <Expander Classes="accordion-card" IsExpanded="{Binding IsSection2Expanded}" IsVisible="{Binding IsSection2Visible}" IsEnabled="{Binding !IsProcessing}">

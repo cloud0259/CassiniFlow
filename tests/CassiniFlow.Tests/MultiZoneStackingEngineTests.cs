@@ -52,6 +52,65 @@ public class MultiZoneStackingEngineTests
     }
 
     [Fact]
+    public void AlignmentGridGenerator_IsSymmetricAndDenseAroundAnchor_OnNonSquareFrame()
+    {
+        // Simulation d'une vidéo 360x640 avec un astre centré à (180, 320) de rayon 130
+        int w = 360;
+        int h = 640;
+        int cx = 180;
+        int cy = 320;
+        int radius = 130;
+
+        var frame = new AstroFrame(w, h, 1, 16)
+        {
+            DetectedCentroidX = cx,
+            DetectedCentroidY = cy
+        };
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - cx;
+                int dy = y - cy;
+                if (dx * dx + dy * dy <= radius * radius)
+                {
+                    frame.Data[y * w + x] = 45000; // Corps lunaire brillant
+                }
+            }
+        }
+
+        var options = new StackingOptions
+        {
+            AlignmentTileSize = 64,
+            MinBrightnessThreshold = 15,
+            EnablePruning = true,
+            EnableMultiScaleGrid = false
+        };
+
+        var grid = AlignmentGridGenerator.GenerateGrid(frame, options);
+
+        Assert.Equal(w, grid.FrameWidth);
+        Assert.Equal(h, grid.FrameHeight);
+
+        var activePoints = grid.Points.Where(p => p.IsActive).ToList();
+        Assert.NotEmpty(activePoints);
+
+        // Vérification de la parfaite symétrie horizontale par rapport au centre de l'astre (180)
+        int minX = activePoints.Min(p => p.X);
+        int maxX = activePoints.Max(p => p.X);
+        Assert.Equal(180 - minX, maxX - 180);
+
+        // Vérification que le limbe droit de la Lune (x ~ 308) est bien couvert par des points d'alignement
+        Assert.True(maxX >= 300, $"Le limbe droit doit être couvert (maxX = {maxX})");
+
+        // Vérification de la parfaite symétrie verticale par rapport au centre (320)
+        int minY = activePoints.Min(p => p.Y);
+        int maxY = activePoints.Max(p => p.Y);
+        Assert.Equal(320 - minY, maxY - 320);
+    }
+
+    [Fact]
     public void ConvolutionSharpeningFilter_EnhancesContrastWithoutDistortion()
     {
         var frame = new AstroFrame(64, 64, 3, 16);

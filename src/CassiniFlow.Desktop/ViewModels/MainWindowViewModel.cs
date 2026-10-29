@@ -889,6 +889,13 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isWorkflowStackingOnly;
     [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
 
+    public string Section1Title => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => Loc.Pick("Stabilisation & Référence", "Stabilisation & Reference"),
+        StackingWorkflowMode.DirectStreamAllInOne => Loc.Pick("Mode, Presets & Référence", "Mode, Presets & Reference"),
+        _ => Loc.Pick("Mode & Presets", "Mode & Presets")
+    };
+
     public bool IsSection1Visible => true;
     public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
@@ -921,6 +928,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnWorkflowModeChanged(StackingWorkflowMode value)
     {
+        IsWorkflowPreProcessingOnly = value == StackingWorkflowMode.PreProcessingOnly;
+        IsWorkflowStackingOnly = value == StackingWorkflowMode.StackingOnly;
+        IsWorkflowDirectStreamAllInOne = value == StackingWorkflowMode.DirectStreamAllInOne;
+
+        OnPropertyChanged(nameof(Section1Title));
         OnPropertyChanged(nameof(IsSection1Visible));
         OnPropertyChanged(nameof(IsSection2Visible));
         OnPropertyChanged(nameof(IsSection3Visible));
@@ -967,6 +979,106 @@ public partial class MainWindowViewModel : ObservableObject
                (IsSection9Visible && IsSection9Expanded);
     }
 
+    // --- Options d'Alignement Global, Qualité & Référence (AutoStakkert style) ---
+    [ObservableProperty] private StackingStabilisationMode _stackingStabilisationMode = StackingStabilisationMode.PlanetCog;
+    [ObservableProperty] private bool _disableStabilisation = false;
+    [ObservableProperty] private StackingCanvasMode _stackingCanvasMode = StackingCanvasMode.Crop;
+    [ObservableProperty] private int _noiseRobust = 2;
+    [ObservableProperty] private QualityAnalysisScope _qualityScope = QualityAnalysisScope.LocalAp;
+    [ObservableProperty] private bool _doubleStackReference = true;
+    [ObservableProperty] private ReferenceFrameMode _referenceFrameMode = ReferenceFrameMode.Automatic;
+    [ObservableProperty] private int _manualReferenceFrameIndex = 0;
+
+    partial void OnStackingStabilisationModeChanged(StackingStabilisationMode value)
+    {
+        OnPropertyChanged(nameof(IsStabilisationPlanetCog));
+        OnPropertyChanged(nameof(IsStabilisationSurface));
+    }
+
+    partial void OnStackingCanvasModeChanged(StackingCanvasMode value)
+    {
+        OnPropertyChanged(nameof(IsCanvasCrop));
+        OnPropertyChanged(nameof(IsCanvasExpand));
+    }
+
+    partial void OnNoiseRobustChanged(int value)
+    {
+        OnPropertyChanged(nameof(NoiseRobustText));
+    }
+
+    partial void OnQualityScopeChanged(QualityAnalysisScope value)
+    {
+        OnPropertyChanged(nameof(IsQualityLocalAp));
+        OnPropertyChanged(nameof(IsQualityGlobalFrame));
+    }
+
+    partial void OnReferenceFrameModeChanged(ReferenceFrameMode value)
+    {
+        OnPropertyChanged(nameof(IsReferenceAutomatic));
+        OnPropertyChanged(nameof(IsReferenceManual));
+    }
+
+    public bool IsStabilisationPlanetCog
+    {
+        get => StackingStabilisationMode == StackingStabilisationMode.PlanetCog;
+        set { if (value) StackingStabilisationMode = StackingStabilisationMode.PlanetCog; }
+    }
+
+    public bool IsStabilisationSurface
+    {
+        get => StackingStabilisationMode == StackingStabilisationMode.Surface;
+        set { if (value) StackingStabilisationMode = StackingStabilisationMode.Surface; }
+    }
+
+    public bool IsCanvasCrop
+    {
+        get => StackingCanvasMode == StackingCanvasMode.Crop;
+        set { if (value) StackingCanvasMode = StackingCanvasMode.Crop; }
+    }
+
+    public bool IsCanvasExpand
+    {
+        get => StackingCanvasMode == StackingCanvasMode.Expand;
+        set { if (value) StackingCanvasMode = StackingCanvasMode.Expand; }
+    }
+
+    public bool IsQualityLocalAp
+    {
+        get => QualityScope == QualityAnalysisScope.LocalAp;
+        set { if (value) QualityScope = QualityAnalysisScope.LocalAp; }
+    }
+
+    public bool IsQualityGlobalFrame
+    {
+        get => QualityScope == QualityAnalysisScope.GlobalFrame;
+        set { if (value) QualityScope = QualityAnalysisScope.GlobalFrame; }
+    }
+
+    public bool IsReferenceAutomatic
+    {
+        get => ReferenceFrameMode == ReferenceFrameMode.Automatic;
+        set { if (value) ReferenceFrameMode = ReferenceFrameMode.Automatic; }
+    }
+
+    public bool IsReferenceManual
+    {
+        get => ReferenceFrameMode == ReferenceFrameMode.Manual;
+        set { if (value) ReferenceFrameMode = ReferenceFrameMode.Manual; }
+    }
+
+    public string NoiseRobustText => NoiseRobust switch
+    {
+        1 => Loc.Pick("1 — SNR maximal (Lune / Soleil net)", "1 — Max SNR (Sharp Moon/Sun)"),
+        2 => Loc.Pick("2 — SNR très élevé (Défaut)", "2 — Very high SNR (Default)"),
+        3 => Loc.Pick("3 — SNR élevé (Planétaire standard)", "3 — High SNR (Standard planetary)"),
+        4 => Loc.Pick("4 — Bruit modéré (Gain moyen)", "4 — Moderate noise (Medium gain)"),
+        5 => Loc.Pick("5 — Bruit moyen (Forte amplification)", "5 — Medium noise (High gain)"),
+        6 => Loc.Pick("6 — Faible SNR (Cible sombre / Saturne)", "6 — Low SNR (Dark target / Saturn)"),
+        7 => Loc.Pick("7 — Très faible SNR (Turbulence / Faint)", "7 — Very low SNR (Turbulence / Faint)"),
+        8 => Loc.Pick("8 — Bruit extrême (Ultra faible luminosité)", "8 — Extreme noise (Ultra faint)"),
+        _ => $"{NoiseRobust}"
+    };
+
     // --- Points d'alignement (AP) ---
     [ObservableProperty] private bool _isAlignmentGridVisible = true;
     [ObservableProperty] private AlignmentGrid _currentAlignmentGrid = AlignmentGrid.Empty;
@@ -986,7 +1098,7 @@ public partial class MainWindowViewModel : ObservableObject
         ? $"{CurrentAlignmentGrid.ActiveCount} AP" 
         : "-";
 
-    // --- Format Image EmpilÃ©e (Sortie unique) ---
+    // --- Format Image Empilee (Sortie unique) ---
     [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
 
     // --- Empilement Multi-Zones & Rendu ---
@@ -1302,6 +1414,17 @@ public partial class MainWindowViewModel : ObservableObject
 
                 _lastProcessedPreviewFrame = processed;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
+
+                if (IsAlignmentGridVisible && CurrentAlignmentGrid.Points.Count > 0 &&
+                    (CurrentAlignmentGrid.FrameWidth != processed.Width || CurrentAlignmentGrid.FrameHeight != processed.Height))
+                {
+                    var updatedGrid = AlignmentGridGenerator.GenerateGrid(processed, optionsSnapshot.Stacking);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        CurrentAlignmentGrid = updatedGrid;
+                        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -1391,6 +1514,14 @@ public partial class MainWindowViewModel : ObservableObject
         Options.MaxCpuUsagePercent = Math.Clamp(MaxCpuUsagePercent, 10, 100);
 
         Options.Stacking.WorkflowMode = WorkflowMode;
+        Options.Stacking.StabilisationMode = StackingStabilisationMode;
+        Options.Stacking.DisableStabilisation = DisableStabilisation;
+        Options.Stacking.CanvasMode = StackingCanvasMode;
+        Options.Stacking.NoiseRobust = NoiseRobust;
+        Options.Stacking.QualityScope = QualityScope;
+        Options.Stacking.DoubleStackReference = DoubleStackReference;
+        Options.Stacking.ReferenceMode = ReferenceFrameMode;
+        Options.Stacking.ManualReferenceFrameIndex = ManualReferenceFrameIndex;
         Options.Stacking.AlignmentTileSize = AlignmentTileSize;
         Options.Stacking.MinBrightnessThreshold = MinBrightnessThreshold;
         Options.Stacking.EnablePruning = EnablePruning;

@@ -7,6 +7,20 @@ public sealed class StackingOptions
 {
     public StackingWorkflowMode WorkflowMode { get; set; } = StackingWorkflowMode.PreProcessingOnly;
 
+    // Stabilisation & Alignement global (AutoStakkert reverse engineered)
+    public StackingStabilisationMode StabilisationMode { get; set; } = StackingStabilisationMode.PlanetCog;
+    public bool DisableStabilisation { get; set; } = false;
+    public StackingCanvasMode CanvasMode { get; set; } = StackingCanvasMode.Crop;
+
+    // Estimateur de Qualité & Robustesse au bruit (SNR)
+    public int NoiseRobust { get; set; } = 2; // 1 (Very high SNR) à 8 (Very low SNR)
+    public QualityAnalysisScope QualityScope { get; set; } = QualityAnalysisScope.LocalAp;
+
+    // Trame de Référence & Double Stack
+    public bool DoubleStackReference { get; set; } = true;
+    public ReferenceFrameMode ReferenceMode { get; set; } = ReferenceFrameMode.Automatic;
+    public int ManualReferenceFrameIndex { get; set; } = 0;
+
     // Points d'alignement
     public int AlignmentTileSize { get; set; } = 104;
     public int MinBrightnessThreshold { get; set; } = 15;
@@ -31,6 +45,14 @@ public sealed class StackingOptions
         return new StackingOptions
         {
             WorkflowMode = WorkflowMode,
+            StabilisationMode = StabilisationMode,
+            DisableStabilisation = DisableStabilisation,
+            CanvasMode = CanvasMode,
+            NoiseRobust = NoiseRobust,
+            QualityScope = QualityScope,
+            DoubleStackReference = DoubleStackReference,
+            ReferenceMode = ReferenceMode,
+            ManualReferenceFrameIndex = ManualReferenceFrameIndex,
             AlignmentTileSize = AlignmentTileSize,
             MinBrightnessThreshold = MinBrightnessThreshold,
             EnablePruning = EnablePruning,

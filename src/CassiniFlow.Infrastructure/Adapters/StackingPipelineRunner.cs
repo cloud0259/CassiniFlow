@@ -94,7 +94,10 @@ public static class StackingPipelineRunner
                             return;
                         }
 
-                        double score = StabilisationAndQualityEngine.ComputeQualityScore(work, options.QualityAlgorithm);
+                        double score = StabilisationAndQualityEngine.ComputeQualityScore(
+                            work,
+                            options.QualityAlgorithm,
+                            noiseRobust: options.Stacking.NoiseRobust);
                         records[i] = new FrameScoreRecord(i, score, cx, cy);
 
                         lock (lockObj)
@@ -150,7 +153,8 @@ public static class StackingPipelineRunner
 
                         double score = StabilisationAndQualityEngine.ComputeQualityScore(
                             workFrame,
-                            options.QualityAlgorithm);
+                            options.QualityAlgorithm,
+                            noiseRobust: options.Stacking.NoiseRobust);
 
                         scoreRecords.Add(new FrameScoreRecord(raw.FrameIndex, score, cx, cy));
 
@@ -181,6 +185,33 @@ public static class StackingPipelineRunner
 
                 // Tri décroissant par qualité
                 scoreRecords.Sort((a, b) => b.QualityScore.CompareTo(a.QualityScore));
+
+                // Sélection de la trame de référence (Automatique ou Manuelle)
+                if (options.Stacking.ReferenceMode == ReferenceFrameMode.Manual)
+                {
+                    int targetIdx = Math.Clamp(options.Stacking.ManualReferenceFrameIndex, 0, scoreRecords.Count - 1);
+                    var manualRecord = scoreRecords.FirstOrDefault(r => r.FrameIndex == targetIdx);
+                    if (ext == ".ser")
+                    {
+                        using var ser = new SerFile(file);
+                        var rawManual = ser.ReadFrame(manualRecord.FrameIndex, options.SerBitDepthOverride);
+                        bestRefFrame = PrepareFrame(rawManual, options, out _, out _, out _);
+                    }
+                }
+
+                // Génération de la trame de référence Double Stack (AutoStakkert Double Stack Reference)
+                if (options.Stacking.DoubleStackReference && scoreRecords.Count >= 3)
+                {
+                    progress?.Report(new PipelineProgressReport(
+                        "Trame de Référence",
+                        46,
+                        fileName,
+                        0,
+                        scoreRecords.Count,
+                        "Synthèse de la trame de référence Double Stack (élimination du bruit de grenaille)..."));
+
+                    bestRefFrame = CreateDoubleStackReference(file, ext, scoreRecords, bestRefFrame, options);
+                }
 
                 // Détermination des paliers d'empilement
                 var activePercentages = options.Stacking.StackPercentages.Where(p => p > 0).Distinct().OrderBy(p => p).ToList();
@@ -369,8 +400,15 @@ public static class StackingPipelineRunner
     {
         var workFrame = PrepareFrame(raw, options, out _, out _, out _);
 
-        // 1. Décalage global
-        var (globalDx, globalDy) = FastCrossCorrelation.ComputeShift(workFrame, bestRefFrame);
+        // 1. Décalage global (désactivable si vidéo pré-stabilisée style AutoStakkert)
+        double globalDx = 0.0;
+        double globalDy = 0.0;
+        if (!options.Stacking.DisableStabilisation)
+        {
+            var (gdx, gdy) = FastCrossCorrelation.ComputeShift(workFrame, bestRefFrame);
+            globalDx = gdx;
+            globalDy = gdy;
+        }
 
         // 2. Décalages locaux multi-zones parallélisés sur tous les cœurs CPU
         var activePoints = grid.Points.Where(p => p.IsActive).ToList();
@@ -510,6 +548,114 @@ public static class StackingPipelineRunner
         }
 
         return false;
+    }
+
+    private static AstroFrame CreateDoubleStackReference(
+        string file,
+        string ext,
+        IReadOnlyList<FrameScoreRecord> sortedRecords,
+        AstroFrame initialBest,
+        ProcessingOptions options)
+    {
+        int countToAverage = Math.Clamp(Math.Min(10, Math.Max(3, sortedRecords.Count / 10)), 3, sortedRecords.Count);
+        int w = initialBest.Width;
+        int h = initialBest.Height;
+        int ch = initialBest.Channels;
+        int totalPixels = w * h;
+
+        double[] accum = new double[totalPixels * ch];
+        double[] counts = new double[totalPixels];
+
+        AccumulateToRefBuffer(accum, counts, initialBest, 0, 0, w, h, ch);
+
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(file);
+            for (int i = 1; i < countToAverage; i++)
+            {
+                var raw = ser.ReadFrame(sortedRecords[i].FrameIndex, options.SerBitDepthOverride);
+                var work = PrepareFrame(raw, options, out _, out _, out bool ok);
+                if (!ok) continue;
+
+                var (dx, dy) = FastCrossCorrelation.ComputeShift(work, initialBest);
+                AccumulateToRefBuffer(accum, counts, work, (int)Math.Round(dx), (int)Math.Round(dy), w, h, ch);
+            }
+        }
+        else
+        {
+            var wantedSet = new HashSet<int>(sortedRecords.Take(countToAverage).Skip(1).Select(r => r.FrameIndex));
+            foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
+            {
+                if (!wantedSet.Contains(raw.FrameIndex)) continue;
+                var work = PrepareFrame(raw, options, out _, out _, out bool ok);
+                if (!ok) continue;
+
+                var (dx, dy) = FastCrossCorrelation.ComputeShift(work, initialBest);
+                AccumulateToRefBuffer(accum, counts, work, (int)Math.Round(dx), (int)Math.Round(dy), w, h, ch);
+            }
+        }
+
+        ushort[] outData = new ushort[accum.Length];
+        for (int p = 0; p < totalPixels; p++)
+        {
+            double c = counts[p];
+            if (c > 0)
+            {
+                for (int cIdx = 0; cIdx < ch; cIdx++)
+                {
+                    outData[p * ch + cIdx] = (ushort)Math.Clamp(Math.Round(accum[p * ch + cIdx] / c), 0, 65535);
+                }
+            }
+            else
+            {
+                for (int cIdx = 0; cIdx < ch; cIdx++)
+                {
+                    outData[p * ch + cIdx] = initialBest.Data[p * ch + cIdx];
+                }
+            }
+        }
+
+        var refFrame = new AstroFrame(w, h, ch, originalBitDepth: 16);
+        Array.Copy(outData, refFrame.Data, outData.Length);
+        return ConvolutionSharpeningFilter.ApplySharpening(refFrame, blendPercent: 12);
+    }
+
+    private static unsafe void AccumulateToRefBuffer(
+        double[] accum,
+        double[] counts,
+        AstroFrame frame,
+        int dx,
+        int dy,
+        int w,
+        int h,
+        int ch)
+    {
+        fixed (ushort* src = frame.Data)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                int srcY = y - dy;
+                if (srcY < 0 || srcY >= h) continue;
+
+                int rowOffset = y * w;
+                int srcRowOffset = srcY * w;
+
+                for (int x = 0; x < w; x++)
+                {
+                    int srcX = x - dx;
+                    if (srcX < 0 || srcX >= w) continue;
+
+                    int pDst = rowOffset + x;
+                    int pSrc = srcRowOffset + srcX;
+
+                    for (int c = 0; c < ch; c++)
+                    {
+                        accum[pDst * ch + c] += src[pSrc * ch + c];
+                    }
+                    counts[pDst] += 1.0;
+                }
+            }
+        }
     }
 
     private sealed class StackingTier

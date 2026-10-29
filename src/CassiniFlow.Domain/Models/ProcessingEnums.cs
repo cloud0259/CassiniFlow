@@ -197,3 +197,28 @@ public enum DrizzleScale
     Drizzle15 = 1,
     Drizzle30 = 2
 }
+
+public enum StackingStabilisationMode
+{
+    PlanetCog = 0,
+    Surface = 1
+}
+
+public enum StackingCanvasMode
+{
+    Crop = 0,
+    Expand = 1
+}
+
+public enum QualityAnalysisScope
+{
+    LocalAp = 0,
+    GlobalFrame = 1
+}
+
+public enum ReferenceFrameMode
+{
+    Automatic = 0,
+    Manual = 1
+}
+

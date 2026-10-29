@@ -33,9 +33,12 @@ public static class AlignmentGridGenerator
 
         int halfTile = tileSize / 2;
 
-        for (int y = halfTile; y < height - halfTile; y += step)
+        var xCoords = BuildSymmetricCoordinates(width, anchorX, halfTile, step);
+        var yCoords = BuildSymmetricCoordinates(height, anchorY, halfTile, step);
+
+        foreach (int y in yCoords)
         {
-            for (int x = halfTile; x < width - halfTile; x += step)
+            foreach (int x in xCoords)
             {
                 // Évaluation de la brillance moyenne (sur échelle 8-bit 0..255) et de la variance locale
                 (double avgBright8Bit, double variance) = ComputeTileMetrics(data, width, height, channels, x, y, halfTile);
@@ -56,7 +59,47 @@ public static class AlignmentGridGenerator
             }
         }
 
-        return new AlignmentGrid(tileSize, minBright, points, (anchorX, anchorY));
+        return new AlignmentGrid(tileSize, minBright, points, (anchorX, anchorY), width, height);
+    }
+
+    private static List<int> BuildSymmetricCoordinates(int length, int anchor, int halfTile, int step)
+    {
+        if (length <= 0) return [];
+        if (length <= halfTile * 2) return [length / 2];
+
+        int minCoord = halfTile;
+        int maxCoord = length - halfTile;
+
+        // Clamper l'ancre dans les bornes autorisées
+        anchor = Math.Clamp(anchor, minCoord, maxCoord);
+
+        var coords = new HashSet<int> { anchor };
+
+        // Déploiement symétrique vers la gauche / le haut depuis l'ancre
+        for (int c = anchor - step; c >= minCoord; c -= step)
+        {
+            coords.Add(c);
+        }
+
+        // Déploiement symétrique vers la droite / le bas depuis l'ancre
+        for (int c = anchor + step; c <= maxCoord; c += step)
+        {
+            coords.Add(c);
+        }
+
+        var sorted = coords.OrderBy(v => v).ToList();
+
+        // Couverture des bordures si l'écart restant jusqu'au bord dépasse la moitié d'un pas
+        if (sorted[0] - minCoord >= Math.Max(4, step / 2))
+        {
+            sorted.Insert(0, minCoord);
+        }
+        if (maxCoord - sorted[^1] >= Math.Max(4, step / 2))
+        {
+            sorted.Add(maxCoord);
+        }
+
+        return sorted;
     }
 
     private static (double AvgBrightness, double Variance) ComputeTileMetrics(

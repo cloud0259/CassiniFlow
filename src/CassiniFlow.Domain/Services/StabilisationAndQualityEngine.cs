@@ -266,7 +266,8 @@ public static class StabilisationAndQualityEngine
         QualityAlgorithm algorithm,
         int minSubsample = 3,
         int maxSubsample = 5,
-        int subsampleInc = 1)
+        int subsampleInc = 1,
+        int noiseRobust = 2)
     {
         int w = frame.Width;
         int h = frame.Height;
@@ -312,8 +313,9 @@ public static class StabilisationAndQualityEngine
                 case QualityAlgorithm.GradientSharpness:
                 default:
                 {
-                    int minSub = Math.Max(2, minSubsample);
-                    int maxSub = Math.Max(minSub, maxSubsample);
+                    int robustOffset = Math.Clamp(noiseRobust, 1, 8) - 2;
+                    int minSub = Math.Max(2, minSubsample + robustOffset);
+                    int maxSub = Math.Max(minSub, maxSubsample + robustOffset * 2);
                     int inc = Math.Max(1, subsampleInc);
 
                     double totalGrad = 0;
