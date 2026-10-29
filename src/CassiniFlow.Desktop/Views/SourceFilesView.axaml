@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -81,6 +81,7 @@
                                         <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding IdentifiedObjectBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppAccent}" Margin="0,0,8,0" IsVisible="{Binding HasIdentifiedObject}"/>
                                         <TextBlock Text="{Binding ExposureInfo, StringFormat='{}⏱ {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0" IsVisible="{Binding HasAstroDetails}"/>
                                         <TextBlock Text="{Binding IsoOrGainInfo}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" IsVisible="{Binding HasAstroDetails}"/>
                                     </WrapPanel>
@@ -92,13 +93,13 @@
                 <!-- Overlay de chargement (Bloque l'ajout d'autres fichiers et affiche l'avancement) -->
                 <Border Grid.Row="0" Grid.RowSpan="2"
                         Background="#E00B1120"
-                        IsVisible="{Binding IsLoadingFiles}"
+                        IsVisible="{Binding IsFileListBusy}"
                         CornerRadius="4"
                         ZIndex="100">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Margin="20">
                         <ProgressBar IsIndeterminate="True"
                                      Width="220" Height="6"/>
-                        <TextBlock Text="{Binding LoadingStatusText}"
+                        <TextBlock Text="{Binding BusyStatusText}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppAccent}"
@@ -136,6 +137,9 @@
                     <Grid ColumnDefinitions="*,*">
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.IsoOrGainInfo, StringFormat='Sensib. : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" IsVisible="{Binding SelectedSourceFile.HasIdentifiedObject}">
+                        <TextBlock Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding SelectedSourceFile.IdentifiedObjectSummary, StringFormat='Objet : {0}'}" FontSize="11" Foreground="{DynamicResource AppAccent}" FontWeight="SemiBold"/>
                     </Grid>
                     <Grid ColumnDefinitions="*,*" IsVisible="{Binding SelectedSourceFile.HasCameraInfo}">
                         <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.CameraInfo, StringFormat='Appareil : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis"/>
