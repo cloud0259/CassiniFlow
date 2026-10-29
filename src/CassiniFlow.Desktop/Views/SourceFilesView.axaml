@@ -51,7 +51,7 @@
             <Grid RowDefinitions="Auto,*">
                 <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="6,3">
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                        <CheckBox Grid.Column="0" IsChecked="{Binding AreAllFilesChecked}" Command="{Binding ToggleCheckAllFilesCommand}" MinWidth="0" VerticalAlignment="Center" Margin="0,0,0,0" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
+                        <CheckBox Grid.Column="0" IsChecked="{Binding AreAllFilesChecked, Mode=TwoWay}" IsThreeState="True" MinWidth="0" VerticalAlignment="Center" Margin="0,0,0,0" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
                         <TextBlock Grid.Column="1" Text="{loc:Tr SourceFiles.ColFileName}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         <TextBlock Grid.Column="2" Text="{Binding SourceFiles.Count, StringFormat='{}{0} item(s)'}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center"/>
                     </Grid>
