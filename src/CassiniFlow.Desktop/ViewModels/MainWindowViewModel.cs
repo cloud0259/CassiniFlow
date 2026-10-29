@@ -1714,6 +1714,14 @@ public partial class MainWindowViewModel : ObservableObject
             $"[{DateTime.Now:HH:mm:ss}] Traitement terminé avec succès.\nDernier fichier généré : {summary.OutputFilePath}",
             $"[{DateTime.Now:HH:mm:ss}] Processing finished successfully.\nLast file generated: {summary.OutputFilePath}");
         _processingLogLines.Add(finishMsg);
+
+        if (!string.IsNullOrWhiteSpace(summary.LogFilePath) && File.Exists(summary.LogFilePath))
+        {
+            string logMsg = Loc.Pick(
+                $"[{DateTime.Now:HH:mm:ss}] Journal d'exécution généré : {summary.LogFilePath}",
+                $"[{DateTime.Now:HH:mm:ss}] Execution log generated: {summary.LogFilePath}");
+            _processingLogLines.Add(logMsg);
+        }
         ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
     }
 
