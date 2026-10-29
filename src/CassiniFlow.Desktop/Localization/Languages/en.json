@@ -1,4 +1,4 @@
-﻿{
+{
     "App":  {
                 "Title":  "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
             },
@@ -291,7 +291,8 @@
                       "MultiScale":  "Adaptive multi-scale grid",
                       "PlacePoints":  "Place points",
                       "ClearPoints":  "Clear points",
-                      "PointsActive":  "{0} active points out of {1}"
+                      "PointsActive":  "{0} active points out of {1}",
+                      "ManualTip":  "Left-click on image to place a square, Right-click to remove."
                   },
     "StackingStab": {
         "ImageStabilization": "Image Stabilization",

@@ -62,6 +62,28 @@ public static class AlignmentGridGenerator
         return new AlignmentGrid(tileSize, minBright, points, (anchorX, anchorY), width, height);
     }
 
+    /// <summary>
+    /// Crée un point d'alignement manuel (AP) placé directement par l'utilisateur.
+    /// Évalue automatiquement le contraste et la brillance locale sur la tuile.
+    /// </summary>
+    public static AlignmentPoint CreateManualPoint(AstroFrame? frame, int id, int x, int y, int tileSize)
+    {
+        int halfTile = tileSize / 2;
+        double avgBright = 100.0;
+        double variance = 10.0;
+
+        if (frame is not null && frame.Data.Length > 0 && frame.Width > 0 && frame.Height > 0)
+        {
+            (avgBright, variance) = ComputeTileMetrics(frame.Data, frame.Width, frame.Height, frame.Channels, x, y, halfTile);
+        }
+
+        return new AlignmentPoint(id, x, y, tileSize, isActive: true)
+        {
+            Brightness = avgBright,
+            Contrast = variance
+        };
+    }
+
     private static List<int> BuildSymmetricCoordinates(int length, int anchor, int halfTile, int step)
     {
         if (length <= 0) return [];

@@ -111,6 +111,44 @@ public class MultiZoneStackingEngineTests
     }
 
     [Fact]
+    public void AlignmentGrid_ManualPointCreationAndRemoval_WorksCorrectly()
+    {
+        var frame = new AstroFrame(200, 200, 1, 16);
+        for (int y = 50; y < 150; y++)
+        {
+            for (int x = 50; x < 150; x++)
+            {
+                frame.Data[y * 200 + x] = 50000;
+            }
+        }
+
+        // 1. Création d'un point manuel via AlignmentGridGenerator
+        var manualPoint = AlignmentGridGenerator.CreateManualPoint(frame, 1, 100, 100, 48);
+        Assert.True(manualPoint.IsActive);
+        Assert.True(manualPoint.Brightness > 100);
+        Assert.Equal(100, manualPoint.X);
+        Assert.Equal(100, manualPoint.Y);
+        Assert.Equal(48, manualPoint.Size);
+
+        // 2. Initialisation d'une grille avec ce point
+        var grid = new AlignmentGrid(48, 15, [manualPoint], (100, 100), 200, 200);
+        Assert.Equal(1, grid.ActiveCount);
+        Assert.Equal(1, grid.TotalCount);
+
+        // 3. Ajout d'un deuxième point manuel
+        var secondPoint = AlignmentGridGenerator.CreateManualPoint(frame, 2, 120, 120, 48);
+        var updatedPoints = new List<AlignmentPoint>(grid.Points) { secondPoint };
+        var grid2 = new AlignmentGrid(48, 15, updatedPoints, (100, 100), 200, 200);
+        Assert.Equal(2, grid2.ActiveCount);
+
+        // 4. Suppression du premier point
+        var remainingPoints = grid2.Points.Where(p => p.Id != 1).ToList();
+        var grid3 = new AlignmentGrid(48, 15, remainingPoints, (100, 100), 200, 200);
+        Assert.Equal(1, grid3.ActiveCount);
+        Assert.Equal(2, grid3.Points[0].Id);
+    }
+
+    [Fact]
     public void ConvolutionSharpeningFilter_EnhancesContrastWithoutDistortion()
     {
         var frame = new AstroFrame(64, 64, 3, 16);

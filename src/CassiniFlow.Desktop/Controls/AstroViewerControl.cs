@@ -98,13 +98,60 @@ public sealed class AstroViewerControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        _isDragging = true;
-        UpdateTargetFromPointer(e.GetPosition(this));
+
+        if (DataContext is not MainWindowViewModel vm || _renderedFrame is null)
+            return;
+
+        var pt = e.GetPosition(this);
+        var pointerPoint = e.GetCurrentPoint(this);
+
+        // Si la grille d'alignement est visible : clic gauche pour placer un AP, clic droit pour en retirer un
+        if (vm.IsAlignmentGridVisible)
+        {
+            if (!_lastImageDestRect.Contains(pt))
+                return;
+
+            double displayScale = _lastImageDestRect.Width / _renderedFrame.Width;
+            double localX = (pt.X - _lastImageDestRect.X) / displayScale;
+            double localY = (pt.Y - _lastImageDestRect.Y) / displayScale;
+
+            var (cropOffX, cropOffY) = GetGridCropOffset(vm, vm.CurrentAlignmentGrid);
+            int gridX = (int)Math.Round(localX + cropOffX);
+            int gridY = (int)Math.Round(localY + cropOffY);
+
+            if (pointerPoint.Properties.IsLeftButtonPressed)
+            {
+                vm.AddManualAlignmentPoint(gridX, gridY);
+                InvalidateVisual();
+            }
+            else if (pointerPoint.Properties.IsRightButtonPressed)
+            {
+                vm.RemoveManualAlignmentPoint(gridX, gridY);
+                InvalidateVisual();
+            }
+
+            return; // Le cadre de crop ne bouge jamais lors de l'interaction avec les points d'alignement
+        }
+
+        // Si la grille d'alignement n'est pas active et que le mode Surface (AFB) est sélectionné
+        if (vm.SelectedStabilisationModeIndex == 2)
+        {
+            _isDragging = true;
+            UpdateTargetFromPointer(pt);
+        }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+
+        if (DataContext is MainWindowViewModel vm)
+        {
+            Cursor = vm.IsAlignmentGridVisible
+                ? new Cursor(StandardCursorType.Cross)
+                : Cursor.Default;
+        }
+
         if (_isDragging)
         {
             UpdateTargetFromPointer(e.GetPosition(this));
@@ -223,6 +270,44 @@ public sealed class AstroViewerControl : Control
         }
     }
 
+    private (double CropOffsetX, double CropOffsetY) GetGridCropOffset(MainWindowViewModel vm, AlignmentGrid? grid)
+    {
+        if (_renderedFrame is null || grid is null || grid.FrameWidth <= 0 || grid.FrameHeight <= 0)
+            return (0, 0);
+
+        bool isCurrentCropped = vm.PreviewCroppedOutput;
+        bool wasGridCropped = grid.FrameWidth == _renderedFrame.Width && grid.FrameHeight == _renderedFrame.Height;
+
+        if (isCurrentCropped && !wasGridCropped)
+        {
+            int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                ? _renderedDetection.CentroidX
+                : grid.FrameWidth / 2;
+            int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                ? _renderedDetection.CentroidY
+                : grid.FrameHeight / 2;
+
+            double offX = targetX - (_renderedFrame.Width / 2.0) - vm.CropOffsetX;
+            double offY = targetY - (_renderedFrame.Height / 2.0) - vm.CropOffsetY;
+            return (offX, offY);
+        }
+        else if (!isCurrentCropped && wasGridCropped)
+        {
+            int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                ? _renderedDetection.CentroidX
+                : _renderedFrame.Width / 2;
+            int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
+                ? _renderedDetection.CentroidY
+                : _renderedFrame.Height / 2;
+
+            double offX = -(targetX - (grid.FrameWidth / 2.0) - vm.CropOffsetX);
+            double offY = -(targetY - (grid.FrameHeight / 2.0) - vm.CropOffsetY);
+            return (offX, offY);
+        }
+
+        return (0, 0);
+    }
+
     private void DrawAlignmentGridOverlay(
         DrawingContext context,
         MainWindowViewModel vm,
@@ -231,39 +316,7 @@ public sealed class AstroViewerControl : Control
         double displayScale,
         double fullToScreenScale)
     {
-        double cropOffsetX = 0;
-        double cropOffsetY = 0;
-
-        if (_renderedFrame is not null && grid.FrameWidth > 0 && grid.FrameHeight > 0)
-        {
-            bool isCurrentCropped = vm.PreviewCroppedOutput;
-            bool wasGridCropped = grid.FrameWidth == _renderedFrame.Width && grid.FrameHeight == _renderedFrame.Height;
-
-            if (isCurrentCropped && !wasGridCropped)
-            {
-                int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                    ? _renderedDetection.CentroidX
-                    : grid.FrameWidth / 2;
-                int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                    ? _renderedDetection.CentroidY
-                    : grid.FrameHeight / 2;
-
-                cropOffsetX = targetX - (_renderedFrame.Width / 2.0) - vm.CropOffsetX;
-                cropOffsetY = targetY - (_renderedFrame.Height / 2.0) - vm.CropOffsetY;
-            }
-            else if (!isCurrentCropped && wasGridCropped)
-            {
-                int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                    ? _renderedDetection.CentroidX
-                    : _renderedFrame.Width / 2;
-                int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                    ? _renderedDetection.CentroidY
-                    : _renderedFrame.Height / 2;
-
-                cropOffsetX = -(targetX - (grid.FrameWidth / 2.0) - vm.CropOffsetX);
-                cropOffsetY = -(targetY - (grid.FrameHeight / 2.0) - vm.CropOffsetY);
-            }
-        }
+        var (cropOffsetX, cropOffsetY) = GetGridCropOffset(vm, grid);
 
         foreach (var ap in grid.Points)
         {

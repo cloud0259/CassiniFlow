@@ -1731,6 +1731,87 @@ public partial class MainWindowViewModel : ObservableObject
     {
         CurrentAlignmentGrid = AlignmentGrid.Empty;
         AlignmentStatusText = string.Empty;
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    public void AddManualAlignmentPoint(int x, int y)
+    {
+        var frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+        int fw = CurrentAlignmentGrid.FrameWidth > 0 ? CurrentAlignmentGrid.FrameWidth : (frame?.Width ?? 0);
+        int fh = CurrentAlignmentGrid.FrameHeight > 0 ? CurrentAlignmentGrid.FrameHeight : (frame?.Height ?? 0);
+
+        if (fw > 0 && fh > 0)
+        {
+            if (x < 0 || x >= fw || y < 0 || y >= fh)
+                return;
+        }
+
+        int tileSize = AlignmentTileSize;
+        var existing = new List<AlignmentPoint>(CurrentAlignmentGrid.Points);
+
+        // Éviter les doublons trop proches (< 6px)
+        if (existing.Any(p => Math.Abs(p.X - x) < 6 && Math.Abs(p.Y - y) < 6))
+            return;
+
+        int newId = existing.Count > 0 ? existing.Max(p => p.Id) + 1 : 1;
+        var newPoint = AlignmentGridGenerator.CreateManualPoint(frame, newId, x, y, tileSize);
+        existing.Add(newPoint);
+
+        var anchor = CurrentAlignmentGrid.AnchorPoint.X >= 0
+            ? CurrentAlignmentGrid.AnchorPoint
+            : (fw > 0 && fh > 0 ? (fw / 2, fh / 2) : (-1, -1));
+
+        CurrentAlignmentGrid = new AlignmentGrid(
+            tileSize,
+            MinBrightnessThreshold,
+            existing,
+            anchor,
+            fw,
+            fh);
+
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
+    }
+
+    public void RemoveManualAlignmentPoint(int x, int y)
+    {
+        if (CurrentAlignmentGrid.Points.Count == 0)
+            return;
+
+        int tileSize = CurrentAlignmentGrid.TileSize > 0 ? CurrentAlignmentGrid.TileSize : AlignmentTileSize;
+        int toleranceSq = (tileSize / 2) * (tileSize / 2);
+
+        var matching = CurrentAlignmentGrid.Points
+            .Where(p =>
+            {
+                int dx = p.X - x;
+                int dy = p.Y - y;
+                return (dx * dx + dy * dy) <= Math.Max(toleranceSq, 16 * 16);
+            })
+            .ToList();
+
+        if (matching.Count == 0)
+            return;
+
+        var closest = matching.OrderBy(p =>
+        {
+            int dx = p.X - x;
+            int dy = p.Y - y;
+            return dx * dx + dy * dy;
+        }).First();
+
+        var existing = CurrentAlignmentGrid.Points.Where(p => p.Id != closest.Id).ToList();
+
+        CurrentAlignmentGrid = new AlignmentGrid(
+            CurrentAlignmentGrid.TileSize,
+            CurrentAlignmentGrid.MinBrightness,
+            existing,
+            CurrentAlignmentGrid.AnchorPoint,
+            CurrentAlignmentGrid.FrameWidth,
+            CurrentAlignmentGrid.FrameHeight);
+
+        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
     }
 
     [RelayCommand]
