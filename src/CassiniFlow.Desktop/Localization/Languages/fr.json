@@ -38,6 +38,8 @@
     },
     "Tab": {
         "SourceFiles": "Fichiers sources",
+        "ModePresets": "Mode \u0026 Presets",
+        "StackingRefOptions": "Stabilisation \u0026 R\u00e9f\u00e9rence",
         "InputOptions": "Options d\u0027entrée",
         "ProcessingOptions": "Traitement \u0026 Centrage",
         "QualityOptions": "Tri \u0026 Qualité",

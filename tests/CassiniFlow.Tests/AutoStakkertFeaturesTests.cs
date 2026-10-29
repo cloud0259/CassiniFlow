@@ -84,26 +84,31 @@ public class AutoStakkertFeaturesTests
         Assert.True(vm.IsWorkflowStackingOnly);
         Assert.False(vm.IsWorkflowPreProcessingOnly);
         Assert.False(vm.IsWorkflowDirectStreamAllInOne);
-        Assert.Equal("Stabilisation & Référence", vm.Section1Title);
-        Assert.Equal("1", vm.Section1BadgeText);
-        Assert.Equal("2", vm.Section5BadgeText); // AP
-        Assert.Equal("3", vm.Section6BadgeText); // Empilement
+        Assert.False(vm.IsSection1Visible); // PIPP Mode & Presets masqué
+        Assert.True(vm.IsSection5Visible);  // AutoStakkert Référence visible
+        Assert.Equal("1", vm.Section5BadgeText); // Réf AutoStakkert est en tête (Badge 1)
+        Assert.Equal("2", vm.Section6BadgeText); // AP
+        Assert.Equal("3", vm.Section7BadgeText); // Empilement
 
         // 2. Mode DirectStreamAllInOne (Tout-en-un)
         vm.SetWorkflowMode("directstreamallinone");
         Assert.False(vm.IsWorkflowStackingOnly);
         Assert.False(vm.IsWorkflowPreProcessingOnly);
         Assert.True(vm.IsWorkflowDirectStreamAllInOne);
-        Assert.Equal("Mode, Presets & Référence", vm.Section1Title);
+        Assert.True(vm.IsSection1Visible);
+        Assert.True(vm.IsSection5Visible);
         Assert.Equal("1", vm.Section1BadgeText);
-        Assert.Equal("5", vm.Section5BadgeText); // AP
+        Assert.Equal("5", vm.Section5BadgeText); // Réf AutoStakkert
+        Assert.Equal("6", vm.Section6BadgeText); // AP
 
         // 3. Mode PreProcessingOnly
         vm.SetWorkflowMode("preprocessingonly");
         Assert.False(vm.IsWorkflowStackingOnly);
         Assert.True(vm.IsWorkflowPreProcessingOnly);
         Assert.False(vm.IsWorkflowDirectStreamAllInOne);
-        Assert.Equal("Mode & Presets", vm.Section1Title);
+        Assert.True(vm.IsSection1Visible);
+        Assert.False(vm.IsSection5Visible); // Réf AutoStakkert masqué
+        Assert.False(vm.IsSection6Visible); // AP masqué
     }
 
     [Fact]

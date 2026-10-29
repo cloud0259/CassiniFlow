@@ -848,6 +848,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isSection7Expanded;
     [ObservableProperty] private bool _isSection8Expanded;
     [ObservableProperty] private bool _isSection9Expanded;
+    [ObservableProperty] private bool _isSection10Expanded;
 
     private bool _isTogglingAccordion;
 
@@ -866,6 +867,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (sectionNumber != 7) IsSection7Expanded = false;
             if (sectionNumber != 8) IsSection8Expanded = false;
             if (sectionNumber != 9) IsSection9Expanded = false;
+            if (sectionNumber != 10) IsSection10Expanded = false;
         }
         finally
         {
@@ -882,6 +884,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnIsSection7ExpandedChanged(bool value) { if (value) CollapseOtherSections(7); }
     partial void OnIsSection8ExpandedChanged(bool value) { if (value) CollapseOtherSections(8); }
     partial void OnIsSection9ExpandedChanged(bool value) { if (value) CollapseOtherSections(9); }
+    partial void OnIsSection10ExpandedChanged(bool value) { if (value) CollapseOtherSections(10); }
 
     // --- Mode de Traitement (Workflow) ---
     [ObservableProperty] private StackingWorkflowMode _workflowMode = StackingWorkflowMode.DirectStreamAllInOne;
@@ -889,41 +892,61 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isWorkflowStackingOnly;
     [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
 
-    public string Section1Title => WorkflowMode switch
-    {
-        StackingWorkflowMode.StackingOnly => Loc.Pick("Stabilisation & Référence", "Stabilisation & Reference"),
-        StackingWorkflowMode.DirectStreamAllInOne => Loc.Pick("Mode, Presets & Référence", "Mode, Presets & Reference"),
-        _ => Loc.Pick("Mode & Presets", "Mode & Presets")
-    };
+    public string Section1Title => Loc.Pick("Mode & Presets", "Mode & Presets");
+    public string Section5Title => Loc.Pick("Stabilisation & Référence", "Stabilisation & Reference");
 
-    public bool IsSection1Visible => true;
+    public bool IsSection1Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
     public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
-    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSection8Visible => true;
+    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection8Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection9Visible => true;
+    public bool IsSection10Visible => true;
 
     public string Section1BadgeText => "1";
     public string Section2BadgeText => "2";
     public string Section3BadgeText => "3";
     public string Section4BadgeText => "4";
-    public string Section5BadgeText => WorkflowMode == StackingWorkflowMode.StackingOnly ? "2" : "5";
-    public string Section6BadgeText => WorkflowMode == StackingWorkflowMode.StackingOnly ? "3" : "6";
-    public string Section7BadgeText => WorkflowMode == StackingWorkflowMode.PreProcessingOnly ? "5" : "7";
+
+    public string Section5BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "1",
+        _ => "5"
+    };
+
+    public string Section6BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "2",
+        _ => "6"
+    };
+
+    public string Section7BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "3",
+        _ => "7"
+    };
+
     public string Section8BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.PreProcessingOnly => "5",
+        _ => "8"
+    };
+
+    public string Section9BadgeText => WorkflowMode switch
     {
         StackingWorkflowMode.StackingOnly => "4",
         StackingWorkflowMode.PreProcessingOnly => "6",
-        _ => "8"
+        _ => "9"
     };
-    public string Section9BadgeText => WorkflowMode switch
+
+    public string Section10BadgeText => WorkflowMode switch
     {
         StackingWorkflowMode.StackingOnly => "5",
         StackingWorkflowMode.PreProcessingOnly => "7",
-        _ => "9"
+        _ => "10"
     };
 
     partial void OnWorkflowModeChanged(StackingWorkflowMode value)
@@ -933,6 +956,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsWorkflowDirectStreamAllInOne = value == StackingWorkflowMode.DirectStreamAllInOne;
 
         OnPropertyChanged(nameof(Section1Title));
+        OnPropertyChanged(nameof(Section5Title));
         OnPropertyChanged(nameof(IsSection1Visible));
         OnPropertyChanged(nameof(IsSection2Visible));
         OnPropertyChanged(nameof(IsSection3Visible));
@@ -942,6 +966,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSection7Visible));
         OnPropertyChanged(nameof(IsSection8Visible));
         OnPropertyChanged(nameof(IsSection9Visible));
+        OnPropertyChanged(nameof(IsSection10Visible));
 
         OnPropertyChanged(nameof(Section1BadgeText));
         OnPropertyChanged(nameof(Section2BadgeText));
@@ -952,17 +977,21 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(Section7BadgeText));
         OnPropertyChanged(nameof(Section8BadgeText));
         OnPropertyChanged(nameof(Section9BadgeText));
+        OnPropertyChanged(nameof(Section10BadgeText));
 
+        if (!IsSection1Visible) IsSection1Expanded = false;
         if (!IsSection2Visible) IsSection2Expanded = false;
         if (!IsSection3Visible) IsSection3Expanded = false;
         if (!IsSection4Visible) IsSection4Expanded = false;
         if (!IsSection5Visible) IsSection5Expanded = false;
         if (!IsSection6Visible) IsSection6Expanded = false;
         if (!IsSection7Visible) IsSection7Expanded = false;
+        if (!IsSection8Visible) IsSection8Expanded = false;
 
         if (!IsAnyVisibleSectionExpanded())
         {
-            IsSection1Expanded = true;
+            if (IsSection1Visible) IsSection1Expanded = true;
+            else if (IsSection5Visible) IsSection5Expanded = true;
         }
     }
 
@@ -976,7 +1005,8 @@ public partial class MainWindowViewModel : ObservableObject
                (IsSection6Visible && IsSection6Expanded) ||
                (IsSection7Visible && IsSection7Expanded) ||
                (IsSection8Visible && IsSection8Expanded) ||
-               (IsSection9Visible && IsSection9Expanded);
+               (IsSection9Visible && IsSection9Expanded) ||
+               (IsSection10Visible && IsSection10Expanded);
     }
 
     // --- Options d'Alignement Global, Qualité & Référence (AutoStakkert style) ---
@@ -1264,7 +1294,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             case 4:
                 SelectedTabIndex = 6;
-                IsSection9Expanded = true;
+                IsSection10Expanded = true;
                 // Execution step
                 TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
                 TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
@@ -1557,7 +1587,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (IsProcessing) return;
 
-        IsSection9Expanded = true;
+        IsSection10Expanded = true;
         IsProcessing = true;
         HasCompletedOutput = false;
         SyncOptionsFromUi();

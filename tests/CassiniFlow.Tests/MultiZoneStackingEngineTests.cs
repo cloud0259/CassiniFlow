@@ -465,7 +465,7 @@ public class MultiZoneStackingEngineTests
     {
         var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
 
-        // 1. Mode DirectStreamAllInOne (Tout) -> Toutes les sections sont visibles (1..9)
+        // 1. Mode DirectStreamAllInOne (Tout) -> Toutes les sections sont visibles (1..10)
         vm.SetWorkflowMode("all");
         Assert.True(vm.IsSection1Visible);
         Assert.True(vm.IsSection2Visible);
@@ -476,44 +476,48 @@ public class MultiZoneStackingEngineTests
         Assert.True(vm.IsSection7Visible);
         Assert.True(vm.IsSection8Visible);
         Assert.True(vm.IsSection9Visible);
+        Assert.True(vm.IsSection10Visible);
         Assert.Equal("1", vm.Section1BadgeText);
         Assert.Equal("5", vm.Section5BadgeText);
-        Assert.Equal("9", vm.Section9BadgeText);
+        Assert.Equal("6", vm.Section6BadgeText);
+        Assert.Equal("10", vm.Section10BadgeText);
 
         // 2. Mode PreProcessingOnly (Prétraitement seul)
-        // Seuls les menus de prétraitement + communs sont visibles (1, 2, 3, 4, 7, 8, 9). 5 et 6 sont masqués.
+        // Seuls les menus de prétraitement + communs sont visibles (1, 2, 3, 4, 8, 9, 10). 5, 6, 7 sont masqués.
         vm.SetWorkflowMode("prep");
         Assert.True(vm.IsSection1Visible);
         Assert.True(vm.IsSection2Visible);
         Assert.True(vm.IsSection3Visible);
         Assert.True(vm.IsSection4Visible);
-        Assert.False(vm.IsSection5Visible); // AP masqué
-        Assert.False(vm.IsSection6Visible); // Stacking masqué
-        Assert.True(vm.IsSection7Visible);
-        Assert.True(vm.IsSection8Visible);
-        Assert.True(vm.IsSection9Visible);
+        Assert.False(vm.IsSection5Visible); // Réf AutoStakkert masqué
+        Assert.False(vm.IsSection6Visible); // AP masqué
+        Assert.False(vm.IsSection7Visible); // Stacking masqué
+        Assert.True(vm.IsSection8Visible);  // Animation visible
+        Assert.True(vm.IsSection9Visible);  // Export visible
+        Assert.True(vm.IsSection10Visible); // Console visible
         Assert.Equal("1", vm.Section1BadgeText);
         Assert.Equal("2", vm.Section2BadgeText);
-        Assert.Equal("5", vm.Section7BadgeText);
-        Assert.Equal("6", vm.Section8BadgeText);
-        Assert.Equal("7", vm.Section9BadgeText);
+        Assert.Equal("5", vm.Section8BadgeText);
+        Assert.Equal("6", vm.Section9BadgeText);
+        Assert.Equal("7", vm.Section10BadgeText);
 
         // 3. Mode StackingOnly (Empilement seul)
-        // Seuls les menus d'empilement + communs sont visibles (1, 5, 6, 8, 9). 2, 3, 4, 7 sont masqués.
+        // Seuls les menus d'empilement + communs sont visibles (5, 6, 7, 9, 10). 1, 2, 3, 4, 8 sont masqués.
         vm.SetWorkflowMode("stack");
-        Assert.True(vm.IsSection1Visible);
+        Assert.False(vm.IsSection1Visible); // PIPP Mode & Presets masqué
         Assert.False(vm.IsSection2Visible); // Calibration masquée
         Assert.False(vm.IsSection3Visible); // Centrage masqué
         Assert.False(vm.IsSection4Visible); // Tri masqué
-        Assert.True(vm.IsSection5Visible);  // AP visible
-        Assert.True(vm.IsSection6Visible);  // Stacking visible
-        Assert.False(vm.IsSection7Visible); // Animation masquée
-        Assert.True(vm.IsSection8Visible);
-        Assert.True(vm.IsSection9Visible);
-        Assert.Equal("1", vm.Section1BadgeText);
-        Assert.Equal("2", vm.Section5BadgeText);
-        Assert.Equal("3", vm.Section6BadgeText);
-        Assert.Equal("4", vm.Section8BadgeText);
-        Assert.Equal("5", vm.Section9BadgeText);
+        Assert.True(vm.IsSection5Visible);  // Réf AutoStakkert visible (Badge 1)
+        Assert.True(vm.IsSection6Visible);  // AP visible (Badge 2)
+        Assert.True(vm.IsSection7Visible);  // Stacking visible (Badge 3)
+        Assert.False(vm.IsSection8Visible); // Animation masquée
+        Assert.True(vm.IsSection9Visible);  // Export visible (Badge 4)
+        Assert.True(vm.IsSection10Visible); // Console visible (Badge 5)
+        Assert.Equal("1", vm.Section5BadgeText);
+        Assert.Equal("2", vm.Section6BadgeText);
+        Assert.Equal("3", vm.Section7BadgeText);
+        Assert.Equal("4", vm.Section9BadgeText);
+        Assert.Equal("5", vm.Section10BadgeText);
     }
 }
