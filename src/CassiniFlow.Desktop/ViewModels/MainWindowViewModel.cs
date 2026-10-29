@@ -815,8 +815,8 @@ public partial class MainWindowViewModel : ObservableObject
     private static string GetPresetName(int index) => index switch
     {
         1 => Loc.Pick("Planétaire", "Planetary"),
-        2 => Loc.Pick("Solaire / Lunaire (gros plan)", "Solar / Lunar Close-up"),
-        3 => Loc.Pick("Solaire / Lunaire (disque entier)", "Solar / Lunar Full Disc"),
+        2 => Loc.Pick("Gros plan Solaire / Lunaire", "Solar / Lunar Close-up"),
+        3 => Loc.Pick("Disque entier Solaire / Lunaire", "Solar / Lunar Full Disc"),
         4 => Loc.Pick("ISS", "ISS"),
         5 => Loc.Pick("Animation planétaire", "Planetary Animation"),
         _ => Loc.Pick("Manuel", "Manual")
