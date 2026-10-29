@@ -348,7 +348,26 @@
         "ReferenceManual": "Manuelle",
         "ManualFrameIndex": "Index de la trame :"
     },
-    "Stacking": {
+    "About": {
+        "Title": "\u00c0 propos de CassiniFlow",
+        "Description": "Pr\u00e9-traitement, centrage et stabilisation de s\u00e9quences plan\u00e9taires, lunaires et solaires.",
+        "Formats": "Formats pris en charge : SER, FITS, AVI, MP4, TIFF, PNG, BMP.",
+        "Close": "Fermer"
+    },
+    "Metadata": {
+        "Title": "\u2139\uFE0F M\u00e9tadonn\u00e9es",
+        "NoSelectionPrompt": "S\u00e9lectionnez un fichier pour afficher ses m\u00e9tadonn\u00e9es.",
+        "Dim": "Dim :",
+        "Frames": "Frames :",
+        "Size": "Taille :",
+        "Fps": "Cadence :",
+        "Exp": "Exp :",
+        "Speed": "Vitesse :",
+        "GainIso": "Sensib. :",
+        "Diameter": "Diam\u00e8tre :",
+        "Camera": "Appareil :",
+        "Optics": "Optique :"
+    },    "Stacking": {
         "Percentages": "Paliers d\u0027empilement :",
         "PercentagesHint": "Génère un fichier distinct pour chaque palier supérieur à 0%.",
         "Tier1": "Palier 1 (%) :",

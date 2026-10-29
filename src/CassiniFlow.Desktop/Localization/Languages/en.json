@@ -348,7 +348,26 @@
         "ReferenceManual": "Manual",
         "ManualFrameIndex": "Frame Index:"
     },
-    "Stacking": {
+    "About": {
+        "Title": "About CassiniFlow",
+        "Description": "Pre-processing, centering and stabilisation for planetary, lunar and solar sequences.",
+        "Formats": "Supported formats: SER, FITS, AVI, MP4, TIFF, PNG, BMP.",
+        "Close": "Close"
+    },
+    "Metadata": {
+        "Title": "\u2139\uFE0F Metadata",
+        "NoSelectionPrompt": "Select a file to display its metadata.",
+        "Dim": "Dim:",
+        "Frames": "Frames:",
+        "Size": "Size:",
+        "Fps": "FPS:",
+        "Exp": "Exp:",
+        "Speed": "Speed:",
+        "GainIso": "Gain/ISO:",
+        "Diameter": "Diameter:",
+        "Camera": "Camera:",
+        "Optics": "Optics:"
+    },    "Stacking": {
         "Percentages": "Stacking tiers:",
         "PercentagesHint": "Generates a distinct file for each tier above 0%.",
         "Tier1": "Tier 1 (%) :",
