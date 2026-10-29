@@ -889,6 +889,84 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isWorkflowStackingOnly;
     [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
 
+    public bool IsSection1Visible => true;
+    public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
+    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection8Visible => true;
+    public bool IsSection9Visible => true;
+
+    public string Section1BadgeText => "1";
+    public string Section2BadgeText => "2";
+    public string Section3BadgeText => "3";
+    public string Section4BadgeText => "4";
+    public string Section5BadgeText => WorkflowMode == StackingWorkflowMode.StackingOnly ? "2" : "5";
+    public string Section6BadgeText => WorkflowMode == StackingWorkflowMode.StackingOnly ? "3" : "6";
+    public string Section7BadgeText => WorkflowMode == StackingWorkflowMode.PreProcessingOnly ? "5" : "7";
+    public string Section8BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "4",
+        StackingWorkflowMode.PreProcessingOnly => "6",
+        _ => "8"
+    };
+    public string Section9BadgeText => WorkflowMode switch
+    {
+        StackingWorkflowMode.StackingOnly => "5",
+        StackingWorkflowMode.PreProcessingOnly => "7",
+        _ => "9"
+    };
+
+    partial void OnWorkflowModeChanged(StackingWorkflowMode value)
+    {
+        OnPropertyChanged(nameof(IsSection1Visible));
+        OnPropertyChanged(nameof(IsSection2Visible));
+        OnPropertyChanged(nameof(IsSection3Visible));
+        OnPropertyChanged(nameof(IsSection4Visible));
+        OnPropertyChanged(nameof(IsSection5Visible));
+        OnPropertyChanged(nameof(IsSection6Visible));
+        OnPropertyChanged(nameof(IsSection7Visible));
+        OnPropertyChanged(nameof(IsSection8Visible));
+        OnPropertyChanged(nameof(IsSection9Visible));
+
+        OnPropertyChanged(nameof(Section1BadgeText));
+        OnPropertyChanged(nameof(Section2BadgeText));
+        OnPropertyChanged(nameof(Section3BadgeText));
+        OnPropertyChanged(nameof(Section4BadgeText));
+        OnPropertyChanged(nameof(Section5BadgeText));
+        OnPropertyChanged(nameof(Section6BadgeText));
+        OnPropertyChanged(nameof(Section7BadgeText));
+        OnPropertyChanged(nameof(Section8BadgeText));
+        OnPropertyChanged(nameof(Section9BadgeText));
+
+        if (!IsSection2Visible) IsSection2Expanded = false;
+        if (!IsSection3Visible) IsSection3Expanded = false;
+        if (!IsSection4Visible) IsSection4Expanded = false;
+        if (!IsSection5Visible) IsSection5Expanded = false;
+        if (!IsSection6Visible) IsSection6Expanded = false;
+        if (!IsSection7Visible) IsSection7Expanded = false;
+
+        if (!IsAnyVisibleSectionExpanded())
+        {
+            IsSection1Expanded = true;
+        }
+    }
+
+    private bool IsAnyVisibleSectionExpanded()
+    {
+        return (IsSection1Visible && IsSection1Expanded) ||
+               (IsSection2Visible && IsSection2Expanded) ||
+               (IsSection3Visible && IsSection3Expanded) ||
+               (IsSection4Visible && IsSection4Expanded) ||
+               (IsSection5Visible && IsSection5Expanded) ||
+               (IsSection6Visible && IsSection6Expanded) ||
+               (IsSection7Visible && IsSection7Expanded) ||
+               (IsSection8Visible && IsSection8Expanded) ||
+               (IsSection9Visible && IsSection9Expanded);
+    }
+
     // --- Points d'alignement (AP) ---
     [ObservableProperty] private bool _isAlignmentGridVisible = true;
     [ObservableProperty] private AlignmentGrid _currentAlignmentGrid = AlignmentGrid.Empty;

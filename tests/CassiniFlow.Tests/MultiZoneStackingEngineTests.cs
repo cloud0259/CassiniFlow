@@ -362,4 +362,61 @@ public class MultiZoneStackingEngineTests
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
     }
+
+    [Fact]
+    public void MainWindowViewModel_WorkflowMode_AdjustsRightColumnMenusVisibility()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+
+        // 1. Mode DirectStreamAllInOne (Tout) -> Toutes les sections sont visibles (1..9)
+        vm.SetWorkflowMode("all");
+        Assert.True(vm.IsSection1Visible);
+        Assert.True(vm.IsSection2Visible);
+        Assert.True(vm.IsSection3Visible);
+        Assert.True(vm.IsSection4Visible);
+        Assert.True(vm.IsSection5Visible);
+        Assert.True(vm.IsSection6Visible);
+        Assert.True(vm.IsSection7Visible);
+        Assert.True(vm.IsSection8Visible);
+        Assert.True(vm.IsSection9Visible);
+        Assert.Equal("1", vm.Section1BadgeText);
+        Assert.Equal("5", vm.Section5BadgeText);
+        Assert.Equal("9", vm.Section9BadgeText);
+
+        // 2. Mode PreProcessingOnly (Prétraitement seul)
+        // Seuls les menus de prétraitement + communs sont visibles (1, 2, 3, 4, 7, 8, 9). 5 et 6 sont masqués.
+        vm.SetWorkflowMode("prep");
+        Assert.True(vm.IsSection1Visible);
+        Assert.True(vm.IsSection2Visible);
+        Assert.True(vm.IsSection3Visible);
+        Assert.True(vm.IsSection4Visible);
+        Assert.False(vm.IsSection5Visible); // AP masqué
+        Assert.False(vm.IsSection6Visible); // Stacking masqué
+        Assert.True(vm.IsSection7Visible);
+        Assert.True(vm.IsSection8Visible);
+        Assert.True(vm.IsSection9Visible);
+        Assert.Equal("1", vm.Section1BadgeText);
+        Assert.Equal("2", vm.Section2BadgeText);
+        Assert.Equal("5", vm.Section7BadgeText);
+        Assert.Equal("6", vm.Section8BadgeText);
+        Assert.Equal("7", vm.Section9BadgeText);
+
+        // 3. Mode StackingOnly (Empilement seul)
+        // Seuls les menus d'empilement + communs sont visibles (1, 5, 6, 8, 9). 2, 3, 4, 7 sont masqués.
+        vm.SetWorkflowMode("stack");
+        Assert.True(vm.IsSection1Visible);
+        Assert.False(vm.IsSection2Visible); // Calibration masquée
+        Assert.False(vm.IsSection3Visible); // Centrage masqué
+        Assert.False(vm.IsSection4Visible); // Tri masqué
+        Assert.True(vm.IsSection5Visible);  // AP visible
+        Assert.True(vm.IsSection6Visible);  // Stacking visible
+        Assert.False(vm.IsSection7Visible); // Animation masquée
+        Assert.True(vm.IsSection8Visible);
+        Assert.True(vm.IsSection9Visible);
+        Assert.Equal("1", vm.Section1BadgeText);
+        Assert.Equal("2", vm.Section5BadgeText);
+        Assert.Equal("3", vm.Section6BadgeText);
+        Assert.Equal("4", vm.Section8BadgeText);
+        Assert.Equal("5", vm.Section9BadgeText);
+    }
 }
