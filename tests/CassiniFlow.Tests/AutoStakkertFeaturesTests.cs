@@ -176,4 +176,40 @@ public class AutoStakkertFeaturesTests
 
         Loc.SetLanguage(AppLanguage.French, save: false);
     }
+
+    [Fact]
+    public void ManualPoints_ArePreserved_WhenPreviewCroppingIsToggled()
+    {
+        var vm = new MainWindowViewModel();
+        vm.EnableCropping = true;
+        vm.CropWidth = 320;
+        vm.CropHeight = 320;
+
+        // 1. Ajouter un point manuel
+        vm.AddManualAlignmentPoint(160, 160);
+        Assert.Single(vm.CurrentAlignmentGrid.Points);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].X);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].Y);
+        Assert.True(vm.CurrentAlignmentGrid.Points[0].IsActive);
+
+        // 2. Basculer l'aperçu recadré (PreviewCroppedOutput) : les points ne doivent PAS disparaître
+        vm.PreviewCroppedOutput = true;
+        Assert.Single(vm.CurrentAlignmentGrid.Points);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].X);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].Y);
+
+        vm.PreviewCroppedOutput = false;
+        Assert.Single(vm.CurrentAlignmentGrid.Points);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].X);
+        Assert.Equal(160, vm.CurrentAlignmentGrid.Points[0].Y);
+
+        // 3. Ajouter un second point manuel
+        vm.AddManualAlignmentPoint(200, 160);
+        Assert.Equal(2, vm.CurrentAlignmentGrid.Points.Count);
+
+        // 4. Supprimer le premier point
+        vm.RemoveManualAlignmentPoint(160, 160);
+        Assert.Single(vm.CurrentAlignmentGrid.Points);
+        Assert.Equal(200, vm.CurrentAlignmentGrid.Points[0].X);
+    }
 }

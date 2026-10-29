@@ -62,6 +62,7 @@ public partial class MainWindowViewModel : ObservableObject
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
     private AstroFrame? _lastProcessedPreviewFrame;
+    private DetectionResult? _lastDetection;
     private int _cachedRawFrameIndex = -1;
 
     // Conflated single-worker preview state (prevents queue backlog when dragging timeline slider on 4K MP4 videos)
@@ -1443,18 +1444,8 @@ public partial class MainWindowViewModel : ObservableObject
                 });
 
                 _lastProcessedPreviewFrame = processed;
+                _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
-
-                if (IsAlignmentGridVisible && CurrentAlignmentGrid.Points.Count > 0 &&
-                    (CurrentAlignmentGrid.FrameWidth != processed.Width || CurrentAlignmentGrid.FrameHeight != processed.Height))
-                {
-                    var updatedGrid = AlignmentGridGenerator.GenerateGrid(processed, optionsSnapshot.Stacking);
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        CurrentAlignmentGrid = updatedGrid;
-                        AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
-                    });
-                }
             }
             catch (Exception ex)
             {
@@ -1752,8 +1743,32 @@ public partial class MainWindowViewModel : ObservableObject
         if (frame is null) return;
 
         SyncOptionsFromUi();
+
+        // Si le recadrage est activé et que la trame en mémoire est la trame complète non recadrée,
+        // on génère la grille sur la zone recadrée cible (la même que celle qui sera empilée).
+        if (EnableCropping && (frame.Width != CropWidth || frame.Height != CropHeight))
+        {
+            int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                ? _lastDetection.CentroidX
+                : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : frame.Width / 2);
+            int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                ? _lastDetection.CentroidY
+                : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : frame.Height / 2);
+
+            frame = ImageProcessor.CropAroundPoint(
+                frame,
+                targetX,
+                targetY,
+                CropWidth,
+                CropHeight,
+                CropOffsetX,
+                CropOffsetY,
+                protectBayerEvenSteps: Options.ProtectBayerPattern);
+        }
+
         CurrentAlignmentGrid = AlignmentGridGenerator.GenerateGrid(frame, Options.Stacking);
         AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
+        OnPropertyChanged(nameof(ActivePointsCountText));
     }
 
     [RelayCommand]
@@ -1767,13 +1782,37 @@ public partial class MainWindowViewModel : ObservableObject
     public void AddManualAlignmentPoint(int x, int y)
     {
         var frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
-        int fw = CurrentAlignmentGrid.FrameWidth > 0 ? CurrentAlignmentGrid.FrameWidth : (frame?.Width ?? 0);
-        int fh = CurrentAlignmentGrid.FrameHeight > 0 ? CurrentAlignmentGrid.FrameHeight : (frame?.Height ?? 0);
+        int fw = CurrentAlignmentGrid.FrameWidth > 0 
+            ? CurrentAlignmentGrid.FrameWidth 
+            : (EnableCropping ? CropWidth : (frame?.Width ?? 0));
+        int fh = CurrentAlignmentGrid.FrameHeight > 0 
+            ? CurrentAlignmentGrid.FrameHeight 
+            : (EnableCropping ? CropHeight : (frame?.Height ?? 0));
 
         if (fw > 0 && fh > 0)
         {
             if (x < 0 || x >= fw || y < 0 || y >= fh)
                 return;
+        }
+
+        if (EnableCropping && frame is not null && (frame.Width != fw || frame.Height != fh))
+        {
+            int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                ? _lastDetection.CentroidX
+                : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : frame.Width / 2);
+            int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                ? _lastDetection.CentroidY
+                : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : frame.Height / 2);
+
+            frame = ImageProcessor.CropAroundPoint(
+                frame,
+                targetX,
+                targetY,
+                fw,
+                fh,
+                CropOffsetX,
+                CropOffsetY,
+                protectBayerEvenSteps: Options.ProtectBayerPattern);
         }
 
         int tileSize = AlignmentTileSize;

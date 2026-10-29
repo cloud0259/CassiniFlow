@@ -270,42 +270,85 @@ public sealed class AstroViewerControl : Control
         }
     }
 
+    private (double CropStartX, double CropStartY) GetCropBoxOriginInFullFrame(MainWindowViewModel vm, int fullWidth, int fullHeight)
+    {
+        double cw = vm.CropWidth;
+        double ch = vm.CropHeight;
+        if (vm.SelectedRotationIndex is 1 or 2) (cw, ch) = (ch, cw);
+
+        double targetX, targetY;
+        switch (vm.SelectedStabilisationModeIndex)
+        {
+            case 1: // Planetary / Object
+                targetX = (vm.CentreObjectInFrame && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidX
+                    : fullWidth / 2.0;
+                targetY = (vm.CentreObjectInFrame && _renderedDetection is not null)
+                    ? _renderedDetection.CentroidY
+                    : fullHeight / 2.0;
+                break;
+
+            case 2: // Surface Feature (AFB)
+                targetX = vm.TargetBoxX;
+                targetY = vm.TargetBoxY;
+                break;
+
+            default:
+                targetX = fullWidth / 2.0;
+                targetY = fullHeight / 2.0;
+                break;
+        }
+
+        double startX = targetX - (cw / 2.0) - vm.CropOffsetX;
+        double startY = targetY - (ch / 2.0) - vm.CropOffsetY;
+        return (startX, startY);
+    }
+
     private (double CropOffsetX, double CropOffsetY) GetGridCropOffset(MainWindowViewModel vm, AlignmentGrid? grid)
     {
-        if (_renderedFrame is null || grid is null || grid.FrameWidth <= 0 || grid.FrameHeight <= 0)
+        if (_renderedFrame is null)
+            return (0, 0);
+
+        if (!vm.EnableCropping)
             return (0, 0);
 
         bool isCurrentCropped = vm.PreviewCroppedOutput;
-        bool wasGridCropped = grid.FrameWidth == _renderedFrame.Width && grid.FrameHeight == _renderedFrame.Height;
+        int gridW = grid?.FrameWidth ?? 0;
+        int gridH = grid?.FrameHeight ?? 0;
 
-        if (isCurrentCropped && !wasGridCropped)
+        // Une grille est en coordonnées recadrées si sa dimension correspond à la zone de crop ou n'est pas encore définie
+        bool isGridInCropSpace = gridW <= 0 || (gridW <= vm.CropWidth + 2 && gridH <= vm.CropHeight + 2);
+
+        if (isGridInCropSpace)
         {
-            int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                ? _renderedDetection.CentroidX
-                : grid.FrameWidth / 2;
-            int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                ? _renderedDetection.CentroidY
-                : grid.FrameHeight / 2;
-
-            double offX = targetX - (_renderedFrame.Width / 2.0) - vm.CropOffsetX;
-            double offY = targetY - (_renderedFrame.Height / 2.0) - vm.CropOffsetY;
-            return (offX, offY);
+            if (isCurrentCropped)
+            {
+                // Vue recadrée + Grille en coordonnées recadrées : pas de décalage
+                return (0, 0);
+            }
+            else
+            {
+                // Vue plein cadre + Grille en coordonnées recadrées : on projette dans la boîte de crop
+                var (startX, startY) = GetCropBoxOriginInFullFrame(vm, _renderedFrame.Width, _renderedFrame.Height);
+                return (-startX, -startY);
+            }
         }
-        else if (!isCurrentCropped && wasGridCropped)
+        else
         {
-            int targetX = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                ? _renderedDetection.CentroidX
-                : _renderedFrame.Width / 2;
-            int targetY = (vm.CentreObjectInFrame && vm.SelectedStabilisationModeIndex == 1 && _renderedDetection is not null)
-                ? _renderedDetection.CentroidY
-                : _renderedFrame.Height / 2;
-
-            double offX = -(targetX - (grid.FrameWidth / 2.0) - vm.CropOffsetX);
-            double offY = -(targetY - (grid.FrameHeight / 2.0) - vm.CropOffsetY);
-            return (offX, offY);
+            if (isCurrentCropped)
+            {
+                // Vue recadrée + Grille en plein cadre : translation vers l'origine du crop
+                int fullW = vm.SelectedSourceFile?.Width ?? gridW;
+                int fullH = vm.SelectedSourceFile?.Height ?? gridH;
+                var (startX, startY) = GetCropBoxOriginInFullFrame(vm, fullW, fullH);
+                return (startX, startY);
+            }
+            else
+            {
+                // Vue plein cadre + Grille en plein cadre : pas de décalage
+                return (0, 0);
+            }
         }
-
-        return (0, 0);
     }
 
     private void DrawAlignmentGridOverlay(
@@ -333,7 +376,7 @@ public sealed class AstroViewerControl : Control
 
             double cx = destRect.X + (localX * displayScale);
             double cy = destRect.Y + (localY * displayScale);
-            double halfSize = (ap.Size / 2.0) * fullToScreenScale;
+            double halfSize = (ap.Size / 2.0) * displayScale;
 
             context.DrawRectangle(null, ActiveApPen, new Rect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2));
             context.DrawEllipse(ActiveApPen.Brush, null, new Point(cx, cy), 1.5, 1.5);
