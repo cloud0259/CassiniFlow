@@ -57,8 +57,8 @@ public class TutorialTests
         Assert.Equal(4, vm.TutorialStepIndex);
         Assert.Equal(6, vm.SelectedTabIndex); // Execution
         Assert.Equal(HorizontalAlignment.Right, vm.TutorialHorizontalAlignment);
-        Assert.True(vm.IsSection6Expanded);
-        Assert.True(vm.IsSection7Expanded);
+        Assert.True(vm.IsSection9Expanded);
+        // mutually exclusive accordion: section 9 is open
         Assert.Contains("Sortie & Exécution", vm.TutorialTargetBadge);
         Assert.Equal(Loc.Get("Tutorial.Finish"), vm.TutorialNextButtonText);
 

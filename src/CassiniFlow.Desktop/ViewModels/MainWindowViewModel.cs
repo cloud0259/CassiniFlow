@@ -277,6 +277,24 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _processingProgress;
     [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
+    partial void OnLastOutputFilePathChanged(string value) => OnPropertyChanged(nameof(PlayOrOpenOutputText));
+
+    public string PlayOrOpenOutputText
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(LastOutputFilePath))
+            {
+                return Loc.Pick("Ouvrir le résultat", "Open result");
+            }
+            string ext = Path.GetExtension(LastOutputFilePath).ToLowerInvariant();
+            if (ext is ".tif" or ".tiff" or ".png" or ".fit" or ".fits" or ".jpg" or ".jpeg")
+            {
+                return Loc.Pick("Afficher l'image", "View Image");
+            }
+            return Loc.Pick("Lire la vidéo", "Play Video");
+        }
+    }
     [ObservableProperty] private string _lastOutputDirectory = string.Empty;
     [ObservableProperty] private bool _hasCompletedOutput;
     [ObservableProperty] private string _summaryStatsText = Loc.Tr("Aucun traitement exécuté.", "No processing run yet.");
@@ -818,13 +836,47 @@ public partial class MainWindowViewModel : ObservableObject
     // Accordion Sections Expanders State
     [ObservableProperty] private bool _isSection1Expanded = true;
     [ObservableProperty] private bool _isSection2Expanded;
-    [ObservableProperty] private bool _isSection3Expanded = true;
+    [ObservableProperty] private bool _isSection3Expanded;
     [ObservableProperty] private bool _isSection4Expanded;
     [ObservableProperty] private bool _isSection5Expanded;
     [ObservableProperty] private bool _isSection6Expanded;
     [ObservableProperty] private bool _isSection7Expanded;
     [ObservableProperty] private bool _isSection8Expanded;
-    [ObservableProperty] private bool _isSection9Expanded = true;
+    [ObservableProperty] private bool _isSection9Expanded;
+
+    private bool _isTogglingAccordion;
+
+    private void CollapseOtherSections(int sectionNumber)
+    {
+        if (_isTogglingAccordion) return;
+        try
+        {
+            _isTogglingAccordion = true;
+            if (sectionNumber != 1) IsSection1Expanded = false;
+            if (sectionNumber != 2) IsSection2Expanded = false;
+            if (sectionNumber != 3) IsSection3Expanded = false;
+            if (sectionNumber != 4) IsSection4Expanded = false;
+            if (sectionNumber != 5) IsSection5Expanded = false;
+            if (sectionNumber != 6) IsSection6Expanded = false;
+            if (sectionNumber != 7) IsSection7Expanded = false;
+            if (sectionNumber != 8) IsSection8Expanded = false;
+            if (sectionNumber != 9) IsSection9Expanded = false;
+        }
+        finally
+        {
+            _isTogglingAccordion = false;
+        }
+    }
+
+    partial void OnIsSection1ExpandedChanged(bool value) { if (value) CollapseOtherSections(1); }
+    partial void OnIsSection2ExpandedChanged(bool value) { if (value) CollapseOtherSections(2); }
+    partial void OnIsSection3ExpandedChanged(bool value) { if (value) CollapseOtherSections(3); }
+    partial void OnIsSection4ExpandedChanged(bool value) { if (value) CollapseOtherSections(4); }
+    partial void OnIsSection5ExpandedChanged(bool value) { if (value) CollapseOtherSections(5); }
+    partial void OnIsSection6ExpandedChanged(bool value) { if (value) CollapseOtherSections(6); }
+    partial void OnIsSection7ExpandedChanged(bool value) { if (value) CollapseOtherSections(7); }
+    partial void OnIsSection8ExpandedChanged(bool value) { if (value) CollapseOtherSections(8); }
+    partial void OnIsSection9ExpandedChanged(bool value) { if (value) CollapseOtherSections(9); }
 
     // --- Mode de Traitement (Workflow) ---
     [ObservableProperty] private StackingWorkflowMode _workflowMode = StackingWorkflowMode.DirectStreamAllInOne;
@@ -973,8 +1025,8 @@ public partial class MainWindowViewModel : ObservableObject
 
             case 4:
                 SelectedTabIndex = 6;
-                IsSection6Expanded = true;
-                IsSection7Expanded = true;
+                IsSection9Expanded = true;
+                // Execution step
                 TutorialHorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
                 TutorialVerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
                 TutorialMargin = new Avalonia.Thickness(0, 0, 16, 20);

@@ -1,4 +1,4 @@
-﻿{
+{
     "App":  {
                 "Title":  "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
             },
@@ -185,7 +185,7 @@
                          "StartProcessing":  "▶ Start Processing",
                          "Cancel":  "Cancel",
                          "PlayGenerated":  "▶ Play generated video (VLC / Default player)",
-                         "OpenOutput":  "📂 Open output folder",
+                         "OpenOutput":  "Open Folder",
                          "ExecutionLog":  "Execution log:"
                      },
     "Viewer":  {
