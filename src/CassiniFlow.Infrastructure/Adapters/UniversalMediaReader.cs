@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Codecs;
@@ -152,12 +152,12 @@ public static class UniversalMediaReader
             string fourcc = string.IsNullOrWhiteSpace(cap.FourCC) ? ext.TrimStart('.').ToUpperInvariant() : cap.FourCC.Trim();
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Fichier VidÃ©o : {fi.Name}");
+            sb.AppendLine($"Fichier Vidéo : {fi.Name}");
             sb.AppendLine(new string('=', 56));
             sb.AppendLine($"Chemin      : {filePath}");
             sb.AppendLine($"Taille      : {fi.Length:N0} octets ({fi.Length / (1024.0 * 1024.0):F2} Mo)");
             sb.AppendLine($"Conteneur   : {ext.ToUpperInvariant()} (Codec: {fourcc})");
-            sb.AppendLine($"Dimensions  : {w} Ã— {h} px");
+            sb.AppendLine($"Dimensions  : {w} × {h} px");
             sb.AppendLine($"Nb Frames   : {frames}");
             sb.AppendLine($"Cadence     : {fps:F2} fps");
 
@@ -187,7 +187,7 @@ public static class UniversalMediaReader
 
             using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
             if (mat.Empty())
-                throw new InvalidDataException($"Impossible de dÃ©coder l'image '{filePath}'.");
+                throw new InvalidDataException($"Impossible de décoder l'image '{filePath}'.");
 
             int w = mat.Width;
             int h = mat.Height;
@@ -200,11 +200,11 @@ public static class UniversalMediaReader
                 h,
                 1.0,
                 fi.Length,
-                $"Fichier Image : {fi.Name} ({w}Ã—{h}, {depth}-bit, Canaux={mat.Channels()})",
+                $"Fichier Image : {fi.Name} ({w}×{h}, {depth}-bit, Canaux={mat.Channels()})",
                 AstroMetadataExtractor.Extract(filePath));
         }
 
-        throw new NotSupportedException($"Format de fichier non supportÃ© : {ext}");
+        throw new NotSupportedException($"Format de fichier non supporté : {ext}");
     }
 
     /// <summary>
@@ -313,7 +313,7 @@ public static class UniversalMediaReader
                 }
 
                 if (_reusableReadMat.Empty())
-                    throw new InvalidDataException($"Impossible de dÃ©coder la frame #{target + 1}.");
+                    throw new InvalidDataException($"Impossible de décoder la frame #{target + 1}.");
 
                 int origW = _reusableReadMat.Width;
                 int origH = _reusableReadMat.Height;
@@ -332,7 +332,7 @@ public static class UniversalMediaReader
             }
         }
 
-        throw new NotSupportedException($"Format non supportÃ© : {ext}");
+        throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
     public static AstroFrame ReadSingleFrame(string filePath, int frameIndex, int serBitDepthOverride = 0)
@@ -410,7 +410,7 @@ public static class UniversalMediaReader
             }
         }
 
-        throw new NotSupportedException($"Format non supportÃ© : {ext}");
+        throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
     /// <summary>
@@ -906,7 +906,7 @@ public static class UniversalMediaReader
 
             using var cap = new VideoCapture(filePath);
             if (!cap.IsOpened())
-                throw new InvalidDataException($"Impossible de dÃ©coder la vidÃ©o '{filePath}'.");
+                throw new InvalidDataException($"Impossible de décoder la vidéo '{filePath}'.");
 
             double fps = cap.Fps > 0 ? cap.Fps : 30.0;
             bool hasExtractedStart = WinJuposHelper.TryExtractDateTime(filePath, false, out var startUtc);
@@ -931,7 +931,7 @@ public static class UniversalMediaReader
             yield break;
         }
 
-        throw new NotSupportedException($"Format non supportÃ© : {ext}");
+        throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
     public static void WriteVideoFile(

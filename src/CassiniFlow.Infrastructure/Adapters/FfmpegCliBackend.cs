@@ -129,12 +129,12 @@ public static class FfmpegCliBackend
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Fichier VidÃ©o : {fi.Name}");
+        sb.AppendLine($"Fichier Vidéo : {fi.Name}");
         sb.AppendLine(new string('=', 56));
         sb.AppendLine($"Chemin      : {filePath}");
         sb.AppendLine($"Taille      : {fi.Length:N0} octets ({fi.Length / (1024.0 * 1024.0):F2} Mo)");
         sb.AppendLine($"Conteneur   : {ext.ToUpperInvariant()} (Codec: {codec})");
-        sb.AppendLine($"Dimensions  : {width} Ã— {height} px");
+        sb.AppendLine($"Dimensions  : {width} × {height} px");
         sb.AppendLine($"Nb Frames   : {frames}");
         sb.AppendLine($"Cadence     : {fps:F2} fps");
 
@@ -226,7 +226,7 @@ public static class FfmpegCliBackend
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
-        }) ?? throw new InvalidOperationException("Impossible de dÃ©marrer ffmpeg. Installez ffmpeg ('sudo apt install ffmpeg').");
+        }) ?? throw new InvalidOperationException("Impossible de démarrer ffmpeg. Installez ffmpeg ('sudo apt install ffmpeg').");
 
         int byteCount = outW * outH * 3;
         byte[] buf = new byte[byteCount];

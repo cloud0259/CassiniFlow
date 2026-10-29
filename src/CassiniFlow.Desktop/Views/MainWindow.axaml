@@ -121,7 +121,7 @@
                 <Grid>
                     <views:FrameViewerView />
 
-                    <!-- Carte Didacticiel IntÃ©ractif Flottante PositionnÃ©e Dynamiquement -->
+                    <!-- Carte Didacticiel Interactif Flottante Positionnée Dynamiquement -->
                     <Border IsVisible="{Binding IsTutorialActive}"
                             HorizontalAlignment="{Binding TutorialHorizontalAlignment}"
                             VerticalAlignment="{Binding TutorialVerticalAlignment}"
@@ -134,7 +134,7 @@
                             Padding="14,12"
                             ZIndex="500">
                         <StackPanel Spacing="8">
-                            <!-- En-tÃªte : Badge Ã‰tape + Cible + Bouton Quitter -->
+                            <!-- En-tête : Badge Étape + Cible + Bouton Quitter -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
                                     <Border Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="6,2">
@@ -154,7 +154,7 @@
                             <!-- Corps : Explication concise -->
                             <TextBlock Text="{Binding TutorialStepDescription}" TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="{DynamicResource AppTextSecondary}"/>
 
-                            <!-- Pied : PrÃ©cÃ©dent & Suivant -->
+                            <!-- Pied : Précédent & Suivant -->
                             <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
                                 <Button Grid.Column="0" Content="{loc:Tr Tutorial.Previous}" Command="{Binding PreviousTutorialStepCommand}" IsEnabled="{Binding CanTutorialGoPrevious}" FontSize="11" Padding="10,4"/>
                                 <Button Grid.Column="2" Content="{Binding TutorialNextButtonText}" Command="{Binding NextTutorialStepCommand}" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="12,4"/>
@@ -343,7 +343,7 @@
                             </Border>
                         </Expander>
 
-                        <!-- CARTE 9 : EXÃ‰CUTION & CONSOLE -->
+                        <!-- CARTE 9 : EXÉCUTION & CONSOLE -->
                         <Expander Classes="accordion-card" IsExpanded="{Binding IsSection9Expanded}" IsVisible="{Binding IsSection9Visible}">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="Auto,*,Auto">
