@@ -16,7 +16,7 @@ namespace CassiniFlow.Infrastructure.Adapters;
 /// </summary>
 public static class StackingPipelineRunner
 {
-    private readonly record struct FrameScoreRecord(int FrameIndex, double QualityScore, int CentroidX, int CentroidY);
+    private readonly record struct FrameScoreRecord(int FrameIndex, double QualityScore, int CentroidX, int CentroidY, string FilePath = "");
 
     public static async Task<PipelineRunSummary> ExecuteAsync(
         IReadOnlyList<string> inputFiles,
@@ -36,15 +36,32 @@ public static class StackingPipelineRunner
                 return new PipelineRunSummary(false, TimeSpan.Zero, 0, 0, 0, 0, 0, string.Empty);
             }
 
-            int totalInputFrames = 0;
-            int discardedNoPlanet = 0;
-            int discardedQuality = 0;
-            string lastOutputPath = string.Empty;
-            int outputFramesWritten = 0;
-            var allGeneratedFiles = new List<string>();
-
-            foreach (var file in validFiles)
+            if (options.RunMode == ProcessingRunMode.JoinMode && validFiles.Count > 1)
             {
+                return ExecuteJoinModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken);
+            }
+
+            return ExecuteBatchModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken);
+        }, cancellationToken);
+    }
+
+    private static PipelineRunSummary ExecuteBatchModeInternal(
+        List<string> validFiles,
+        ProcessingOptions options,
+        string outputDirectory,
+        Stopwatch sw,
+        IProgress<PipelineProgressReport>? progress,
+        CancellationToken cancellationToken)
+    {
+        int totalInputFrames = 0;
+        int discardedNoPlanet = 0;
+        int discardedQuality = 0;
+        string lastOutputPath = string.Empty;
+        int outputFramesWritten = 0;
+        var allGeneratedFiles = new List<string>();
+
+        foreach (var file in validFiles)
+        {
                 cancellationToken.ThrowIfCancellationRequested();
                 string fileName = Path.GetFileName(file);
                 string baseStem = Path.GetFileNameWithoutExtension(file);
@@ -210,7 +227,7 @@ public static class StackingPipelineRunner
                         scoreRecords.Count,
                         "Synthèse de la trame de référence Double Stack (élimination du bruit de grenaille)..."));
 
-                    bestRefFrame = CreateDoubleStackReference(file, ext, scoreRecords, bestRefFrame, options);
+                    bestRefFrame = CreateDoubleStackReference(scoreRecords, bestRefFrame, options);
                 }
 
                 // Détermination des paliers d'empilement
@@ -386,7 +403,360 @@ public static class StackingPipelineRunner
                 DiscardedOverexposed: 0,
                 DiscardedQuality: discardedQuality,
                 OutputFilePath: lastOutputPath);
-        }, cancellationToken);
+    }
+
+    private static PipelineRunSummary ExecuteJoinModeInternal(
+        List<string> validFiles,
+        ProcessingOptions options,
+        string outputDirectory,
+        Stopwatch sw,
+        IProgress<PipelineProgressReport>? progress,
+        CancellationToken cancellationToken)
+    {
+        int totalInputFrames = 0;
+        int discardedNoPlanet = 0;
+        int discardedQuality = 0;
+        string lastOutputPath = string.Empty;
+        int outputFramesWritten = 0;
+        var allGeneratedFiles = new List<string>();
+
+        int totalExpectedFrames = validFiles.Sum(f => Math.Max(1, UniversalMediaReader.InspectFile(f).FrameCount));
+        int globalPass1Count = 0;
+
+        var allScoreRecords = new List<FrameScoreRecord>();
+        AstroFrame? bestRefFrame = null;
+        double bestQuality = double.MinValue;
+        object lockObj = new();
+
+        // =========================================================================
+        // PASSE 1 (FUSION) : Évaluation seeing et recherche de la meilleure trame
+        // de référence globale sur l'ENSEMBLE des fichiers sources.
+        // =========================================================================
+        for (int fileIdx = 0; fileIdx < validFiles.Count; fileIdx++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string file = validFiles[fileIdx];
+            string fileName = Path.GetFileName(file);
+            string ext = Path.GetExtension(file).ToLowerInvariant();
+
+            progress?.Report(new PipelineProgressReport(
+                "Analyse de Qualité (Fusion)",
+                1,
+                fileName,
+                globalPass1Count,
+                totalExpectedFrames,
+                $"Évaluation globale [{fileIdx + 1}/{validFiles.Count}] : {fileName}..."));
+
+            if (ext == ".ser")
+            {
+                using var ser = new SerFile(file);
+                int totalFrames = ser.Header.FrameCount;
+                var records = new FrameScoreRecord?[totalFrames];
+                int fileBestIdx = -1;
+                double fileBestScore = double.MinValue;
+
+                Parallel.For(0, totalFrames, new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    CancellationToken = cancellationToken
+                }, i =>
+                {
+                    var raw = ser.ReadFrame(i, options.SerBitDepthOverride);
+                    var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                    if (!accepted)
+                    {
+                        Interlocked.Increment(ref discardedNoPlanet);
+                        return;
+                    }
+
+                    double score = StabilisationAndQualityEngine.ComputeQualityScore(
+                        work,
+                        options.QualityAlgorithm,
+                        noiseRobust: options.Stacking.NoiseRobust);
+                    records[i] = new FrameScoreRecord(i, score, cx, cy, file);
+
+                    lock (lockObj)
+                    {
+                        if (score > fileBestScore)
+                        {
+                            fileBestScore = score;
+                            fileBestIdx = i;
+                        }
+                    }
+
+                    int done = Interlocked.Increment(ref globalPass1Count);
+                    if (done % 50 == 0 || done == totalExpectedFrames)
+                    {
+                        int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
+                        progress?.Report(new PipelineProgressReport(
+                            "Analyse de Qualité (Fusion)",
+                            pct,
+                            fileName,
+                            done,
+                            totalExpectedFrames,
+                            $"Analyse globale {done}/{totalExpectedFrames} ({pct}%)..."));
+                    }
+                });
+
+                totalInputFrames += totalFrames;
+                allScoreRecords.AddRange(records.Where(r => r.HasValue).Select(r => r!.Value));
+
+                if (fileBestIdx >= 0 && fileBestScore > bestQuality)
+                {
+                    lock (lockObj)
+                    {
+                        if (fileBestScore > bestQuality)
+                        {
+                            bestQuality = fileBestScore;
+                            var rawBest = ser.ReadFrame(fileBestIdx, options.SerBitDepthOverride);
+                            bestRefFrame = PrepareFrame(rawBest, options, out _, out _, out _);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    totalInputFrames++;
+                    int done = Interlocked.Increment(ref globalPass1Count);
+
+                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                    if (!accepted)
+                    {
+                        discardedNoPlanet++;
+                        continue;
+                    }
+
+                    double score = StabilisationAndQualityEngine.ComputeQualityScore(
+                        workFrame,
+                        options.QualityAlgorithm,
+                        noiseRobust: options.Stacking.NoiseRobust);
+
+                    allScoreRecords.Add(new FrameScoreRecord(raw.FrameIndex, score, cx, cy, file));
+
+                    if (score > bestQuality || bestRefFrame is null)
+                    {
+                        bestQuality = score;
+                        bestRefFrame = workFrame.Clone();
+                    }
+
+                    if (done % 10 == 0 || done == totalExpectedFrames)
+                    {
+                        int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
+                        progress?.Report(new PipelineProgressReport(
+                            "Analyse de Qualité (Fusion)",
+                            pct,
+                            fileName,
+                            done,
+                            totalExpectedFrames,
+                            $"Analyse globale {done}/{totalExpectedFrames} ({pct}%)..."));
+                    }
+                }
+            }
+        }
+
+        if (allScoreRecords.Count == 0 || bestRefFrame is null)
+        {
+            return new PipelineRunSummary(false, sw.Elapsed, totalInputFrames, 0, discardedNoPlanet, 0, 0, string.Empty);
+        }
+
+        // Tri global décroissant par score de qualité
+        allScoreRecords.Sort((a, b) => b.QualityScore.CompareTo(a.QualityScore));
+
+        // Synthèse de référence Double Stack multi-fichiers
+        if (options.Stacking.DoubleStackReference && allScoreRecords.Count >= 3)
+        {
+            progress?.Report(new PipelineProgressReport(
+                "Trame de Référence (Fusion)",
+                46,
+                Path.GetFileName(validFiles[0]),
+                0,
+                allScoreRecords.Count,
+                "Synthèse globale de la trame de référence Double Stack..."));
+
+            bestRefFrame = CreateDoubleStackReference(allScoreRecords, bestRefFrame, options);
+        }
+
+        var activePercentages = options.Stacking.StackPercentages.Where(p => p > 0).Distinct().OrderBy(p => p).ToList();
+        if (activePercentages.Count == 0)
+        {
+            activePercentages = [25.0];
+        }
+
+        int quotaMax = (options.Stacking.StackFrameCounts.Count > 0 && options.Stacking.StackFrameCounts[0] > 0)
+            ? options.Stacking.StackFrameCounts[0]
+            : int.MaxValue;
+
+        progress?.Report(new PipelineProgressReport(
+            "Points d'Alignement (Fusion)",
+            47,
+            Path.GetFileName(validFiles[0]),
+            0,
+            allScoreRecords.Count,
+            "Calcul de la grille adaptative de points d'alignement (AP)..."));
+
+        var grid = AlignmentGridGenerator.GenerateGrid(bestRefFrame, options.Stacking);
+
+        var tiers = new List<StackingTier>();
+        foreach (var pct in activePercentages)
+        {
+            int count = Math.Max(1, (int)Math.Round(allScoreRecords.Count * (pct / 100.0)));
+            count = Math.Min(count, quotaMax);
+            count = Math.Clamp(count, 1, allScoreRecords.Count);
+
+            var stacker = new MultiZoneStackingEngine(
+                bestRefFrame.Width,
+                bestRefFrame.Height,
+                bestRefFrame.Channels,
+                options.Stacking,
+                grid);
+
+            tiers.Add(new StackingTier
+            {
+                Percentage = pct,
+                FramesToStack = count,
+                Stacker = stacker
+            });
+        }
+
+        int maxFramesToStack = tiers.Max(t => t.FramesToStack);
+        discardedQuality += (allScoreRecords.Count - maxFramesToStack);
+
+        var wantedList = allScoreRecords.Take(maxFramesToStack).ToList();
+
+        string tiersDesc = string.Join(", ", tiers.Select(t => $"{t.FramesToStack} trames ({t.Percentage:F0}%)"));
+        progress?.Report(new PipelineProgressReport(
+            "Empilement Multi-Zones (Fusion)",
+            50,
+            Path.GetFileName(validFiles[0]),
+            0,
+            maxFramesToStack,
+            $"Grille AP : {grid.ActiveCount} points actifs. Empilement fusionné : {tiersDesc}..."));
+
+        // =========================================================================
+        // PASSE 2 (FUSION) : Streaming et accumulation par fichier source
+        // Chaque fichier n'est ouvert et parcouru qu'une seule fois.
+        // =========================================================================
+        int stackedSoFar = 0;
+        var framesByFile = wantedList
+            .Select((rec, globalRank) => (Record: rec, GlobalRank: globalRank))
+            .GroupBy(x => x.Record.FilePath);
+
+        foreach (var group in framesByFile)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string file = group.Key;
+            string fileName = Path.GetFileName(file);
+            string ext = Path.GetExtension(file).ToLowerInvariant();
+
+            if (ext == ".ser")
+            {
+                using var ser = new SerFile(file);
+                foreach (var item in group)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var raw = ser.ReadFrame(item.Record.FrameIndex, options.SerBitDepthOverride);
+                    AccumulateFrameIntoTiers(raw, options, item.Record, bestRefFrame, grid, tiers, item.GlobalRank);
+                    stackedSoFar++;
+
+                    if (stackedSoFar % 5 == 0 || stackedSoFar == maxFramesToStack)
+                    {
+                        int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 46.0), 0, 46);
+                        progress?.Report(new PipelineProgressReport(
+                            "Empilement Multi-Zones (Fusion)",
+                            pct,
+                            fileName,
+                            stackedSoFar,
+                            maxFramesToStack,
+                            $"Empilement fusionné {stackedSoFar}/{maxFramesToStack} trames ({pct}%)..."));
+                    }
+                }
+            }
+            else
+            {
+                var targetRanks = group.ToDictionary(x => x.Record.FrameIndex, x => x.GlobalRank);
+                int neededForThisFile = targetRanks.Count;
+                int collectedForThisFile = 0;
+
+                foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!targetRanks.TryGetValue(raw.FrameIndex, out int rank))
+                        continue;
+
+                    var record = wantedList[rank];
+                    AccumulateFrameIntoTiers(raw, options, record, bestRefFrame, grid, tiers, rank);
+                    stackedSoFar++;
+                    collectedForThisFile++;
+
+                    if (stackedSoFar % 5 == 0 || stackedSoFar == maxFramesToStack)
+                    {
+                        int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 46.0), 0, 46);
+                        progress?.Report(new PipelineProgressReport(
+                            "Empilement Multi-Zones (Fusion)",
+                            pct,
+                            fileName,
+                            stackedSoFar,
+                            maxFramesToStack,
+                            $"Empilement fusionné {stackedSoFar}/{maxFramesToStack} trames ({pct}%)..."));
+                    }
+
+                    if (collectedForThisFile >= neededForThisFile) break;
+                }
+            }
+        }
+
+        progress?.Report(new PipelineProgressReport(
+            "Finalisation (Fusion)",
+            97,
+            Path.GetFileName(validFiles[0]),
+            maxFramesToStack,
+            maxFramesToStack,
+            "Normalisation des niveaux, alignement chromatique RVB et accentuation..."));
+
+        string outExt = options.OutputFormat switch
+        {
+            OutputFormat.Fits => ".fit",
+            OutputFormat.Png => ".png",
+            _ => ".tif"
+        };
+
+        string baseStem = Path.GetFileNameWithoutExtension(validFiles[0]);
+
+        foreach (var tier in tiers)
+        {
+            var stackedResult = tier.Stacker.ProduceStackedFrame();
+            string outFileName = $"{baseStem}_joined_stacked_p{(int)tier.Percentage}_{grid.ActiveCount}ap{outExt}";
+            string outFilePath = Path.Combine(outputDirectory, outFileName);
+
+            UniversalMediaReader.WriteSingleImageFile(outFilePath, stackedResult, is16Bit: true);
+            tier.OutputFilePath = outFilePath;
+            lastOutputPath = outFilePath;
+            outputFramesWritten++;
+            allGeneratedFiles.Add(outFilePath);
+        }
+
+        sw.Stop();
+        string generatedFilesText = string.Join(", ", allGeneratedFiles.Select(Path.GetFileName));
+        progress?.Report(new PipelineProgressReport(
+            "Terminé",
+            100,
+            string.Empty,
+            totalInputFrames,
+            totalInputFrames,
+            $"Empilement fusionné terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s ({validFiles.Count} vidéos combinées). Image(s) générée(s) : {generatedFilesText}"));
+
+        return new PipelineRunSummary(
+            Success: File.Exists(lastOutputPath),
+            Elapsed: sw.Elapsed,
+            TotalInputFrames: totalInputFrames,
+            OutputFramesWritten: outputFramesWritten,
+            DiscardedNoPlanet: discardedNoPlanet,
+            DiscardedOverexposed: 0,
+            DiscardedQuality: discardedQuality,
+            OutputFilePath: lastOutputPath);
     }
 
     private static void AccumulateFrameIntoTiers(
@@ -551,8 +921,6 @@ public static class StackingPipelineRunner
     }
 
     private static AstroFrame CreateDoubleStackReference(
-        string file,
-        string ext,
         IReadOnlyList<FrameScoreRecord> sortedRecords,
         AstroFrame initialBest,
         ProcessingOptions options)
@@ -568,31 +936,29 @@ public static class StackingPipelineRunner
 
         AccumulateToRefBuffer(accum, counts, initialBest, 0, 0, w, h, ch);
 
-        if (ext == ".ser")
+        for (int i = 1; i < countToAverage; i++)
         {
-            using var ser = new SerFile(file);
-            for (int i = 1; i < countToAverage; i++)
-            {
-                var raw = ser.ReadFrame(sortedRecords[i].FrameIndex, options.SerBitDepthOverride);
-                var work = PrepareFrame(raw, options, out _, out _, out bool ok);
-                if (!ok) continue;
+            var rec = sortedRecords[i];
+            string file = rec.FilePath;
+            if (string.IsNullOrEmpty(file) || !File.Exists(file)) continue;
 
-                var (dx, dy) = FastCrossCorrelation.ComputeShift(work, initialBest);
-                AccumulateToRefBuffer(accum, counts, work, (int)Math.Round(dx), (int)Math.Round(dy), w, h, ch);
-            }
-        }
-        else
-        {
-            var wantedSet = new HashSet<int>(sortedRecords.Take(countToAverage).Skip(1).Select(r => r.FrameIndex));
-            foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
+            string ext = Path.GetExtension(file).ToLowerInvariant();
+            AstroFrame raw;
+            if (ext == ".ser")
             {
-                if (!wantedSet.Contains(raw.FrameIndex)) continue;
-                var work = PrepareFrame(raw, options, out _, out _, out bool ok);
-                if (!ok) continue;
-
-                var (dx, dy) = FastCrossCorrelation.ComputeShift(work, initialBest);
-                AccumulateToRefBuffer(accum, counts, work, (int)Math.Round(dx), (int)Math.Round(dy), w, h, ch);
+                using var ser = new SerFile(file);
+                raw = ser.ReadFrame(rec.FrameIndex, options.SerBitDepthOverride);
             }
+            else
+            {
+                raw = UniversalMediaReader.ReadSingleFrame(file, rec.FrameIndex);
+            }
+
+            var work = PrepareFrame(raw, options, out _, out _, out bool ok);
+            if (!ok) continue;
+
+            var (dx, dy) = FastCrossCorrelation.ComputeShift(work, initialBest);
+            AccumulateToRefBuffer(accum, counts, work, (int)Math.Round(dx), (int)Math.Round(dy), w, h, ch);
         }
 
         ushort[] outData = new ushort[accum.Length];

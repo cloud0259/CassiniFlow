@@ -520,4 +520,47 @@ public class MultiZoneStackingEngineTests
         Assert.Equal("4", vm.Section9BadgeText);
         Assert.Equal("5", vm.Section10BadgeText);
     }
+
+    [Fact]
+    public async Task StackingPipeline_JoinMode_MergesMultipleVideosIntoSingleStackedFileAsync()
+    {
+        string tempAvi1 = Path.Combine(Path.GetTempPath(), $"stack_join1_{Guid.NewGuid():N}.avi");
+        string tempAvi2 = Path.Combine(Path.GetTempPath(), $"stack_join2_{Guid.NewGuid():N}.avi");
+        string tempOutDir = Path.Combine(Path.GetTempPath(), $"stack_join_out_{Guid.NewGuid():N}");
+
+        try
+        {
+            var frames1 = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, frameCount: 8, width: 128, height: 128);
+            var frames2 = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, frameCount: 8, width: 128, height: 128);
+            UniversalMediaReader.WriteVideoFile(tempAvi1, frames1, 25.0, false);
+            UniversalMediaReader.WriteVideoFile(tempAvi2, frames2, 25.0, false);
+
+            var options = new ProcessingOptions
+            {
+                RunMode = ProcessingRunMode.JoinMode,
+                EnableCropping = false,
+                OutputFormat = OutputFormat.Tiff
+            };
+            options.Stacking.WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+            options.Stacking.AlignmentTileSize = 32;
+            options.Stacking.StackPercentages = [25.0];
+
+            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi1, tempAvi2], options, tempOutDir);
+
+            Assert.True(summary.Success);
+            Assert.Equal(16, summary.TotalInputFrames);
+            Assert.Equal(1, summary.OutputFramesWritten);
+
+            var generatedTifs = Directory.GetFiles(tempOutDir, "*_stacked_*.tif");
+            Assert.Single(generatedTifs);
+            Assert.Contains("_joined_stacked_", Path.GetFileName(generatedTifs[0]));
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            if (File.Exists(tempAvi1)) File.Delete(tempAvi1);
+            if (File.Exists(tempAvi2)) File.Delete(tempAvi2);
+            if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
+        }
+    }
 }
