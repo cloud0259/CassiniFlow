@@ -17,7 +17,7 @@ namespace CassiniFlow.Desktop.ViewModels;
 
 public sealed partial class SourceFileItem : ObservableObject
 {
-    [ObservableProperty] private bool _isChecked;
+    [ObservableProperty] private bool _isChecked = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlanetSizeText))]
@@ -140,6 +140,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         Loc.LanguageChanged += RefreshLocalizedTexts;
         ThemeManager.ThemeChanged += OnThemeChanged;
+        SourceFiles.CollectionChanged += OnSourceFilesCollectionChanged;
 
         UpdateCpuStatus();
     }
@@ -660,6 +661,35 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateAvailableFrames();
     }
 
+
+    private void OnSourceFilesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+        {
+            foreach (SourceFileItem item in e.NewItems)
+            {
+                item.PropertyChanged += OnSourceFileItemPropertyChanged;
+            }
+        }
+        if (e.OldItems != null)
+        {
+            foreach (SourceFileItem item in e.OldItems)
+            {
+                item.PropertyChanged -= OnSourceFileItemPropertyChanged;
+            }
+        }
+        UpdateAvailableFrames();
+        OnPropertyChanged(nameof(AreAllFilesChecked));
+    }
+
+    private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+        {
+            UpdateAvailableFrames();
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        }
+    }
 
     public bool? AreAllFilesChecked
     {
@@ -1184,24 +1214,30 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void UpdateAvailableFrames()
     {
-        if (SourceFiles.Count == 0)
+        var activeFiles = SourceFiles.Where(f => f.IsChecked).ToList();
+        if (activeFiles.Count == 0)
+        {
+            activeFiles = SourceFiles.ToList();
+        }
+
+        if (activeFiles.Count == 0)
         {
             MaxAvailableFrames = 999999;
             return;
         }
 
         int available;
-        if (SourceFiles.Count > 1 && IsJoinMode)
+        if (activeFiles.Count > 1 && IsJoinMode)
         {
-            available = Math.Max(1, SourceFiles.Sum(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Sum(f => Math.Max(1, f.Frames)));
         }
-        else if (SelectedSourceFile is not null)
+        else if (SelectedSourceFile is { IsChecked: true })
         {
             available = Math.Max(1, SelectedSourceFile.Frames);
         }
         else
         {
-            available = Math.Max(1, SourceFiles.Max(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Max(f => Math.Max(1, f.Frames)));
         }
 
         MaxAvailableFrames = Math.Max(1, available);
@@ -1610,6 +1646,14 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        var selectedFiles = SourceFiles.Where(f => f.IsChecked).ToList();
+        if (selectedFiles.Count == 0)
+        {
+            SelectedTabIndex = 0;
+            ConsoleLogText = Loc.Pick("Aucun fichier n'est sélectionné. Veuillez cocher au moins un fichier dans la liste.", "No files selected. Please check at least one file in the list.");
+            return;
+        }
+
         if (IsProcessing) return;
 
         IsSection10Expanded = true;
@@ -1620,7 +1664,7 @@ public partial class MainWindowViewModel : ObservableObject
         _processingCts?.Cancel();
         _processingCts = new CancellationTokenSource();
 
-        string firstPath = (SelectedSourceFile ?? SourceFiles[0]).FullPath;
+        string firstPath = (SelectedSourceFile is { IsChecked: true } ? SelectedSourceFile : selectedFiles[0]).FullPath;
         string baseDir = !string.IsNullOrWhiteSpace(CustomOutputDirectory) && Directory.Exists(CustomOutputDirectory)
             ? CustomOutputDirectory
             : Path.GetDirectoryName(firstPath) ?? Environment.CurrentDirectory;
@@ -1637,7 +1681,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var filesToRun = SourceFiles.Select(f => f.FullPath).ToList();
+            var filesToRun = selectedFiles.Select(f => f.FullPath).ToList();
             string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
             InitProcessingLog(filesToRun.Count);
 
