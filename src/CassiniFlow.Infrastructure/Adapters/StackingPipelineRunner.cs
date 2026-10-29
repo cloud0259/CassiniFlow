@@ -829,6 +829,19 @@ public static class StackingPipelineRunner
             work = ImageProcessor.Debayer(work, pattern, options.DebayerType);
         }
 
+        if (options.EnableFieldDerotation)
+        {
+            double safeFps = (double)options.WinJuposInputFps > 0 ? (double)options.WinJuposInputFps : 30.0;
+            double angle = FieldDerotationEngine.ComputeFrameDerotationAngle(
+                work.FrameIndex,
+                Math.Max(100, work.FrameIndex + 1),
+                safeFps,
+                options.ObserverLatitudeDegrees,
+                options.TargetAltitudeDegrees,
+                options.TargetAzimuthDegrees);
+            work = FieldDerotationEngine.ApplyDerotation(work, angle);
+        }
+
         centroidX = work.Width / 2;
         centroidY = work.Height / 2;
 

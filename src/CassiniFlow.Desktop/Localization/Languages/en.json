@@ -334,5 +334,11 @@
         "RgbAlign": "Atmospheric dispersion correction (RGB)",
         "Sharpen": "High-frequency sharpening (5x5 mask)",
         "Feathering": "Feathering seam smoothing"
+    },
+    "Derotation": {
+        "Enable": "Enable field derotation (Dobson / Alt-Az mount)",
+        "Latitude": "Observer latitude (decimal degrees):",
+        "Altitude": "Target altitude above horizon (degrees):",
+        "Azimuth": "Target azimuth (South = 180\u00b0):"
     }
 }

@@ -248,7 +248,41 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _selectedRotationIndex = 0;
     [ObservableProperty] private bool _flipHorizontal;
     [ObservableProperty] private bool _flipVertical;
-    [ObservableProperty] private bool _autoRotateAlign;
+        [ObservableProperty] private bool _autoRotateAlign;
+
+    // DÃ©rotation de champ (Monture Dobson / Alt-Azimutale)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private bool _enableFieldDerotation;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _observerLatitudeDegrees = 49.62;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _targetAltitudeDegrees = 45.0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _targetAzimuthDegrees = 180.0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _admissibleBlurPixels = 1.5;
+
+    public string DerotationInfoText
+    {
+        get
+        {
+            double rate = FieldDerotationEngine.ComputeFieldRotationRateDegPerMin(ObserverLatitudeDegrees, TargetAltitudeDegrees, TargetAzimuthDegrees);
+            double sensorRadius = (CropWidth > 0 ? CropWidth : 1936) / 2.0;
+            double maxT = FieldDerotationEngine.ComputeMaxExposureSeconds(ObserverLatitudeDegrees, TargetAltitudeDegrees, TargetAzimuthDegrees, sensorRadius, AdmissibleBlurPixels);
+            return Loc.Pick(
+                $"Taux rotation : {rate:F3} Â°/min | DurÃ©e maxi sans dÃ©rotation : {maxT:F1} s",
+                $"Rotation rate: {rate:F3} Â°/min | Max exposure without derotation: {maxT:F1} s");
+        }
+    }
 
     // 4. Quality Options
     [ObservableProperty] private bool _enableQuality = false;
@@ -1535,7 +1569,12 @@ public partial class MainWindowViewModel : ObservableObject
         Options.Rotation = (RotationAngle)Math.Clamp(SelectedRotationIndex, 0, 3);
         Options.FlipHorizontalX = FlipHorizontal;
         Options.FlipVerticalY = FlipVertical;
-        Options.AutoRotateAlign = AutoRotateAlign;
+                Options.AutoRotateAlign = AutoRotateAlign;
+        Options.EnableFieldDerotation = EnableFieldDerotation;
+        Options.ObserverLatitudeDegrees = ObserverLatitudeDegrees;
+        Options.TargetAltitudeDegrees = TargetAltitudeDegrees;
+        Options.TargetAzimuthDegrees = TargetAzimuthDegrees;
+        Options.AdmissibleBlurPixels = AdmissibleBlurPixels;
 
         Options.EnableQualityEstimation = EnableQuality;
         Options.QualityAlgorithm = (QualityAlgorithm)Math.Clamp(SelectedQualityAlgoIndex, 0, 3);

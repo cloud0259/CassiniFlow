@@ -127,6 +127,13 @@ public sealed class ProcessingOptions
     /// </summary>
     public bool AutoRotateAlign { get; set; }
 
+    // Field Derotation (Dobson / Alt-Az Mount)
+    public bool EnableFieldDerotation { get; set; }
+    public double ObserverLatitudeDegrees { get; set; } = 49.62;
+    public double TargetAltitudeDegrees { get; set; } = 45.0;
+    public double TargetAzimuthDegrees { get; set; } = 180.0;
+    public double AdmissibleBlurPixels { get; set; } = 1.5;
+
     public bool EnableResizeFrames { get; set; }
     public bool ResizeKeepAspectRatio { get; set; } = true;
     public int ResizeWidth { get; set; } = 640;
