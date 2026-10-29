@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -81,6 +81,7 @@
                                         <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding IdentifiedObjectBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppAccent}" Margin="0,0,8,0" IsVisible="{Binding HasIdentifiedObject}"/>
                                         <TextBlock Text="{Binding ExposureInfo, StringFormat='{}⏱ {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0" IsVisible="{Binding HasAstroDetails}"/>
                                         <TextBlock Text="{Binding IsoOrGainInfo}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" IsVisible="{Binding HasAstroDetails}"/>
                                     </WrapPanel>

@@ -27,9 +27,26 @@ public sealed partial class SourceFileItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(PlanetSizeText))]
     private bool _isMeasuring;
 
-    public void RefreshLocalizedText() => OnPropertyChanged(nameof(PlanetSizeText));
+    public void RefreshLocalizedText()
+    {
+        OnPropertyChanged(nameof(PlanetSizeText));
+        OnPropertyChanged(nameof(IdentifiedObjectBadge));
+        OnPropertyChanged(nameof(IdentifiedObjectSummary));
+    }
 
     public string PlanetSizeText => IsMeasuring ? Loc.Pick("mesure...", "measuring...") : PlanetDiameterPx is double d ? $"{d:F0} px" : "—";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectSummary))]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectBadge))]
+    [NotifyPropertyChangedFor(nameof(HasIdentifiedObject))]
+    private string _identifiedObjectText = string.Empty;
+
+    public bool HasIdentifiedObject => !string.IsNullOrWhiteSpace(IdentifiedObjectText);
+    public string IdentifiedObjectBadge => HasIdentifiedObject ? $"🪐 {IdentifiedObjectText}" : string.Empty;
+    public string IdentifiedObjectSummary => HasIdentifiedObject ? IdentifiedObjectText : "—";
+
+
     public string FileName { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
     public string FormatBadge { get; init; } = string.Empty;
@@ -89,7 +106,22 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _loadingStatusText = string.Empty;
 
-    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private bool _isMeasuringPlanetSizes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private string _measuringStatusText = string.Empty;
+
+    public string GlobalStatusText => IsMeasuringPlanetSizes
+        ? MeasuringStatusText
+        : IsProcessing
+            ? ProcessingStageText
+            : string.Empty;
+
+    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles && !IsMeasuringPlanetSizes;
 
     // Viewer state
     [ObservableProperty] private int _currentFrameIndex = 1;
@@ -277,7 +309,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
     private bool _isProcessing;
     [ObservableProperty] private int _processingProgress;
-    [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(GlobalStatusText))] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
     partial void OnLastOutputFilePathChanged(string value) => OnPropertyChanged(nameof(PlayOrOpenOutputText));
 

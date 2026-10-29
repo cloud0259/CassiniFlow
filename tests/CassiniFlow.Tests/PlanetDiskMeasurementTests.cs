@@ -77,4 +77,35 @@ public class PlanetDiskMeasurementTests
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
         }
     }
+
+    [Fact]
+    public void SourceFileItem_IdentifiedObjectProperties_FormatCorrectly()
+    {
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem();
+        Assert.False(item.HasIdentifiedObject);
+        Assert.Equal(string.Empty, item.IdentifiedObjectBadge);
+        Assert.Equal("—", item.IdentifiedObjectSummary);
+
+        item.IdentifiedObjectText = "Jupiter (4 lunes détectées)";
+        Assert.True(item.HasIdentifiedObject);
+        Assert.Equal("🪐 Jupiter (4 lunes détectées)", item.IdentifiedObjectBadge);
+        Assert.Equal("Jupiter (4 lunes détectées)", item.IdentifiedObjectSummary);
+    }
+
+    [Fact]
+    public void MainWindowViewModel_MeasuringState_UpdatesGlobalStatusText()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        Assert.False(vm.IsMeasuringPlanetSizes);
+        Assert.True(vm.CanAddFiles);
+
+        vm.IsMeasuringPlanetSizes = true;
+        vm.MeasuringStatusText = "Mesure en cours (1/2)...";
+
+        Assert.False(vm.CanAddFiles);
+        Assert.Equal("Mesure en cours (1/2)...", vm.GlobalStatusText);
+
+        vm.IsMeasuringPlanetSizes = false;
+        Assert.True(vm.CanAddFiles);
+    }
 }

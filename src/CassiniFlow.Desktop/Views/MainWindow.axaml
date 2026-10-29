@@ -375,7 +375,7 @@
         <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding ViewerStatusText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding ProcessingStageText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding GlobalStatusText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" x:Name="ThemeQuickToggleButton" Content="🌙" Click="OnToggleThemeClick" Background="Transparent" BorderThickness="0" Padding="6,2" FontSize="13" ToolTip.Tip="{loc:Tr Menu.ThemeToggleTip}" VerticalAlignment="Center"/>
             </Grid>
         </Border>
