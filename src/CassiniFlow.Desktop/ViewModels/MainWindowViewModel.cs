@@ -105,6 +105,7 @@ public partial class MainWindowViewModel : ObservableObject
     // 1. Source Files & Preset ("Optimise Options For")
     [ObservableProperty] private bool _isBatchMode = true;
     [ObservableProperty] private bool _isJoinMode;
+    partial void OnIsJoinModeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private bool _limitFrameRange;
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
@@ -310,6 +311,7 @@ public partial class MainWindowViewModel : ObservableObject
             _cachedPreviewResult = null;
             _cachedRawFilePath = null;
             ViewerTitle = Loc.Tr("Aucun fichier sélectionné", "No file selected");
+            UpdateAvailableFrames();
             FrameDimensionsText = "—";
             PreviewReady?.Invoke(null, null, 1.0);
             return;
@@ -332,6 +334,7 @@ public partial class MainWindowViewModel : ObservableObject
             CropHeight = Math.Max(64, value.Height & ~3);
         }
 
+        UpdateAvailableFrames();
         RequestPreviewUpdate(reloadFromDisk: true);
     }
 
@@ -604,6 +607,7 @@ public partial class MainWindowViewModel : ObservableObject
             $"{SourceFiles.Count} fichier(s) dans la liste. Sélection : {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames à {firstNew.FpsInfo}).",
             $"{SourceFiles.Count} file(s) in the list. Selected: {firstNew.FileName} ({firstNew.Resolution}, {firstNew.Frames} frames at {firstNew.FpsInfo}).");
 
+        UpdateAvailableFrames();
         await AnalyzePlanetSizes();
     }
 
@@ -624,6 +628,7 @@ public partial class MainWindowViewModel : ObservableObject
         SelectedSourceFile = SourceFiles.Count > 0
             ? SourceFiles[Math.Clamp(idx, 0, SourceFiles.Count - 1)]
             : null;
+        UpdateAvailableFrames();
     }
 
 
@@ -908,7 +913,34 @@ public partial class MainWindowViewModel : ObservableObject
 
     // --- Empilement Multi-Zones & Rendu ---
     [ObservableProperty] private int _stackPercentage = 25;
-    [ObservableProperty] private int _stackFrameCount = 200;
+    [ObservableProperty] private int _stackFrameCount = 1000;
+    [ObservableProperty] private int _maxAvailableFrames = 999999;
+
+    public void UpdateAvailableFrames()
+    {
+        if (SourceFiles.Count == 0)
+        {
+            MaxAvailableFrames = 999999;
+            return;
+        }
+
+        int available;
+        if (SourceFiles.Count > 1 && IsJoinMode)
+        {
+            available = Math.Max(1, SourceFiles.Sum(f => Math.Max(1, f.Frames)));
+        }
+        else if (SelectedSourceFile is not null)
+        {
+            available = Math.Max(1, SelectedSourceFile.Frames);
+        }
+        else
+        {
+            available = Math.Max(1, SourceFiles.Max(f => Math.Max(1, f.Frames)));
+        }
+
+        MaxAvailableFrames = Math.Max(1, available);
+        StackFrameCount = MaxAvailableFrames;
+    }
     [ObservableProperty] private int _selectedDrizzleIndex = 0;
     [ObservableProperty] private bool _normalizeBrightness = true;
     [ObservableProperty] private int _normalizeTargetPercent = 75;
@@ -1060,6 +1092,7 @@ public partial class MainWindowViewModel : ObservableObject
         SourceFiles.Clear();
         HasLoadedFiles = false;
         SelectedSourceFile = null;
+        UpdateAvailableFrames();
     }
 
 

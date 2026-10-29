@@ -258,4 +258,46 @@ public class MultiZoneStackingEngineTests
         Assert.InRange(tileDx, -3.5, -2.5);
         Assert.InRange(tileDy, 1.5, 2.5);
     }
+
+    [Fact]
+    public void MainWindowViewModel_StackFrameCount_MatchesMaxAvailableFrames()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+
+        var file1 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "saturn_video.ser",
+            FullPath = "dummy1.ser",
+            Frames = 12085,
+            Width = 640,
+            Height = 480
+        };
+        var file2 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "jupiter_video.ser",
+            FullPath = "dummy2.ser",
+            Frames = 5000,
+            Width = 640,
+            Height = 480
+        };
+
+        // 1. Single file selection
+        vm.SourceFiles.Add(file1);
+        vm.SelectedSourceFile = file1;
+        vm.UpdateAvailableFrames();
+
+        Assert.Equal(12085, vm.MaxAvailableFrames);
+        Assert.Equal(12085, vm.StackFrameCount);
+
+        // 2. Add second file and enable JoinMode
+        vm.SourceFiles.Add(file2);
+        vm.IsJoinMode = true;
+        Assert.Equal(12085 + 5000, vm.MaxAvailableFrames);
+        Assert.Equal(17085, vm.StackFrameCount);
+
+        // 3. Switch to BatchMode (not JoinMode)
+        vm.IsJoinMode = false;
+        Assert.Equal(12085, vm.MaxAvailableFrames);
+        Assert.Equal(12085, vm.StackFrameCount);
+    }
 }

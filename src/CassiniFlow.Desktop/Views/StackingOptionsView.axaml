@@ -22,7 +22,7 @@
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="Quota max de trames :" Classes="label" VerticalAlignment="Center"/>
-                    <controls:NumberStepper Grid.Column="1" Value="{Binding StackFrameCount}" Minimum="1" Maximum="99999" FormatString="0" Width="110"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding StackFrameCount}" Minimum="1" Maximum="{Binding MaxAvailableFrames}" FormatString="0" Width="110"/>
                 </Grid>
             </StackPanel>
         </Border>
