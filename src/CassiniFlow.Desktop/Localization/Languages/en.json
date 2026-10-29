@@ -37,15 +37,15 @@
                     "CancelProcessing":  "✕ Cancel"
                 },
     "Tab":  {
-                "SourceFiles":  "1. Source Files",
-                "InputOptions":  "2. Input Options",
-                "ProcessingOptions":  "3. Processing Options",
-                "QualityOptions":  "4. Quality Options",
-                "AnimationOptions":  "7. Animation",
-                "OutputOptions":  "8. Output Options",
-                "DoProcessing":  "9. Execution",
-                "AlignmentOptions":  "5. Alignment Points",
-                "StackingOptions":  "6. Stacking \u0026 Render"
+                "SourceFiles":  "Source Files",
+                "InputOptions":  "Input Options",
+                "ProcessingOptions":  "Processing Options",
+                "QualityOptions":  "Quality Options",
+                "AnimationOptions":  "Animation",
+                "OutputOptions":  "Output Options",
+                "DoProcessing":  "Execution",
+                "AlignmentOptions":  "Alignment Points",
+                "StackingOptions":  "Stacking \u0026 Render"
             },
     "SourceFiles":  {
                         "Header":  "Video files and image sequences to process:",

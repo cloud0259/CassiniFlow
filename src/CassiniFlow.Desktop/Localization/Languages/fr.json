@@ -37,15 +37,15 @@
                     "CancelProcessing":  "✕ Annuler"
                 },
     "Tab":  {
-                "SourceFiles":  "1. Fichiers sources",
-                "InputOptions":  "2. Options d\u0027entrée",
-                "ProcessingOptions":  "3. Traitement \u0026 Centrage",
-                "QualityOptions":  "4. Tri \u0026 Qualité",
-                "AnimationOptions":  "7. Animation",
-                "OutputOptions":  "8. Options de sortie",
-                "DoProcessing":  "9. Exécution",
-                "AlignmentOptions":  "5. Points d\u0027alignement",
-                "StackingOptions":  "6. Empilement \u0026 Rendu"
+                "SourceFiles":  "Fichiers sources",
+                "InputOptions":  "Options d\u0027entrée",
+                "ProcessingOptions":  "Traitement \u0026 Centrage",
+                "QualityOptions":  "Tri \u0026 Qualité",
+                "AnimationOptions":  "Animation",
+                "OutputOptions":  "Options de sortie",
+                "DoProcessing":  "Exécution",
+                "AlignmentOptions":  "Points d\u0027alignement",
+                "StackingOptions":  "Empilement \u0026 Rendu"
             },
     "SourceFiles":  {
                         "Header":  "Liste des fichiers vidéos et séquences d\u0027images à traiter :",
