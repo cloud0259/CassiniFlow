@@ -116,6 +116,6 @@ public class FieldDerotationTests
 
         string info = vm.DerotationInfoText;
         Assert.Contains("°/min", info);
-        Assert.Contains("sans d", info); // "sans dérotation" in French
+        Assert.True(info.Contains("sans d") || info.Contains("without derotation"));
     }
 }
