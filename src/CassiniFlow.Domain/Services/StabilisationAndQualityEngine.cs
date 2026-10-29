@@ -8,10 +8,66 @@ namespace CassiniFlow.Domain.Services;
 /// </summary>
 public static class StabilisationAndQualityEngine
 {
+    public static int EstimateSkyBackgroundLevel8Bit(AstroFrame frame)
+    {
+        int w = frame.Width;
+        int h = frame.Height;
+        if (w < 16 || h < 16 || frame.Data.Length == 0) return 0;
+
+        int ch = frame.Channels;
+        Span<int> edgeSamples = stackalloc int[32];
+        int sampleIdx = 0;
+
+        // Échantillonner 8 points sur chaque bord (haut, bas, gauche, droite)
+        for (int i = 0; i < 8; i++)
+        {
+            int x = (w * (i + 1)) / 9;
+            int y = (h * (i + 1)) / 9;
+
+            // Bord haut (y = 4) et bas (y = h - 5)
+            edgeSamples[sampleIdx++] = SampleLum8Bit(frame, x, 4, w, ch);
+            edgeSamples[sampleIdx++] = SampleLum8Bit(frame, x, h - 5, w, ch);
+
+            // Bord gauche (x = 4) et droit (x = w - 5)
+            edgeSamples[sampleIdx++] = SampleLum8Bit(frame, 4, y, w, ch);
+            edgeSamples[sampleIdx++] = SampleLum8Bit(frame, w - 5, y, w, ch);
+        }
+
+        // Médiane des 32 échantillons (robuste aux étoiles isolées ou pixels chauds sur les bords)
+        edgeSamples.Sort();
+        return edgeSamples[16];
+    }
+
+    private static int SampleLum8Bit(AstroFrame frame, int x, int y, int w, int ch)
+    {
+        if (ch == 1)
+        {
+            return frame.Data[y * w + x] >> 8;
+        }
+        int idx = (y * w + x) * 3;
+        int r = frame.Data[idx] >> 8;
+        int g = frame.Data[idx + 1] >> 8;
+        int b = frame.Data[idx + 2] >> 8;
+        return Math.Max(r, Math.Max(g, b));
+    }
+
     public static int EstimateAutoThreshold8Bit(AstroFrame frame)
     {
         var (maxGrey, _, _, _) = frame.ComputeMaxPixelValues8Bit();
-        return Math.Clamp((int)(maxGrey * 0.14), 8, 180);
+        int skyLevel = EstimateSkyBackgroundLevel8Bit(frame);
+
+        if (skyLevel <= 4)
+        {
+            // Fond de ciel très sombre/noir (SER classique) : formule standard
+            return Math.Clamp((int)(maxGrey * 0.14), 8, 180);
+        }
+
+        // Fond de ciel bruité (vidéo smartphone, ciel clair, etc.) : seuil au-dessus du bruit
+        int dynamicRange = maxGrey - skyLevel;
+        if (dynamicRange <= 0) return Math.Clamp(skyLevel + 8, 8, 180);
+
+        int threshold = skyLevel + Math.Max(8, (int)(dynamicRange * 0.14));
+        return Math.Clamp(threshold, 8, 220);
     }
 
     public static unsafe DetectionResult DetectPlanetOrObject(

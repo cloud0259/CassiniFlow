@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
@@ -111,13 +111,39 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     scaledOffX,
                     scaledOffY,
                     options.ProtectBayerPattern);
+
+                int startX = targetX - (scaledCropW / 2) - scaledOffX;
+                int startY = targetY - (scaledCropH / 2) - scaledOffY;
+                detection = detection with
+                {
+                    CentroidX = detection.CentroidX - startX,
+                    CentroidY = detection.CentroidY - startY
+                };
             }
 
-            work = ImageProcessor.ApplyFlipAndRotation(
-                work,
-                options.FlipHorizontalX,
-                options.FlipVerticalY,
-                options.Rotation);
+            if (options.FlipHorizontalX || options.FlipVerticalY || options.Rotation != RotationAngle.None)
+            {
+                int pw = work.Width;
+                int ph = work.Height;
+                work = ImageProcessor.ApplyFlipAndRotation(
+                    work,
+                    options.FlipHorizontalX,
+                    options.FlipVerticalY,
+                    options.Rotation);
+
+                int cx = detection.CentroidX;
+                int cy = detection.CentroidY;
+                int fx = options.FlipHorizontalX ? (pw - 1 - cx) : cx;
+                int fy = options.FlipVerticalY ? (ph - 1 - cy) : cy;
+                (int rx, int ry) = options.Rotation switch
+                {
+                    RotationAngle.Rotate90Clockwise => (ph - 1 - fy, fx),
+                    RotationAngle.Rotate90Anticlockwise => (fy, pw - 1 - fx),
+                    RotationAngle.Rotate180 => (pw - 1 - fx, ph - 1 - fy),
+                    _ => (fx, fy)
+                };
+                detection = detection with { CentroidX = rx, CentroidY = ry };
+            }
         }
         else
         {

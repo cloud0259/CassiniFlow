@@ -182,4 +182,59 @@ public class CenteringValidationTests
         Assert.InRange(det.CentroidX, trueCx - 1, trueCx + 1);
         Assert.InRange(det.CentroidY, trueCy - 1, trueCy + 1);
     }
+
+    [Fact]
+    public void DetectPlanetOrObject_WithNoisySkyBackground_ComputesRobustThresholdAndCentersPlanet()
+    {
+        int w = 640, h = 480;
+        var frame = new AstroFrame(w, h, 3, 16);
+        int trueCx = 250, trueCy = 180, r = 35;
+
+        // Simuler un fond de ciel bruité de vidéo smartphone (luminance 8-bit autour de 20-25)
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int idx = (y * w + x) * 3;
+                ushort skyVal = (ushort)((22 + ((x + y) % 5)) * 257);
+                frame.Data[idx] = skyVal;
+                frame.Data[idx + 1] = skyVal;
+                frame.Data[idx + 2] = skyVal;
+            }
+        }
+
+        // Dessiner la planète Saturne brillante (luminance ~200)
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - trueCx;
+                int dy = y - trueCy;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    ushort planetVal = 204 * 257;
+                    frame.Data[idx] = planetVal;
+                    frame.Data[idx + 1] = planetVal;
+                    frame.Data[idx + 2] = planetVal;
+                }
+            }
+        }
+
+        // Le seuil automatique doit monter au-dessus du fond de ciel (ex: > 35) et centrer la planète sur (trueCx, trueCy)
+        var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
+            frame,
+            checkObject: true,
+            autoThreshold: true,
+            manualThreshold8Bit: 40,
+            minObjectSizePixels: 15,
+            shadowEdge: LunarShadowEdge.None,
+            checkOverexposed: false,
+            maxOverexposedPixels: 0);
+
+        Assert.True(det.Accepted);
+        Assert.True(det.Threshold8BitUsed > 28, $"Threshold {det.Threshold8BitUsed} must be higher than noisy sky (~25)");
+        Assert.InRange(det.CentroidX, trueCx - 1, trueCx + 1);
+        Assert.InRange(det.CentroidY, trueCy - 1, trueCy + 1);
+    }
 }

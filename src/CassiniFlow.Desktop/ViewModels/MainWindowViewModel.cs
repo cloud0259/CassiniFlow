@@ -1405,8 +1405,8 @@ public partial class MainWindowViewModel : ObservableObject
 
                 if (reloadDisk || _cachedPreviewResult is null || _cachedRawFilePath != source.FullPath || _cachedRawFrameIndex != targetFrameIdx)
                 {
-                    // Downscales 4K frames to max 640px for fast timeline scrubbing
-                    _cachedPreviewResult = UniversalMediaReader.ReadPreviewFrame(source.FullPath, targetFrameIdx, maxPreviewDim: 640, optionsSnapshot.SerBitDepthOverride);
+                    // Charge en résolution native (jusqu'à 4K) pour préserver la netteté et la cohérence 1:1 du recadrage
+                    _cachedPreviewResult = UniversalMediaReader.ReadPreviewFrame(source.FullPath, targetFrameIdx, maxPreviewDim: 4096, optionsSnapshot.SerBitDepthOverride);
                     _cachedRawFilePath = source.FullPath;
                     _cachedRawFrameIndex = targetFrameIdx;
                 }
@@ -1739,32 +1739,45 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void CalculateAlignmentGrid()
     {
-        var frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
-        if (frame is null) return;
-
         SyncOptionsFromUi();
 
-        // Si le recadrage est activé et que la trame en mémoire est la trame complète non recadrée,
-        // on génère la grille sur la zone recadrée cible (la même que celle qui sera empilée).
-        if (EnableCropping && (frame.Width != CropWidth || frame.Height != CropHeight))
-        {
-            int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
-                ? _lastDetection.CentroidX
-                : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : frame.Width / 2);
-            int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
-                ? _lastDetection.CentroidY
-                : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : frame.Height / 2);
+        AstroFrame? frame = null;
 
-            frame = ImageProcessor.CropAroundPoint(
-                frame,
-                targetX,
-                targetY,
-                CropWidth,
-                CropHeight,
-                CropOffsetX,
-                CropOffsetY,
-                protectBayerEvenSteps: Options.ProtectBayerPattern);
+        if (EnableCropping)
+        {
+            if (PreviewCroppedOutput && _lastProcessedPreviewFrame is not null && 
+                _lastProcessedPreviewFrame.Width == CropWidth && _lastProcessedPreviewFrame.Height == CropHeight)
+            {
+                // La trame déjà prévisualisée est déjà parfaitement recadrée et centrée
+                frame = _lastProcessedPreviewFrame;
+            }
+            else if (_cachedPreviewResult?.Frame is not null)
+            {
+                var baseFrame = _cachedPreviewResult.Frame;
+                int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidX
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
+                int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidY
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : baseFrame.Height / 2);
+
+                frame = ImageProcessor.CropAroundPoint(
+                    baseFrame,
+                    targetX,
+                    targetY,
+                    CropWidth,
+                    CropHeight,
+                    CropOffsetX,
+                    CropOffsetY,
+                    protectBayerEvenSteps: Options.ProtectBayerPattern);
+            }
         }
+        else
+        {
+            frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+        }
+
+        if (frame is null) return;
 
         CurrentAlignmentGrid = AlignmentGridGenerator.GenerateGrid(frame, Options.Stacking);
         AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), CurrentAlignmentGrid.ActiveCount, CurrentAlignmentGrid.TotalCount);
@@ -1781,13 +1794,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void AddManualAlignmentPoint(int x, int y)
     {
-        var frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
         int fw = CurrentAlignmentGrid.FrameWidth > 0 
             ? CurrentAlignmentGrid.FrameWidth 
-            : (EnableCropping ? CropWidth : (frame?.Width ?? 0));
+            : (EnableCropping ? CropWidth : (_cachedPreviewResult?.Frame.Width ?? 0));
         int fh = CurrentAlignmentGrid.FrameHeight > 0 
             ? CurrentAlignmentGrid.FrameHeight 
-            : (EnableCropping ? CropHeight : (frame?.Height ?? 0));
+            : (EnableCropping ? CropHeight : (_cachedPreviewResult?.Frame.Height ?? 0));
 
         if (fw > 0 && fh > 0)
         {
@@ -1795,24 +1807,38 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
         }
 
-        if (EnableCropping && frame is not null && (frame.Width != fw || frame.Height != fh))
+        AstroFrame? frame = null;
+        if (EnableCropping)
         {
-            int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
-                ? _lastDetection.CentroidX
-                : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : frame.Width / 2);
-            int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
-                ? _lastDetection.CentroidY
-                : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : frame.Height / 2);
+            if (PreviewCroppedOutput && _lastProcessedPreviewFrame is not null &&
+                _lastProcessedPreviewFrame.Width == fw && _lastProcessedPreviewFrame.Height == fh)
+            {
+                frame = _lastProcessedPreviewFrame;
+            }
+            else if (_cachedPreviewResult?.Frame is not null)
+            {
+                var baseFrame = _cachedPreviewResult.Frame;
+                int targetX = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidX
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxX : baseFrame.Width / 2);
+                int targetY = (CentreObjectInFrame && SelectedStabilisationModeIndex == 1 && _lastDetection is not null)
+                    ? _lastDetection.CentroidY
+                    : (SelectedStabilisationModeIndex == 2 ? TargetBoxY : baseFrame.Height / 2);
 
-            frame = ImageProcessor.CropAroundPoint(
-                frame,
-                targetX,
-                targetY,
-                fw,
-                fh,
-                CropOffsetX,
-                CropOffsetY,
-                protectBayerEvenSteps: Options.ProtectBayerPattern);
+                frame = ImageProcessor.CropAroundPoint(
+                    baseFrame,
+                    targetX,
+                    targetY,
+                    fw,
+                    fh,
+                    CropOffsetX,
+                    CropOffsetY,
+                    protectBayerEvenSteps: Options.ProtectBayerPattern);
+            }
+        }
+        else
+        {
+            frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
         }
 
         int tileSize = AlignmentTileSize;
