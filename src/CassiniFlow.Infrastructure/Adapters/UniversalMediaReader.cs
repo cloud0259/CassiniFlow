@@ -276,9 +276,25 @@ public static class UniversalMediaReader
                 if (_cachedPreviewCapture is null || !string.Equals(_cachedPreviewPath, filePath, StringComparison.OrdinalIgnoreCase) || !_cachedPreviewCapture.IsOpened())
                 {
                     _cachedPreviewCapture?.Dispose();
-                    _cachedPreviewCapture = new VideoCapture(filePath);
+                    try
+                    {
+                        _cachedPreviewCapture = new VideoCapture(filePath);
+                    }
+                    catch
+                    {
+                        _cachedPreviewCapture = null;
+                    }
                     _cachedPreviewPath = filePath;
                     _cachedNextFrameIndex = 0;
+                }
+
+                if (_cachedPreviewCapture is null || !_cachedPreviewCapture.IsOpened())
+                {
+                    if (FfmpegCliBackend.IsAvailable())
+                    {
+                        return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim);
+                    }
+                    throw new InvalidDataException($"Impossible de décoder la vidéo '{filePath}'.");
                 }
 
                 _reusableReadMat ??= new Mat();
@@ -313,7 +329,13 @@ public static class UniversalMediaReader
                 }
 
                 if (_reusableReadMat.Empty())
+                {
+                    if (FfmpegCliBackend.IsAvailable())
+                    {
+                        return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim);
+                    }
                     throw new InvalidDataException($"Impossible de décoder la frame #{target + 1}.");
+                }
 
                 int origW = _reusableReadMat.Width;
                 int origH = _reusableReadMat.Height;
@@ -331,7 +353,6 @@ public static class UniversalMediaReader
                 return new UniversalPreviewFrame(MatToAstroFrame(_reusableReadMat, target), origW, origH, 1.0);
             }
         }
-
         throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
@@ -381,9 +402,25 @@ public static class UniversalMediaReader
                 if (_cachedPreviewCapture is null || !string.Equals(_cachedPreviewPath, filePath, StringComparison.OrdinalIgnoreCase) || !_cachedPreviewCapture.IsOpened())
                 {
                     _cachedPreviewCapture?.Dispose();
-                    _cachedPreviewCapture = new VideoCapture(filePath);
+                    try
+                    {
+                        _cachedPreviewCapture = new VideoCapture(filePath);
+                    }
+                    catch
+                    {
+                        _cachedPreviewCapture = null;
+                    }
                     _cachedPreviewPath = filePath;
                     _cachedNextFrameIndex = 0;
+                }
+
+                if (_cachedPreviewCapture is null || !_cachedPreviewCapture.IsOpened())
+                {
+                    if (FfmpegCliBackend.IsAvailable())
+                    {
+                        return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim: 4096).Frame;
+                    }
+                    throw new InvalidDataException($"Impossible de décoder la vidéo '{filePath}'.");
                 }
 
                 _reusableReadMat ??= new Mat();
@@ -406,10 +443,18 @@ public static class UniversalMediaReader
                     _cachedNextFrameIndex = target + 1;
                 }
 
+                if (_reusableReadMat.Empty())
+                {
+                    if (FfmpegCliBackend.IsAvailable())
+                    {
+                        return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim: 4096).Frame;
+                    }
+                    throw new InvalidDataException($"Impossible de décoder la frame #{target + 1}.");
+                }
+
                 return MatToAstroFrame(_reusableReadMat, target);
             }
         }
-
         throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
@@ -904,33 +949,55 @@ public static class UniversalMediaReader
                 yield break;
             }
 
-            using var cap = new VideoCapture(filePath);
-            if (!cap.IsOpened())
-                throw new InvalidDataException($"Impossible de décoder la vidéo '{filePath}'.");
-
-            double fps = cap.Fps > 0 ? cap.Fps : 30.0;
-            bool hasExtractedStart = WinJuposHelper.TryExtractDateTime(filePath, false, out var startUtc);
-            if (!hasExtractedStart) startUtc = File.GetCreationTimeUtc(filePath);
-
-            int first = Math.Max(0, startIndex);
-            if (first > 0)
+            VideoCapture? cap = null;
+            try
             {
-                cap.PosFrames = first;
+                cap = new VideoCapture(filePath);
+            }
+            catch
+            {
+                cap = null;
             }
 
-            using var mat = new Mat();
-            int idx = first;
-
-            while (idx <= endIndex && cap.Read(mat) && !mat.Empty())
+            if (cap == null || !cap.IsOpened())
             {
-                var frame = MatToAstroFrame(mat, idx);
-                frame.TimestampUtc = startUtc.AddSeconds(idx / fps);
-                yield return frame;
-                idx++;
+                cap?.Dispose();
+                if (FfmpegCliBackend.IsAvailable())
+                {
+                    foreach (var f in FfmpegCliBackend.EnumerateFrames(filePath, startIndex, endIndex))
+                    {
+                        yield return f;
+                    }
+                    yield break;
+                }
+                throw new InvalidDataException($"Impossible de décoder la vidéo '{filePath}'.");
+            }
+
+            using (cap)
+            {
+                double fps = cap.Fps > 0 ? cap.Fps : 30.0;
+                bool hasExtractedStart = WinJuposHelper.TryExtractDateTime(filePath, false, out var startUtc);
+                if (!hasExtractedStart) startUtc = File.GetCreationTimeUtc(filePath);
+
+                int first = Math.Max(0, startIndex);
+                if (first > 0)
+                {
+                    cap.PosFrames = first;
+                }
+
+                using var mat = new Mat();
+                int idx = first;
+
+                while (idx <= endIndex && cap.Read(mat) && !mat.Empty())
+                {
+                    var frame = MatToAstroFrame(mat, idx);
+                    frame.TimestampUtc = startUtc.AddSeconds(idx / fps);
+                    yield return frame;
+                    idx++;
+                }
             }
             yield break;
         }
-
         throw new NotSupportedException($"Format non supporté : {ext}");
     }
 
@@ -962,16 +1029,29 @@ public static class UniversalMediaReader
             ? VideoWriter.FourCC('m', 'p', '4', 'v')
             : VideoWriter.FourCC('M', 'J', 'P', 'G');
 
-        using var writer = new VideoWriter(outputPath, fourcc, safeFps, new Size(w, h), isColor: true);
-        if (writer.IsOpened())
+        try
         {
-            using var mat = new Mat(h, w, MatType.CV_8UC3);
-            for (int i = 0; i < frames.Count; i++)
+            using var writer = new VideoWriter(outputPath, fourcc, safeFps, new Size(w, h), isColor: true);
+            if (writer.IsOpened())
             {
-                CopyAstroFrameToBgrMat(frames[i], mat, w, h);
-                writer.Write(mat);
+                using var mat = new Mat(h, w, MatType.CV_8UC3);
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    CopyAstroFrameToBgrMat(frames[i], mat, w, h);
+                    writer.Write(mat);
+                }
+                writer.Release();
+                return;
             }
-            writer.Release();
+        }
+        catch
+        {
+            // Fall back to FFmpeg or uncompressed AVI writer
+        }
+
+        if (FfmpegCliBackend.IsAvailable())
+        {
+            FfmpegCliBackend.WriteVideoFile(outputPath, frames, safeFps, useMp4Container);
             return;
         }
 

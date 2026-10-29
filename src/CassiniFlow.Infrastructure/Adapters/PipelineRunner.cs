@@ -1037,8 +1037,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         if (UniversalMediaReader.IsOpenCvNativeAvailable && UniversalMediaReader.VideoExtensions.Contains(ext))
         {
-            using var cap = new VideoCapture(filePath);
-            if (!cap.IsOpened()) return;
+        var cap = TryOpenVideoCapture(filePath);
+        if (cap is not null) using (cap) {
 
             double fps = cap.Fps > 0 ? cap.Fps : 30.0;
             bool hasExtractedStart = WinJuposHelper.TryExtractDateTime(filePath, false, out var startUtc);
@@ -1149,7 +1149,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 onStep(done);
                 idx++;
             }
-            return;
+            return; }
         }
 
         // Non-video files (SER, FITS, BMP, PNG, TIFF)
@@ -1252,8 +1252,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         if (UniversalMediaReader.IsOpenCvNativeAvailable && UniversalMediaReader.VideoExtensions.Contains(ext))
         {
-            using var cap = new VideoCapture(filePath);
-            if (!cap.IsOpened()) return;
+        var cap = TryOpenVideoCapture(filePath);
+        if (cap is not null) using (cap) {
 
             if (startIdx > 0)
             {
@@ -1315,7 +1315,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             {
                 scanEntries.AddRange(localEntries);
             }
-            return;
+            return; }
         }
 
         foreach (var raw in UniversalMediaReader.EnumerateFrames(filePath, startIdx, endIdx, options.SerBitDepthOverride))
@@ -1391,8 +1391,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         {
         if (UniversalMediaReader.IsOpenCvNativeAvailable && UniversalMediaReader.VideoExtensions.Contains(ext))
         {
-            using var cap = new VideoCapture(filePath);
-            if (!cap.IsOpened()) return;
+        var cap = TryOpenVideoCapture(filePath);
+        if (cap is not null) using (cap) {
 
             if (startIdx > 0)
             {
@@ -1452,7 +1452,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 onFrameProcessed(work, det);
                 idx++;
             }
-            return;
+            return; }
         }
 
         foreach (var raw in UniversalMediaReader.EnumerateFrames(filePath, startIdx, endIdx, options.SerBitDepthOverride))
@@ -1543,8 +1543,32 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return;
         }
 
-        using var cap = new VideoCapture(filePath);
-        if (!cap.IsOpened()) return;
+        using var cap = TryOpenVideoCapture(filePath);
+        if (cap is null)
+        {
+            foreach (var raw in UniversalMediaReader.EnumerateFrames(filePath, minFrame, maxFrame, options.SerBitDepthOverride))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!wantedByFrame.TryGetValue(raw.FrameIndex, out var entry)) continue;
+                var work = raw;
+                var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
+                if (options.EnableCropping)
+                {
+                    work = ImageProcessor.CropAroundPoint(
+                        work,
+                        centrePlanet ? entry.CentroidX : work.Width / 2,
+                        centrePlanet ? entry.CentroidY : work.Height / 2,
+                        options.CropWidth,
+                        options.CropHeight,
+                        options.CropOffsetX,
+                        options.CropOffsetY,
+                        options.ProtectBayerPattern);
+                }
+                ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
+                onSelectedFrame(raw.FrameIndex, work);
+            }
+            return;
+        }
 
         if (minFrame > 0)
         {
@@ -1791,13 +1815,45 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             switch (format)
             {
                 case OutputFormat.Avi when UniversalMediaReader.IsOpenCvNativeAvailable:
-                    _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('M', 'J', 'P', 'G'), fps, new Size(width, height), isColor: true);
-                    _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    try
+                    {
+                        _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('M', 'J', 'P', 'G'), fps, new Size(width, height), isColor: true);
+                    }
+                    catch
+                    {
+                        _videoWriter = null;
+                    }
+                    if (_videoWriter is not null && _videoWriter.IsOpened())
+                    {
+                        _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    }
+                    else
+                    {
+                        _videoWriter?.Dispose();
+                        _videoWriter = null;
+                        _fallbackFrames = [];
+                    }
                     break;
 
                 case OutputFormat.Mp4 when UniversalMediaReader.IsOpenCvNativeAvailable:
-                    _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('m', 'p', '4', 'v'), fps, new Size(width, height), isColor: true);
-                    _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    try
+                    {
+                        _videoWriter = new VideoWriter(outputPath, VideoWriter.FourCC('m', 'p', '4', 'v'), fps, new Size(width, height), isColor: true);
+                    }
+                    catch
+                    {
+                        _videoWriter = null;
+                    }
+                    if (_videoWriter is not null && _videoWriter.IsOpened())
+                    {
+                        _bgrMat = new Mat(height, width, MatType.CV_8UC3);
+                    }
+                    else
+                    {
+                        _videoWriter?.Dispose();
+                        _videoWriter = null;
+                        _fallbackFrames = [];
+                    }
                     break;
 
                 case OutputFormat.Ser:
@@ -1901,4 +1957,19 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             _bgrMat?.Dispose();
         }
     }
+    private static VideoCapture? TryOpenVideoCapture(string filePath)
+    {
+        try
+        {
+            var cap = new VideoCapture(filePath);
+            if (cap.IsOpened()) return cap;
+            cap.Dispose();
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 }
