@@ -295,6 +295,11 @@
                   },
     "Stacking":  {
                      "Percentages":  "Stacking tiers (% and count):",
+                     "PercentagesHint":  "Generates a distinct file for each tier above 0%.",
+                     "Tier1":  "Tier 1 (%) :",
+                     "Tier2":  "Tier 2 (%) :",
+                     "Tier3":  "Tier 3 (%) :",
+                     "MaxQuota":  "Max frame quota :",
                      "Drizzle":  "Drizzle resample:",
                      "DrizzleNone":  "Disabled (1.0x)",
                      "Drizzle15":  "Drizzle 1.5x",

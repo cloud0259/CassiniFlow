@@ -13,15 +13,27 @@
             <StackPanel Spacing="8">
                 <TextBlock Text="{loc:Tr Stacking.Percentages}" Classes="grouptitle"/>
 
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="Pourcentage de trames à empiler :" Classes="label" VerticalAlignment="Center"/>
-                    <controls:NumberStepper Grid.Column="1" Value="{Binding StackPercentage}" Minimum="1" Maximum="100" FormatString="{}{0} %" Width="110"/>
+                <TextBlock Text="{loc:Tr Stacking.PercentagesHint}" Classes="hint" FontSize="11" Foreground="#94a3b8"/>
+
+                <Grid ColumnDefinitions="*,8,*,8,*" Margin="0,2">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier1}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage1}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier2}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage2}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.Tier3}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackPercentage3}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
+                    </StackPanel>
                 </Grid>
 
-                <Slider Minimum="1" Maximum="100" Value="{Binding StackPercentage}" Margin="0,2"/>
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="Quota max de trames :" Classes="label" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.MaxQuota}" Classes="label" VerticalAlignment="Center"/>
                     <controls:NumberStepper Grid.Column="1" Value="{Binding StackFrameCount}" Minimum="1" Maximum="{Binding MaxAvailableFrames}" FormatString="0" Width="110"/>
                 </Grid>
             </StackPanel>

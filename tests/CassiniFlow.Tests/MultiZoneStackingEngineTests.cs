@@ -300,4 +300,66 @@ public class MultiZoneStackingEngineTests
         Assert.Equal(12085, vm.MaxAvailableFrames);
         Assert.Equal(12085, vm.StackFrameCount);
     }
+
+    [Fact]
+    public void MainWindowViewModel_MultiTierPercentages_DefaultsToZeroAndFiltersActive()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+
+        // 3 choices initialized to 0% at startup as requested
+        Assert.Equal(0, vm.StackPercentage1);
+        Assert.Equal(0, vm.StackPercentage2);
+        Assert.Equal(0, vm.StackPercentage3);
+
+        // When all 0, active percentages list is empty
+        var emptyActive = vm.GetActiveStackPercentages();
+        Assert.Empty(emptyActive);
+
+        // Configure 5% and 10%
+        vm.StackPercentage1 = 5;
+        vm.StackPercentage2 = 10;
+        vm.StackPercentage3 = 0;
+
+        var active = vm.GetActiveStackPercentages();
+        Assert.Equal(2, active.Count);
+        Assert.Equal(5.0, active[0]);
+        Assert.Equal(10.0, active[1]);
+    }
+
+    [Fact]
+    public async Task StackingPipeline_MultiTierPercentages_ProducesMultipleDistinctStackedFilesAsync()
+    {
+        string tempAvi = Path.Combine(Path.GetTempPath(), $"stack_multitier_in_{Guid.NewGuid():N}.avi");
+        string tempOutDir = Path.Combine(Path.GetTempPath(), $"stack_multitier_out_{Guid.NewGuid():N}");
+
+        try
+        {
+            var frames = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, frameCount: 10, width: 128, height: 128);
+            UniversalMediaReader.WriteVideoFile(tempAvi, frames, 25.0, false);
+
+            var options = new ProcessingOptions
+            {
+                EnableCropping = false,
+                OutputFormat = OutputFormat.Tiff
+            };
+            options.Stacking.WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+            options.Stacking.AlignmentTileSize = 32;
+            options.Stacking.StackPercentages = [20.0, 50.0];
+
+            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+
+            Assert.True(summary.Success);
+            Assert.Equal(2, summary.OutputFramesWritten);
+            var generatedTifs = Directory.GetFiles(tempOutDir, "*_stacked_*.tif");
+            Assert.Equal(2, generatedTifs.Length);
+            Assert.Contains(generatedTifs, f => f.Contains("_p20_"));
+            Assert.Contains(generatedTifs, f => f.Contains("_p50_"));
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            if (File.Exists(tempAvi)) File.Delete(tempAvi);
+            if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
+        }
+    }
 }

@@ -295,6 +295,11 @@
                   },
     "Stacking":  {
                      "Percentages":  "Paliers d\u0027empilement (% et quota) :",
+                     "PercentagesHint":  "Génère un fichier distinct pour chaque palier supérieur à 0%.",
+                     "Tier1":  "Palier 1 (%) :",
+                     "Tier2":  "Palier 2 (%) :",
+                     "Tier3":  "Palier 3 (%) :",
+                     "MaxQuota":  "Quota max de trames :",
                      "Drizzle":  "Suréchantillonnage Drizzle :",
                      "DrizzleNone":  "Désactivé (1.0x)",
                      "Drizzle15":  "Drizzle 1.5x",

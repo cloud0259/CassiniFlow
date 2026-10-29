@@ -912,7 +912,24 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
 
     // --- Empilement Multi-Zones & Rendu ---
-    [ObservableProperty] private int _stackPercentage = 25;
+    [ObservableProperty] private int _stackPercentage1 = 0;
+    [ObservableProperty] private int _stackPercentage2 = 0;
+    [ObservableProperty] private int _stackPercentage3 = 0;
+
+    public int StackPercentage
+    {
+        get => StackPercentage1 > 0 ? StackPercentage1 : (StackPercentage2 > 0 ? StackPercentage2 : (StackPercentage3 > 0 ? StackPercentage3 : 25));
+        set => StackPercentage1 = value;
+    }
+
+    public List<double> GetActiveStackPercentages()
+    {
+        var list = new List<double>();
+        if (StackPercentage1 > 0) list.Add(StackPercentage1);
+        if (StackPercentage2 > 0) list.Add(StackPercentage2);
+        if (StackPercentage3 > 0) list.Add(StackPercentage3);
+        return list.Distinct().OrderBy(p => p).ToList();
+    }
     [ObservableProperty] private int _stackFrameCount = 1000;
     [ObservableProperty] private int _maxAvailableFrames = 999999;
 
@@ -1300,7 +1317,9 @@ public partial class MainWindowViewModel : ObservableObject
         Options.Stacking.MinBrightnessThreshold = MinBrightnessThreshold;
         Options.Stacking.EnablePruning = EnablePruning;
         Options.Stacking.EnableMultiScaleGrid = EnableMultiScaleGrid;
-        Options.Stacking.StackPercentages = [StackPercentage];
+        var activePcts = GetActiveStackPercentages();
+        if (activePcts.Count == 0) activePcts = [25.0];
+        Options.Stacking.StackPercentages = activePcts;
         Options.Stacking.StackFrameCounts = [StackFrameCount];
         Options.Stacking.Drizzle = SelectedDrizzleIndex switch
         {

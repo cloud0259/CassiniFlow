@@ -40,6 +40,8 @@ public static class StackingPipelineRunner
             int discardedNoPlanet = 0;
             int discardedQuality = 0;
             string lastOutputPath = string.Empty;
+            int outputFramesWritten = 0;
+            var allGeneratedFiles = new List<string>();
 
             foreach (var file in validFiles)
             {
@@ -180,45 +182,69 @@ public static class StackingPipelineRunner
                 // Tri décroissant par qualité
                 scoreRecords.Sort((a, b) => b.QualityScore.CompareTo(a.QualityScore));
 
-                // Détermination du quota de trames à empiler
-                double pctToKeep = options.Stacking.StackPercentages.Count > 0 ? options.Stacking.StackPercentages[0] : 25.0;
-                int framesToStack = Math.Max(1, (int)Math.Round(scoreRecords.Count * (pctToKeep / 100.0)));
-                if (options.Stacking.StackFrameCounts.Count > 0 && options.Stacking.StackFrameCounts[0] > 0)
+                // Détermination des paliers d'empilement
+                var activePercentages = options.Stacking.StackPercentages.Where(p => p > 0).Distinct().OrderBy(p => p).ToList();
+                if (activePercentages.Count == 0)
                 {
-                    framesToStack = Math.Min(framesToStack, options.Stacking.StackFrameCounts[0]);
+                    activePercentages = [25.0];
                 }
-                framesToStack = Math.Clamp(framesToStack, 1, scoreRecords.Count);
-                discardedQuality += (scoreRecords.Count - framesToStack);
 
-                var wantedList = scoreRecords.Take(framesToStack).ToList();
-                var wantedSet = wantedList.ToDictionary(r => r.FrameIndex);
+                int quotaMax = (options.Stacking.StackFrameCounts.Count > 0 && options.Stacking.StackFrameCounts[0] > 0)
+                    ? options.Stacking.StackFrameCounts[0]
+                    : int.MaxValue;
 
                 progress?.Report(new PipelineProgressReport(
                     "Points d'Alignement",
                     47,
                     fileName,
                     0,
-                    framesToStack,
+                    scoreRecords.Count,
                     "Calcul de la grille adaptative de points d'alignement (AP)..."));
 
-                // Génération de la grille AP sur la meilleure trame de référence
+                // Génération de la grille AP sur la meilleure trame de référence (partagée par tous les paliers)
                 var grid = AlignmentGridGenerator.GenerateGrid(bestRefFrame, options.Stacking);
 
+                // Initialisation des stackers pour chaque palier
+                var tiers = new List<StackingTier>();
+                foreach (var pct in activePercentages)
+                {
+                    int count = Math.Max(1, (int)Math.Round(scoreRecords.Count * (pct / 100.0)));
+                    count = Math.Min(count, quotaMax);
+                    count = Math.Clamp(count, 1, scoreRecords.Count);
+
+                    var stacker = new MultiZoneStackingEngine(
+                        bestRefFrame.Width,
+                        bestRefFrame.Height,
+                        bestRefFrame.Channels,
+                        options.Stacking,
+                        grid);
+
+                    tiers.Add(new StackingTier
+                    {
+                        Percentage = pct,
+                        FramesToStack = count,
+                        Stacker = stacker
+                    });
+                }
+
+                int maxFramesToStack = tiers.Max(t => t.FramesToStack);
+                discardedQuality += (scoreRecords.Count - maxFramesToStack);
+
+                var wantedList = scoreRecords.Take(maxFramesToStack).ToList();
+                var wantedRankDict = new Dictionary<int, int>(maxFramesToStack);
+                for (int i = 0; i < wantedList.Count; i++)
+                {
+                    wantedRankDict[wantedList[i].FrameIndex] = i;
+                }
+
+                string tiersDesc = string.Join(", ", tiers.Select(t => $"{t.FramesToStack} trames ({t.Percentage:F0}%)"));
                 progress?.Report(new PipelineProgressReport(
                     "Empilement Multi-Zones",
                     50,
                     fileName,
                     0,
-                    framesToStack,
-                    $"Grille AP : {grid.ActiveCount} points actifs. Empilement des {framesToStack} meilleures poses ({pctToKeep:F0}%)..."));
-
-                // Initialisation du moteur d'empilement multi-zones O(1)
-                var stacker = new MultiZoneStackingEngine(
-                    bestRefFrame.Width,
-                    bestRefFrame.Height,
-                    bestRefFrame.Channels,
-                    options.Stacking,
-                    grid);
+                    maxFramesToStack,
+                    $"Grille AP : {grid.ActiveCount} points actifs. Empilement : {tiersDesc}..."));
 
                 // =========================================================================
                 // PASSE 2 : Streaming et accumulation uniquement des trames retenues
@@ -229,24 +255,24 @@ public static class StackingPipelineRunner
                 if (ext == ".ser")
                 {
                     using var ser = new SerFile(file);
-                    // Parcours direct uniquement des index retenus
-                    foreach (var record in wantedList)
+                    for (int i = 0; i < wantedList.Count; i++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        var record = wantedList[i];
                         var raw = ser.ReadFrame(record.FrameIndex, options.SerBitDepthOverride);
-                        AccumulateSingleFrame(raw, options, record, bestRefFrame, grid, stacker);
+                        AccumulateFrameIntoTiers(raw, options, record, bestRefFrame, grid, tiers, i);
                         stackedSoFar++;
 
-                        if (stackedSoFar % 5 == 0 || stackedSoFar == framesToStack)
+                        if (stackedSoFar % 5 == 0 || stackedSoFar == maxFramesToStack)
                         {
-                            int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / framesToStack * 46.0), 0, 46);
+                            int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 46.0), 0, 46);
                             progress?.Report(new PipelineProgressReport(
                                 "Empilement Multi-Zones",
                                 pct,
                                 fileName,
                                 stackedSoFar,
-                                framesToStack,
-                                $"Empilement {stackedSoFar}/{framesToStack} trames ({pct}%)..."));
+                                maxFramesToStack,
+                                $"Empilement {stackedSoFar}/{maxFramesToStack} trames ({pct}%)..."));
                         }
                     }
                 }
@@ -255,27 +281,28 @@ public static class StackingPipelineRunner
                     foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (!wantedSet.TryGetValue(raw.FrameIndex, out var record))
+                        if (!wantedRankDict.TryGetValue(raw.FrameIndex, out int rank))
                         {
                             continue;
                         }
 
-                        AccumulateSingleFrame(raw, options, record, bestRefFrame, grid, stacker);
+                        var record = wantedList[rank];
+                        AccumulateFrameIntoTiers(raw, options, record, bestRefFrame, grid, tiers, rank);
                         stackedSoFar++;
 
-                        if (stackedSoFar % 5 == 0 || stackedSoFar == framesToStack)
+                        if (stackedSoFar % 5 == 0 || stackedSoFar == maxFramesToStack)
                         {
-                            int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / framesToStack * 46.0), 0, 46);
+                            int pct = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 46.0), 0, 46);
                             progress?.Report(new PipelineProgressReport(
                                 "Empilement Multi-Zones",
                                 pct,
                                 fileName,
                                 stackedSoFar,
-                                framesToStack,
-                                $"Empilement {stackedSoFar}/{framesToStack} trames ({pct}%)..."));
+                                maxFramesToStack,
+                                $"Empilement {stackedSoFar}/{maxFramesToStack} trames ({pct}%)..."));
                         }
 
-                        if (stackedSoFar >= framesToStack) break;
+                        if (stackedSoFar >= maxFramesToStack) break;
                     }
                 }
 
@@ -283,11 +310,9 @@ public static class StackingPipelineRunner
                     "Finalisation",
                     97,
                     fileName,
-                    framesToStack,
-                    framesToStack,
+                    maxFramesToStack,
+                    maxFramesToStack,
                     "Normalisation des niveaux, alignement chromatique RVB et accentuation..."));
-
-                var stackedResult = stacker.ProduceStackedFrame();
 
                 // Format d'image de sortie (TIFF 16-bit par défaut, FITS ou PNG)
                 string outExt = options.OutputFormat switch
@@ -297,27 +322,35 @@ public static class StackingPipelineRunner
                     _ => ".tif"
                 };
 
-                string outFileName = $"{baseStem}_stacked_p{(int)pctToKeep}_{grid.ActiveCount}ap{outExt}";
-                string outFilePath = Path.Combine(outputDirectory, outFileName);
+                foreach (var tier in tiers)
+                {
+                    var stackedResult = tier.Stacker.ProduceStackedFrame();
+                    string outFileName = $"{baseStem}_stacked_p{(int)tier.Percentage}_{grid.ActiveCount}ap{outExt}";
+                    string outFilePath = Path.Combine(outputDirectory, outFileName);
 
-                UniversalMediaReader.WriteSingleImageFile(outFilePath, stackedResult, is16Bit: true);
-                lastOutputPath = outFilePath;
+                    UniversalMediaReader.WriteSingleImageFile(outFilePath, stackedResult, is16Bit: true);
+                    tier.OutputFilePath = outFilePath;
+                    lastOutputPath = outFilePath;
+                    outputFramesWritten++;
+                    allGeneratedFiles.Add(outFilePath);
+                }
             }
 
             sw.Stop();
+            string generatedFilesText = string.Join(", ", allGeneratedFiles.Select(Path.GetFileName));
             progress?.Report(new PipelineProgressReport(
                 "Terminé",
                 100,
                 string.Empty,
                 totalInputFrames,
                 totalInputFrames,
-                $"Empilement terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s. Image générée : {lastOutputPath}"));
+                $"Empilement terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s. {outputFramesWritten} image(s) générée(s) : {generatedFilesText}"));
 
             return new PipelineRunSummary(
                 Success: File.Exists(lastOutputPath),
                 Elapsed: sw.Elapsed,
                 TotalInputFrames: totalInputFrames,
-                OutputFramesWritten: 1,
+                OutputFramesWritten: outputFramesWritten,
                 DiscardedNoPlanet: discardedNoPlanet,
                 DiscardedOverexposed: 0,
                 DiscardedQuality: discardedQuality,
@@ -325,13 +358,14 @@ public static class StackingPipelineRunner
         }, cancellationToken);
     }
 
-    private static void AccumulateSingleFrame(
+    private static void AccumulateFrameIntoTiers(
         AstroFrame raw,
         ProcessingOptions options,
         FrameScoreRecord record,
         AstroFrame bestRefFrame,
         AlignmentGrid grid,
-        MultiZoneStackingEngine stacker)
+        List<StackingTier> tiers,
+        int rank)
     {
         var workFrame = PrepareFrame(raw, options, out _, out _, out _);
 
@@ -354,8 +388,17 @@ public static class StackingPipelineRunner
             ap.ShiftY = tileDy;
         });
 
-        // 3. Accumulation avec table de correspondances précalculée O(1)
-        stacker.AccumulateFrame(workFrame, (int)Math.Round(globalDx), (int)Math.Round(globalDy));
+        int shiftX = (int)Math.Round(globalDx);
+        int shiftY = (int)Math.Round(globalDy);
+
+        // 3. Accumulation dans chaque palier dont le quota inclut cette trame
+        foreach (var tier in tiers)
+        {
+            if (rank < tier.FramesToStack)
+            {
+                tier.Stacker.AccumulateFrame(workFrame, shiftX, shiftY);
+            }
+        }
     }
 
     private static AstroFrame PrepareFrame(
@@ -467,5 +510,13 @@ public static class StackingPipelineRunner
         }
 
         return false;
+    }
+
+    private sealed class StackingTier
+    {
+        public double Percentage { get; init; }
+        public int FramesToStack { get; init; }
+        public MultiZoneStackingEngine Stacker { get; init; } = null!;
+        public string OutputFilePath { get; set; } = string.Empty;
     }
 }
