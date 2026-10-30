@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -51,7 +51,7 @@
             <Grid RowDefinitions="Auto,*">
                 <Border Grid.Row="0" Background="{DynamicResource AppTableHeaderBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="6,3">
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                        <CheckBox Grid.Column="0" IsChecked="{Binding AreAllFilesChecked}" Command="{Binding ToggleCheckAllFilesCommand}" MinWidth="0" VerticalAlignment="Center" Margin="0,0,0,0" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
+                        <CheckBox Grid.Column="0" IsChecked="{Binding AreAllFilesChecked, Mode=TwoWay}" IsThreeState="True" MinWidth="0" VerticalAlignment="Center" Margin="0,0,0,0" ToolTip.Tip="{loc:Tr SourceFiles.CheckAllTip}"/>
                         <TextBlock Grid.Column="1" Text="{loc:Tr SourceFiles.ColFileName}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         <TextBlock Grid.Column="2" Text="{Binding SourceFiles.Count, StringFormat='{}{0} item(s)'}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center"/>
                     </Grid>
@@ -81,6 +81,7 @@
                                         <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding IdentifiedObjectBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppAccent}" Margin="0,0,8,0" IsVisible="{Binding HasIdentifiedObject}"/>
                                         <TextBlock Text="{Binding ExposureInfo, StringFormat='{}⏱ {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0" IsVisible="{Binding HasAstroDetails}"/>
                                         <TextBlock Text="{Binding IsoOrGainInfo}" FontSize="11" Foreground="{DynamicResource AppBadgeFormat}" IsVisible="{Binding HasAstroDetails}"/>
                                     </WrapPanel>
@@ -92,13 +93,13 @@
                 <!-- Overlay de chargement (Bloque l'ajout d'autres fichiers et affiche l'avancement) -->
                 <Border Grid.Row="0" Grid.RowSpan="2"
                         Background="#E00B1120"
-                        IsVisible="{Binding IsLoadingFiles}"
+                        IsVisible="{Binding IsFileListBusy}"
                         CornerRadius="4"
                         ZIndex="100">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Margin="20">
                         <ProgressBar IsIndeterminate="True"
                                      Width="220" Height="6"/>
-                        <TextBlock Text="{Binding LoadingStatusText}"
+                        <TextBlock Text="{Binding BusyStatusText}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppAccent}"
@@ -108,45 +109,77 @@
             </Grid>
         </Border>
 
-        <!-- Bas du volet gauche : Inspecteur de Métadonnées du fichier sélectionné -->
+        <!-- Bas du volet gauche : Inspecteur de MÃ©tadonnÃ©es du fichier sÃ©lectionnÃ© -->
         <Border Grid.Row="2" Classes="groupbox" Padding="8,6">
             <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="ℹ️ Métadonnées" Classes="grouptitle" Margin="0"/>
+                    <TextBlock Text="{loc:Tr Metadata.Title}" Classes="grouptitle" Margin="0"/>
                     <Border VerticalAlignment="Center" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,2" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <TextBlock Text="{Binding SelectedSourceFile.FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
                     </Border>
                 </Grid>
 
-                <!-- Détails quand un fichier est sélectionné -->
+                <!-- DÃ©tails quand un fichier est sÃ©lectionnÃ© -->
                 <StackPanel Spacing="3" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <TextBlock Text="{Binding SelectedSourceFile.FileName}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                     <Grid ColumnDefinitions="*,*">
-                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.Resolution, StringFormat='Dim : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.Frames, StringFormat='Frames : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Dim}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.Resolution}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Frames}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.Frames}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*,*">
-                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.FileSize, StringFormat='Taille : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.FpsInfo, StringFormat='Cadence : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Size}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Fps}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.FpsInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*,*">
-                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.ExposureInfo, StringFormat='Exp : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.ShutterSpeedInfo, StringFormat='Vitesse : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Exp}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.ExposureInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Speed}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.ShutterSpeedInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*,*">
-                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.IsoOrGainInfo, StringFormat='Sensib. : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.PlanetSizeText, StringFormat='Diamètre : {0}'}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.GainIso}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.IsoOrGainInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Diameter}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.PlanetSizeText}" FontSize="11" Foreground="{DynamicResource AppBadgeAccent}" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" IsVisible="{Binding SelectedSourceFile.HasIdentifiedObject}">
+                        <TextBlock Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding SelectedSourceFile.IdentifiedObjectSummary, StringFormat='Objet : {0}'}" FontSize="11" Foreground="{DynamicResource AppAccent}" FontWeight="SemiBold"/>
                     </Grid>
                     <Grid ColumnDefinitions="*,*" IsVisible="{Binding SelectedSourceFile.HasCameraInfo}">
-                        <TextBlock Grid.Column="0" Text="{Binding SelectedSourceFile.CameraInfo, StringFormat='Appareil : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedSourceFile.TelescopeInfo, StringFormat='Optique : {0}'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" IsVisible="{Binding SelectedSourceFile.HasTelescopeInfo}"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{loc:Tr Metadata.Camera}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.CameraInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" IsVisible="{Binding SelectedSourceFile.HasTelescopeInfo}">
+                            <TextBlock Text="{loc:Tr Metadata.Optics}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                            <TextBlock Text="{Binding SelectedSourceFile.TelescopeInfo}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
 
-                <!-- Message quand aucun fichier n'est sélectionné -->
-                <TextBlock Text="Sélectionnez un fichier pour afficher ses métadonnées." FontSize="11" Foreground="{DynamicResource AppTextDimmed}" FontStyle="Italic" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNull}}"/>
+                <!-- Message quand aucun fichier n'est sÃ©lectionnÃ© -->
+                <TextBlock Text="{loc:Tr Metadata.NoSelectionPrompt}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" FontStyle="Italic" IsVisible="{Binding SelectedSourceFile, Converter={x:Static ObjectConverters.IsNull}}"/>
             </StackPanel>
         </Border>
-
     </Grid>
 </UserControl>
