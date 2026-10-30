@@ -1,4 +1,4 @@
-﻿name: Release & Packaging Pipeline
+name: Release & Packaging Pipeline
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1
+          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0t64 || sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
@@ -57,60 +57,95 @@ jobs:
           - name: win-x64
             os: windows-latest
             rid: win-x64
-            archive_ext: zip
           - name: linux-x64
             os: ubuntu-latest
             rid: linux-x64
-            archive_ext: tar.gz
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            V="${{ github.event.inputs.tag_name }}"
+          elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            V="${GITHUB_REF#refs/tags/}"
+          else
+            V="1.0.0"
+          fi
+          V_CLEAN="${V#v}"
+          echo "version=$V_CLEAN" >> "$GITHUB_OUTPUT"
+          echo "Building package version: $V_CLEAN"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
 
-      - name: Publish Desktop
+      - name: Publish Desktop (Self-Contained)
         run: >
           dotnet publish src/CassiniFlow.Desktop/CassiniFlow.Desktop.csproj
           -c Release
           -r ${{ matrix.target.rid }}
-          --self-contained false
-          -o staging/CassiniFlow-${{ matrix.target.name }}/Desktop
+          --self-contained true
+          -o staging/${{ matrix.target.name }}/Desktop
 
-      - name: Publish CLI
+      - name: Publish CLI (Self-Contained)
         run: >
           dotnet publish src/CassiniFlow.Cli/CassiniFlow.Cli.csproj
           -c Release
           -r ${{ matrix.target.rid }}
-          --self-contained false
-          -o staging/CassiniFlow-${{ matrix.target.name }}/Cli
+          --self-contained true
+          -o staging/${{ matrix.target.name }}/Cli
 
-      - name: Copy README and documentation to package
+      - name: Copy Documentation
         shell: bash
         run: |
-          cp README.md staging/CassiniFlow-${{ matrix.target.name }}/ || true
-          cp LICENSE staging/CassiniFlow-${{ matrix.target.name }}/ || true
+          cp README.md staging/${{ matrix.target.name }}/ || true
+          cp LICENSE staging/${{ matrix.target.name }}/ || true
+          mkdir -p release-artifacts
 
-      - name: Compress Archive (Windows .zip)
-        if: matrix.target.archive_ext == 'zip'
+      # Windows Specific: Portable ZIP + Inno Setup Installer
+      - name: Build Windows Packages (Portable & Installer)
+        if: matrix.target.name == 'win-x64'
         shell: pwsh
         run: |
-          Compress-Archive -Path "staging/CassiniFlow-${{ matrix.target.name }}/*" -DestinationPath "CassiniFlow-${{ matrix.target.name }}.zip" -Force
+          # 1. Portable ZIP
+          Compress-Archive -Path "staging/win-x64/*" -DestinationPath "release-artifacts/CassiniFlow-win-x64-portable.zip" -Force
+          
+          # 2. Inno Setup Compiler
+          choco install innosetup --no-progress -y
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "iscc" }
+          & $iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" packaging/windows/CassiniFlow.iss
 
-      - name: Compress Archive (Linux .tar.gz)
-        if: matrix.target.archive_ext == 'tar.gz'
+      # Linux Specific: Portable TAR.GZ + Debian (.deb) Package
+      - name: Build Linux Packages (Portable & Installer)
+        if: matrix.target.name == 'linux-x64'
         shell: bash
         run: |
-          tar -czf "CassiniFlow-${{ matrix.target.name }}.tar.gz" -C "staging/CassiniFlow-${{ matrix.target.name }}" .
+          # Prepare Portable Linux Staging
+          cp packaging/linux/install.sh staging/linux-x64/
+          cp packaging/linux/uninstall.sh staging/linux-x64/
+          cp packaging/linux/cassiniflow.desktop staging/linux-x64/
+          cp src/CassiniFlow.Desktop/Assets/icon_256x256.png staging/linux-x64/
+          chmod +x staging/linux-x64/install.sh staging/linux-x64/uninstall.sh staging/linux-x64/Desktop/CassiniFlow.Desktop staging/linux-x64/Cli/CassiniFlow.Cli
+          
+          # 1. Portable TAR.GZ
+          tar -czf "release-artifacts/CassiniFlow-linux-x64-portable.tar.gz" -C staging/linux-x64 .
+          
+          # 2. Debian Package (.deb)
+          chmod +x packaging/linux/build-deb.sh
+          ./packaging/linux/build-deb.sh "${{ steps.version.outputs.version }}"
 
-      - name: Upload Packaged Artifact
+      - name: Upload Packaged Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CassiniFlow-${{ matrix.target.name }}-${{ matrix.target.archive_ext }}
-          path: CassiniFlow-${{ matrix.target.name }}.${{ matrix.target.archive_ext }}
+          name: packages-${{ matrix.target.name }}
+          path: release-artifacts/*
 
   publish-github-release:
     name: Publish GitHub Release
@@ -152,7 +187,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
+            release-artifacts/*.exe
             release-artifacts/*.zip
             release-artifacts/*.tar.gz
+            release-artifacts/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

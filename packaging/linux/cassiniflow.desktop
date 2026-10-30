@@ -1,0 +1,17 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CassiniFlow
+GenericName=Planetary & Astro Imaging PreProcessor
+GenericName[fr]=Prétraitement & Empilement Imagerie Planétaire
+Comment=High-performance planetary, lunar and solar pre-processing and stacking pipeline
+Comment[fr]=Traitement et empilement d'images planétaires, lunaires et solaires à haute vitesse
+Exec=cassiniflow %F
+Icon=cassiniflow
+Terminal=false
+Categories=Science;Astronomy;Graphics;Photography;
+MimeType=application/x-ser;image/fits;image/x-fits;video/x-msvideo;video/mp4;
+Keywords=astronomy;planetary;stacking;lucky imaging;ser;fits;opencv;
+StartupNotify=true
+StartupWMClass=CassiniFlow.Desktop
+
