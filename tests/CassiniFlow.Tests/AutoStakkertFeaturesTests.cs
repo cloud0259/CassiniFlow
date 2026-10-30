@@ -163,7 +163,7 @@ public class AutoStakkertFeaturesTests
     public void StackingStab_Translations_AreValidAndHaveNoMojibake()
     {
         Loc.SetLanguage(AppLanguage.French, save: false);
-        Assert.Equal("Planète (COG)", Loc.Get("StackingStab.PlanetCog"));
+        Assert.Equal("Centre de gravité", Loc.Get("StackingStab.PlanetCog"));
         Assert.Equal("Désactiver la stabilisation", Loc.Get("StackingStab.DisableStabilization"));
         Assert.Equal("Estimateur de qualité", Loc.Get("StackingStab.QualityEstimator"));
         Assert.Equal("Référence Double Stack", Loc.Get("StackingStab.DoubleStackReference"));
@@ -171,7 +171,7 @@ public class AutoStakkertFeaturesTests
         Assert.DoesNotContain("Ã", Loc.Get("StackingStab.DisableStabilizationTip"));
 
         Loc.SetLanguage(AppLanguage.English, save: false);
-        Assert.Equal("Planet (COG)", Loc.Get("StackingStab.PlanetCog"));
+        Assert.Equal("Centre of Gravity", Loc.Get("StackingStab.PlanetCog"));
         Assert.Equal("Disable Stabilization", Loc.Get("StackingStab.DisableStabilization"));
         Assert.Equal("Double Stack Reference", Loc.Get("StackingStab.DoubleStackReference"));
 
