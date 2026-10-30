@@ -84,6 +84,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _flatCountText = "0 flat(s)";
     [ObservableProperty] private string _flatDarkCountText = "0 flat-dark(s)";
     [ObservableProperty] private bool _hasCalibrationFiles = false;
+    [ObservableProperty] private int _selectedSourceFileTabIndex = 0;
 
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
@@ -789,6 +790,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void RemoveDarkFile(string path)
+    {
+        if (DarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Dark supprimée : {Path.GetFileName(path)}", $"Dark frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
     public void AddFlatFiles(IReadOnlyList<string> paths)
     {
         foreach (var p in paths)
@@ -808,6 +819,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void RemoveFlatFile(string path)
+    {
+        if (FlatFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat supprimée : {Path.GetFileName(path)}", $"Flat frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
     public void AddFlatDarkFiles(IReadOnlyList<string> paths)
     {
         foreach (var p in paths)
@@ -824,6 +845,16 @@ public partial class MainWindowViewModel : ObservableObject
         FlatDarkFiles.Clear();
         UpdateCalibrationStatus();
         ConsoleLogText = Loc.Pick("Trames Flat-Dark effacées.", "Flat-Dark frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveFlatDarkFile(string path)
+    {
+        if (FlatDarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat-Dark supprimée : {Path.GetFileName(path)}", $"Flat-Dark frame removed: {Path.GetFileName(path)}");
+        }
     }
 
     [RelayCommand]

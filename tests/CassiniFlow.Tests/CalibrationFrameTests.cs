@@ -170,5 +170,94 @@ public class CalibrationFrameTests
             try { File.Delete(tempFlatDark); } catch { }
         }
     }
+
+    [Fact]
+    public void MainWindowViewModel_RemoveIndividualCalibrationFile_UpdatesStateCorrectly()
+    {
+        var vm = new MainWindowViewModel();
+        string tempDark1 = Path.GetTempFileName();
+        string tempDark2 = Path.GetTempFileName();
+        string tempFlat = Path.GetTempFileName();
+        string tempFlatDark = Path.GetTempFileName();
+
+        try
+        {
+            vm.AddDarkFiles([tempDark1, tempDark2]);
+            vm.AddFlatFiles([tempFlat]);
+            vm.AddFlatDarkFiles([tempFlatDark]);
+
+            Assert.Equal(2, vm.DarkFiles.Count);
+            Assert.Single(vm.FlatFiles);
+            Assert.Single(vm.FlatDarkFiles);
+
+            // Remove one dark
+            vm.RemoveDarkFile(tempDark1);
+            Assert.Single(vm.DarkFiles);
+            Assert.Contains(tempDark2, vm.DarkFiles);
+            Assert.DoesNotContain(tempDark1, vm.DarkFiles);
+
+            // Remove flat
+            vm.RemoveFlatFile(tempFlat);
+            Assert.Empty(vm.FlatFiles);
+
+            // Remove flat dark
+            vm.RemoveFlatDarkFile(tempFlatDark);
+            Assert.Empty(vm.FlatDarkFiles);
+
+            // Remaining dark still marks calibration as active
+            Assert.True(vm.HasCalibrationFiles);
+
+            // Remove remaining dark
+            vm.RemoveDarkFile(tempDark2);
+            Assert.Empty(vm.DarkFiles);
+            Assert.False(vm.HasCalibrationFiles);
+        }
+        finally
+        {
+            try { File.Delete(tempDark1); } catch { }
+            try { File.Delete(tempDark2); } catch { }
+            try { File.Delete(tempFlat); } catch { }
+            try { File.Delete(tempFlatDark); } catch { }
+        }
+    }
+
+    [Fact]
+    public void MainWindowViewModel_SelectedSourceFileTabIndex_DefaultsToZeroAndCanBeSet()
+    {
+        var vm = new MainWindowViewModel();
+        Assert.Equal(0, vm.SelectedSourceFileTabIndex);
+
+        vm.SelectedSourceFileTabIndex = 1;
+        Assert.Equal(1, vm.SelectedSourceFileTabIndex);
+
+        vm.SelectedSourceFileTabIndex = 2;
+        Assert.Equal(2, vm.SelectedSourceFileTabIndex);
+
+        vm.SelectedSourceFileTabIndex = 3;
+        Assert.Equal(3, vm.SelectedSourceFileTabIndex);
+    }
+
+    [Fact]
+    public void Converters_ExtractFileNameAndFormatSizeCorrectly()
+    {
+        var nameConverter = CassiniFlow.Desktop.Converters.FileNameConverter.Instance;
+        var sizeConverter = CassiniFlow.Desktop.Converters.FileSizeConverter.Instance;
+
+        string temp = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllBytes(temp, new byte[2048]); // 2 KB
+
+            var fileName = nameConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal(Path.GetFileName(temp), fileName);
+
+            var sizeText = sizeConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal("2.0 KB", sizeText);
+        }
+        finally
+        {
+            try { File.Delete(temp); } catch { }
+        }
+    }
 }
 

@@ -171,7 +171,21 @@ public partial class MainWindow : Window
 
         if (localPaths.Count > 0)
         {
-            await vm.AddPhysicalFilesAsync(localPaths);
+            switch (vm.SelectedSourceFileTabIndex)
+            {
+                case 1:
+                    vm.AddDarkFiles(localPaths);
+                    break;
+                case 2:
+                    vm.AddFlatFiles(localPaths);
+                    break;
+                case 3:
+                    vm.AddFlatDarkFiles(localPaths);
+                    break;
+                default:
+                    await vm.AddPhysicalFilesAsync(localPaths);
+                    break;
+            }
         }
     }
 
