@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class PlanetDiskMeasurementTests
 {
     [Fact]
@@ -71,6 +73,132 @@ public class PlanetDiskMeasurementTests
             Assert.NotNull(measured);
             // Expected diameter is ~60px (radius 30)
             Assert.InRange(measured.Value, 58.0, 62.0);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+        }
+    }
+
+    [Fact]
+    public void SourceFileItem_IdentifiedObjectProperties_FormatCorrectly()
+    {
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem();
+        Assert.False(item.HasIdentifiedObject);
+        Assert.Equal(string.Empty, item.IdentifiedObjectBadge);
+        Assert.Equal("—", item.IdentifiedObjectSummary);
+
+        item.IdentifiedObjectText = "Jupiter (4 lunes détectées)";
+        Assert.True(item.HasIdentifiedObject);
+        Assert.Equal("🪐 Jupiter (4 lunes détectées)", item.IdentifiedObjectBadge);
+        Assert.Equal("Jupiter (4 lunes détectées)", item.IdentifiedObjectSummary);
+    }
+
+    [Fact]
+    public void MainWindowViewModel_MeasuringState_UpdatesGlobalStatusText()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        Assert.False(vm.IsMeasuringPlanetSizes);
+        Assert.True(vm.CanAddFiles);
+
+        vm.IsMeasuringPlanetSizes = true;
+        vm.MeasuringStatusText = "Mesure en cours (1/2)...";
+
+        Assert.False(vm.CanAddFiles);
+        Assert.Equal("Mesure en cours (1/2)...", vm.GlobalStatusText);
+
+        vm.IsMeasuringPlanetSizes = false;
+        Assert.True(vm.CanAddFiles);
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_AnalyzePlanetSizes_IdentifiesObjectAndLogs()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars_test.ser",
+            FullPath = "e:\\mars_test.ser",
+            Frames = 100
+        };
+        vm.SourceFiles.Add(item);
+
+        int w = 200, h = 200, r = 25;
+        var frame = new AstroFrame(w, h, 3, 16);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - 100;
+                int dy = y - 100;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    frame.Data[idx] = 45000;     // Red (Mars ocre)
+                    frame.Data[idx + 1] = 25000; // Green
+                    frame.Data[idx + 2] = 20000; // Blue
+                }
+            }
+        }
+
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+
+            await vm.AnalyzePlanetSizes();
+
+            Assert.True(item.HasIdentifiedObject);
+            Assert.Contains("Mars", item.IdentifiedObjectText);
+            Assert.Contains("🪐", item.IdentifiedObjectBadge);
+            Assert.Contains("Mars", vm.ConsoleLogText);
+            Assert.Contains("🪐", vm.ConsoleLogText);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+        }
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_AnalyzePlanetSizes_JupiterVideo_IdentifiesJupiter()
+    {
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "jupiter_multi.ser",
+            FullPath = "e:\\jupiter_multi.ser",
+            Frames = 50
+        };
+        vm.SourceFiles.Add(item);
+
+        int w = 500, h = 500, r = 25;
+        var frame = new AstroFrame(w, h, 3, 16);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int dx = x - 250, dy = y - 250;
+                if (dx * dx + dy * dy <= r * r)
+                {
+                    int idx = (y * w + x) * 3;
+                    frame.Data[idx] = 40000;
+                    frame.Data[idx + 1] = 38000;
+                    frame.Data[idx + 2] = 33000;
+                }
+            }
+        }
+
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+
+            await vm.AnalyzePlanetSizes();
+
+            Assert.True(item.HasIdentifiedObject);
+            Assert.Contains("Jupiter", item.IdentifiedObjectText);
+            Assert.Contains("Jupiter", vm.ConsoleLogText);
         }
         finally
         {

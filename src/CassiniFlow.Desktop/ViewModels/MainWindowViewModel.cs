@@ -27,9 +27,26 @@ public sealed partial class SourceFileItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(PlanetSizeText))]
     private bool _isMeasuring;
 
-    public void RefreshLocalizedText() => OnPropertyChanged(nameof(PlanetSizeText));
+    public void RefreshLocalizedText()
+    {
+        OnPropertyChanged(nameof(PlanetSizeText));
+        OnPropertyChanged(nameof(IdentifiedObjectBadge));
+        OnPropertyChanged(nameof(IdentifiedObjectSummary));
+    }
 
     public string PlanetSizeText => IsMeasuring ? Loc.Pick("mesure...", "measuring...") : PlanetDiameterPx is double d ? $"{d:F0} px" : "—";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectSummary))]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectBadge))]
+    [NotifyPropertyChangedFor(nameof(HasIdentifiedObject))]
+    private string _identifiedObjectText = string.Empty;
+
+    public bool HasIdentifiedObject => !string.IsNullOrWhiteSpace(IdentifiedObjectText);
+    public string IdentifiedObjectBadge => HasIdentifiedObject ? $"🪐 {IdentifiedObjectText}" : string.Empty;
+    public string IdentifiedObjectSummary => HasIdentifiedObject ? IdentifiedObjectText : "—";
+
+
     public string FileName { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
     public string FormatBadge { get; init; } = string.Empty;
@@ -81,15 +98,40 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(IsFileListBusy))]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
     private bool _isLoadingFiles;
 
     [ObservableProperty]
     private double _loadingProgress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
     private string _loadingStatusText = string.Empty;
 
-    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(IsFileListBusy))]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private bool _isMeasuringPlanetSizes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private string _measuringStatusText = string.Empty;
+
+    public bool IsFileListBusy => IsLoadingFiles || IsMeasuringPlanetSizes;
+
+    public string BusyStatusText => IsMeasuringPlanetSizes ? MeasuringStatusText : LoadingStatusText;
+
+    public string GlobalStatusText => IsMeasuringPlanetSizes
+        ? MeasuringStatusText
+        : IsProcessing
+            ? ProcessingStageText
+            : string.Empty;
+
+    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles && !IsMeasuringPlanetSizes;
 
     // Viewer state
     [ObservableProperty] private int _currentFrameIndex = 1;
@@ -144,7 +186,6 @@ public partial class MainWindowViewModel : ObservableObject
 
         UpdateCpuStatus();
     }
-
     partial void OnMaxCpuUsagePercentChanged(int value)
     {
         UpdateCpuStatus();
@@ -278,7 +319,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
     private bool _isProcessing;
     [ObservableProperty] private int _processingProgress;
-    [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(GlobalStatusText))] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
     partial void OnLastOutputFilePathChanged(string value) => OnPropertyChanged(nameof(PlayOrOpenOutputText));
 
@@ -741,77 +782,115 @@ public partial class MainWindowViewModel : ObservableObject
     {
         var items = SourceFiles.ToList();
         if (items.Count == 0) return;
+
+        IsMeasuringPlanetSizes = true;
+        MeasuringStatusText = Loc.Pick(
+            $"Mesure et identification en cours... (0/{items.Count})",
+            $"Measuring and identifying targets... (0/{items.Count})");
+
         foreach (var it in items) it.IsMeasuring = true;
+
+        var detectedList = new List<(SourceFileItem Item, CelestialTargetClassification Classification)>();
 
         await Task.Run(() =>
         {
+            int current = 0;
             foreach (var it in items)
             {
+                current++;
                 double? d = null;
-                try { d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames); } catch { }
+                CelestialTargetClassification? classification = null;
+
+                try
+                {
+                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames);
+                }
+                catch { }
+
+                try
+                {
+                    classification = CelestialTargetClassifier.ClassifyVideo(
+                        it.FullPath,
+                        it.Frames,
+                        d);
+                }
+                catch { }
+
+                int step = current;
+                var classResult = classification;
                 Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
                 {
                     it.PlanetDiameterPx = d;
+                    if (classResult is not null && classResult.TargetType != CelestialTargetType.Unknown)
+                    {
+                        it.IdentifiedObjectText = classResult.ObjectSummary(!Loc.IsEnglish);
+                        detectedList.Add((it, classResult));
+                    }
                     it.IsMeasuring = false;
+                    MeasuringStatusText = Loc.Pick(
+                        $"Mesure et identification en cours... ({step}/{items.Count})",
+                        $"Measuring and identifying targets... ({step}/{items.Count})");
                 });
             }
         });
 
+        IsMeasuringPlanetSizes = false;
+
         var sizes = SourceFiles.Where(f => f.PlanetDiameterPx.HasValue).Select(f => f.PlanetDiameterPx!.Value).ToList();
-        ConsoleLogText = sizes.Count switch
+        string sizeLog = sizes.Count switch
         {
-            0 => Loc.Pick("Taille de l'objet non détectable dans les fichiers (vérifiez le seuil / la présence de la planète).", "Object size could not be detected in the files (check the threshold / that the planet is present)."),
+            0 => Loc.Pick("Taille de l'objet non d\u00e9tectable dans les fichiers (v\u00e9rifiez le seuil / la pr\u00e9sence de la plan\u00e8te).", "Object size could not be detected in the files (check the threshold / that the planet is present)."),
             1 => Loc.Pick($"Taille de l'objet : {sizes[0]:F0} px.", $"Object size: {sizes[0]:F0} px."),
             _ => FormatObjectSizeSpread(sizes)
         };
 
-        // Reconnaissance automatique de l'objet : uniquement si l'utilisateur n'a pas sélectionné manuellement un preset
-        var targetFile = SelectedSourceFile;
-        if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
-        {
-            try
-            {
-                var preview = PlanetSizeAnalyzer.PreviewFrameLoader(targetFile.FullPath, 0, 960);
-                var classification = CelestialTargetClassifier.Classify(
-                    preview.Frame,
-                    targetFile.PlanetDiameterPx,
-                    preview.OriginalWidth,
-                    preview.OriginalHeight);
+        var sb = new System.Text.StringBuilder(sizeLog);
 
-                if (classification.TargetType != CelestialTargetType.Unknown &&
-                    classification.RecommendedPresetIndex > 0)
+        if (detectedList.Count > 0)
+        {
+            var primary = detectedList.FirstOrDefault(x => x.Item == SelectedSourceFile).Classification
+                          ?? detectedList[0].Classification;
+
+            string objName = primary.ObjectSummary(!Loc.IsEnglish);
+            string idLine = Loc.Pick(
+                $"\U0001FA90 Objet c\u00e9leste identifi\u00e9 : {objName} \u2014 {primary.Details}",
+                $"\U0001FA90 Identified celestial object: {objName} \u2014 {primary.Details}");
+            sb.AppendLine().Append(idLine);
+
+            if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && primary.RecommendedPresetIndex > 0)
+            {
+                try
                 {
-                    try
-                    {
-                        _isAutoDetectingPreset = true;
-                        SelectedPresetIndex = classification.RecommendedPresetIndex;
-                    }
-                    finally
-                    {
-                        _isAutoDetectingPreset = false;
-                    }
-                    ConsoleLogText += $"\n{Loc.Pick($"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé automatiquement.", $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" selected automatically.")}";
+                    _isAutoDetectingPreset = true;
+                    SelectedPresetIndex = primary.RecommendedPresetIndex;
                 }
+                finally
+                {
+                    _isAutoDetectingPreset = false;
+                }
+                string presetLine = Loc.Pick(
+                    $"\U0001F3AF Preset \u00ab {GetPresetName(primary.RecommendedPresetIndex)} \u00bb activ\u00e9 automatiquement.",
+                    $"\U0001F3AF Preset \"{GetPresetName(primary.RecommendedPresetIndex)}\" selected automatically.");
+                sb.AppendLine().Append(presetLine);
             }
-            catch { }
         }
+
+        ConsoleLogText = sb.ToString();
     }
 
     [RelayCommand]
     public void AutoDetectPreset()
     {
         var item = SelectedSourceFile;
-        if (item is null || PlanetSizeAnalyzer.PreviewFrameLoader is null) return;
+        if (item is null) return;
 
         try
         {
-            var preview = PlanetSizeAnalyzer.PreviewFrameLoader(item.FullPath, 0, 960);
-            var classification = CelestialTargetClassifier.Classify(
-                preview.Frame,
-                item.PlanetDiameterPx,
-                preview.OriginalWidth,
-                preview.OriginalHeight);
-
+            var classification = CelestialTargetClassifier.ClassifyVideo(
+                item.FullPath,
+                item.Frames,
+                item.PlanetDiameterPx);
+            if (classification is null || classification.TargetType == CelestialTargetType.Unknown) return;
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
             {
@@ -826,8 +905,8 @@ public partial class MainWindowViewModel : ObservableObject
                     _isAutoDetectingPreset = false;
                 }
                 ConsoleLogText = Loc.Pick(
-                    $"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé ({classification.Details}).",
-                    $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" activated ({classification.Details}).");
+                    $"\U0001FA90 Objet c\u00e9leste identifi\u00e9 : {classification.ObjectSummary(true)} \u2014 {classification.Details}",
+                    $"\U0001FA90 Identified celestial object: {classification.ObjectSummary(false)} \u2014 {classification.Details}");
             }
             else
             {
@@ -845,8 +924,8 @@ public partial class MainWindowViewModel : ObservableObject
     private static string GetPresetName(int index) => index switch
     {
         1 => Loc.Pick("Planétaire", "Planetary"),
-        2 => Loc.Pick("Solaire / Lunaire (gros plan)", "Solar / Lunar Close-up"),
-        3 => Loc.Pick("Solaire / Lunaire (disque entier)", "Solar / Lunar Full Disc"),
+        2 => Loc.Pick("Gros plan Solaire / Lunaire", "Solar / Lunar Close-up"),
+        3 => Loc.Pick("Disque entier Solaire / Lunaire", "Solar / Lunar Full Disc"),
         4 => Loc.Pick("ISS", "ISS"),
         5 => Loc.Pick("Animation planétaire", "Planetary Animation"),
         _ => Loc.Pick("Manuel", "Manual")
@@ -1758,6 +1837,14 @@ public partial class MainWindowViewModel : ObservableObject
             $"[{DateTime.Now:HH:mm:ss}] Traitement terminé avec succès.\nDernier fichier généré : {summary.OutputFilePath}",
             $"[{DateTime.Now:HH:mm:ss}] Processing finished successfully.\nLast file generated: {summary.OutputFilePath}");
         _processingLogLines.Add(finishMsg);
+
+        if (!string.IsNullOrWhiteSpace(summary.LogFilePath) && File.Exists(summary.LogFilePath))
+        {
+            string logMsg = Loc.Pick(
+                $"[{DateTime.Now:HH:mm:ss}] Journal d'exécution généré : {summary.LogFilePath}",
+                $"[{DateTime.Now:HH:mm:ss}] Execution log generated: {summary.LogFilePath}");
+            _processingLogLines.Add(logMsg);
+        }
         ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
     }
 

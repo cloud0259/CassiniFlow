@@ -13,7 +13,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="{loc:Tr ProcessingOptions.StabilisationModeTitle}" Classes="grouptitle"/>
                 <ComboBox SelectedIndex="{Binding SelectedStabilisationModeIndex}" HorizontalAlignment="Stretch">
-                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabNone}"/>
+                    <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabNone}" ToolTip.Tip="{loc:Tr ProcessingOptions.StabNoneTip}"/>
                     <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabObject}"/>
                     <ComboBoxItem Content="{loc:Tr ProcessingOptions.StabSurface}"/>
                 </ComboBox>
