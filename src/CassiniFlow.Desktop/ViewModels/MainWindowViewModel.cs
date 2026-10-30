@@ -76,6 +76,16 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<SourceFileItem> SourceFiles { get; } = [];
 
+    public ObservableCollection<string> DarkFiles { get; } = [];
+    public ObservableCollection<string> FlatFiles { get; } = [];
+    public ObservableCollection<string> FlatDarkFiles { get; } = [];
+
+    [ObservableProperty] private string _darkCountText = "0 dark(s)";
+    [ObservableProperty] private string _flatCountText = "0 flat(s)";
+    [ObservableProperty] private string _flatDarkCountText = "0 flat-dark(s)";
+    [ObservableProperty] private bool _hasCalibrationFiles = false;
+    [ObservableProperty] private int _selectedSourceFileTabIndex = 0;
+
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
     private AstroFrame? _lastProcessedPreviewFrame;
@@ -812,6 +822,118 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(AreAllFilesChecked));
     }
 
+
+    public string DarkFilesTooltip => DarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, DarkFiles.Select(Path.GetFileName));
+    public string FlatFilesTooltip => FlatFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatFiles.Select(Path.GetFileName));
+    public string FlatDarkFilesTooltip => FlatDarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatDarkFiles.Select(Path.GetFileName));
+
+    [RelayCommand]
+    public void AddDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !DarkFiles.Contains(p)) DarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌑 {DarkFiles.Count} trame(s) Dark enregistrée(s).", $"🌑 {DarkFiles.Count} Dark frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearDarkFiles()
+    {
+        DarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Dark effacées.", "Dark frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveDarkFile(string path)
+    {
+        if (DarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Dark supprimée : {Path.GetFileName(path)}", $"Dark frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void AddFlatFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatFiles.Contains(p)) FlatFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"⚪ {FlatFiles.Count} trame(s) Flat enregistrée(s).", $"⚪ {FlatFiles.Count} Flat frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearFlatFiles()
+    {
+        FlatFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat effacées.", "Flat frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveFlatFile(string path)
+    {
+        if (FlatFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat supprimée : {Path.GetFileName(path)}", $"Flat frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void AddFlatDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatDarkFiles.Contains(p)) FlatDarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌗 {FlatDarkFiles.Count} trame(s) Flat-Dark enregistrée(s).", $"🌗 {FlatDarkFiles.Count} Flat-Dark frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearFlatDarkFiles()
+    {
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat-Dark effacées.", "Flat-Dark frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveFlatDarkFile(string path)
+    {
+        if (FlatDarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat-Dark supprimée : {Path.GetFileName(path)}", $"Flat-Dark frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void ClearAllCalibrationFiles()
+    {
+        DarkFiles.Clear();
+        FlatFiles.Clear();
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Toutes les trames de calibration ont été effacées.", "All calibration frames cleared.");
+    }
+
+    private void UpdateCalibrationStatus()
+    {
+        DarkCountText = $"{DarkFiles.Count} dark(s)";
+        FlatCountText = $"{FlatFiles.Count} flat(s)";
+        FlatDarkCountText = $"{FlatDarkFiles.Count} flat-dark(s)";
+        HasCalibrationFiles = DarkFiles.Count > 0 || FlatFiles.Count > 0 || FlatDarkFiles.Count > 0;
+        OnPropertyChanged(nameof(DarkFilesTooltip));
+        OnPropertyChanged(nameof(FlatFilesTooltip));
+        OnPropertyChanged(nameof(FlatDarkFilesTooltip));
+    }
 
     [RelayCommand]
     public void MoveSelectedFileUp() => MoveSelectedFile(-1);
@@ -1680,7 +1802,12 @@ public partial class MainWindowViewModel : ObservableObject
         Options.StartFrame = Math.Max(1, StartFrame);
         Options.EndFrame = Math.Max(Options.StartFrame, EndFrame);
 
-        Options.DarkFrameSubtract = DarkSubtractEnabled;
+        Options.DarkFiles = DarkFiles.ToList();
+        Options.FlatFiles = FlatFiles.ToList();
+        Options.FlatDarkFiles = FlatDarkFiles.ToList();
+        Options.DarkFrameSubtract = DarkSubtractEnabled || DarkFiles.Count > 0;
+        Options.FlatFrameCalibrate = FlatFiles.Count > 0;
+        Options.FlatDarkFrameSubtract = FlatDarkFiles.Count > 0;
         Options.HotPixelThreshold = HotPixelThreshold;
         Options.DebayerEnabled = DebayerEnabled;
         Options.DebayerPattern = (BayerPattern)Math.Clamp(SelectedBayerPatternIndex, 0, 3);

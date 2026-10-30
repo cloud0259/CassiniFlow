@@ -291,6 +291,12 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return await StackingPipelineRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
         }
 
+        var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(
+            options,
+            outputDirectory,
+            progress,
+            cancellationToken);
+
         var sw = Stopwatch.StartNew();
         Directory.CreateDirectory(outputDirectory);
         _ = ImageProcessor.GetGainGammaLut(options.InputGain, options.Gamma);
@@ -310,7 +316,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 async (f, ct) =>
                 {
                     string file = validPaths[f];
-                    var subSummary = await ProcessFileGroupStreamingAsync([file], options, outputDirectory, progress, ct);
+                    var subSummary = await ProcessFileGroupStreamingAsync([file], options, outputDirectory, progress, ct, masterDark, masterFlat);
                     lock (batchLock)
                     {
                         completedFiles++;
@@ -334,7 +340,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return new PipelineRunSummary(totalOut > 0, sw.Elapsed, totalIn, totalOut, totalNoPlanet, totalOver, totalQual, lastOutputPath, lastLogPath);
         }
 
-        return await ProcessFileGroupStreamingAsync(validPaths, options, outputDirectory, progress, cancellationToken);
+        return await ProcessFileGroupStreamingAsync(validPaths, options, outputDirectory, progress, cancellationToken, masterDark, masterFlat);
     }
 
     public static bool IsImageOutputFormat(OutputFormat format) =>
@@ -376,7 +382,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         ProcessingOptions options,
         string outputDirectory,
         IProgress<PipelineProgressReport>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AstroFrame? masterDark = null,
+        AstroFrame? masterFlat = null)
     {
         var sw = Stopwatch.StartNew();
         int totalInputFrames = 0;
@@ -1729,6 +1737,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         IProgress<PipelineProgressReport>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(options, outputDirectory, progress, cancellationToken);
         var sw = Stopwatch.StartNew();
         int total = inputFrames.Count;
         int discardedNoPlanet = 0;
@@ -1740,7 +1749,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             for (int i = 0; i < total; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var (proc, det) = PreviewSingleFrame(inputFrames[i], options, applyCropToOutput: true);
+                var (proc, det) = PreviewSingleFrame(inputFrames[i], options, masterDark, masterFlat, applyCropToOutput: true);
                 if (!det.Accepted)
                 {
                     discardedNoPlanet++;

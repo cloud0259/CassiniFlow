@@ -142,9 +142,11 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+            CelestialTargetClassifier.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
 
             await vm.AnalyzePlanetSizes();
 
@@ -157,6 +159,7 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
         }
     }
 
@@ -190,9 +193,11 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
+            CelestialTargetClassifier.PreviewFrameLoader = (path, frameIdx, maxDim) => (frame, w, h);
 
             await vm.AnalyzePlanetSizes();
 
@@ -203,6 +208,7 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
         }
     }
 }

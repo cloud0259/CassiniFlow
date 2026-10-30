@@ -1,4 +1,4 @@
-﻿{
+{
     "App": {
         "Title": "CassiniFlow — Planetary \u0026 Astro Imaging PreProcessor"
     },
@@ -52,6 +52,18 @@
     "SourceFiles": {
         "Header": "Video files and image sequences to process:",
         "AddFiles": "+ Add files...",
+        "AddCalibration": "Calibration (+D/F/FD)",
+        "AddDarks": "Add Darks...",
+        "AddFlats": "Add Flats...",
+        "AddFlatDarks": "Add Flat-Darks...",
+        "ClearCalibration": "Clear",
+        "TabLights": "Lights",
+        "TabDarks": "Darks",
+        "TabFlats": "Flats",
+        "TabFlatDarks": "Flat-Darks",
+        "DarksEmptyPrompt": "Drag & drop your Dark files here or click + Add Darks...",
+        "FlatsEmptyPrompt": "Drag & drop your Flat files here or click + Add Flats...",
+        "FlatDarksEmptyPrompt": "Drag & drop your Flat-Dark files here or click + Add Flat-Darks...",
         "MeasureSizes": "📏 Measure sizes",
         "MeasureSizesTip": "Measures the planet diameter in each file",
         "SortAsc": "Sort ↑ size",
