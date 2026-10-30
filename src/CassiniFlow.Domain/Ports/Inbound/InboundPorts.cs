@@ -18,7 +18,8 @@ public sealed record PipelineRunSummary(
     int DiscardedNoPlanet,
     int DiscardedOverexposed,
     int DiscardedQuality,
-    string OutputFilePath);
+    string OutputFilePath,
+    string LogFilePath = "");
 
 public sealed record PreviewFrameResult(
     AstroFrame ProcessedFrame,
