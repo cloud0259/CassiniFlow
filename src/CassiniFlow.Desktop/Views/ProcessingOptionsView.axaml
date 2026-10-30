@@ -52,6 +52,15 @@
                     <TextBlock Grid.Column="0" Text="{loc:Tr ProcessingOptions.AfbBoxSize}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
                     <controls:NumberStepper Grid.Column="1" Value="{Binding AfbSize}" Minimum="16" Maximum="256" Increment="8" FormatString="0" Width="110"/>
                 </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
+
+                <!-- Détection des satellites naturels (lunes) -->
+                <CheckBox Content="{loc:Tr ProcessingOptions.DetectNaturalSatellites}" IsChecked="{Binding DetectNaturalSatellites}" FontSize="12" ToolTip.Tip="{loc:Tr ProcessingOptions.DetectNaturalSatellitesTip}"/>
+                <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding DetectNaturalSatellites}">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr ProcessingOptions.SatelliteSensitivity}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis" ToolTip.Tip="{loc:Tr ProcessingOptions.SatelliteSensitivityTip}"/>
+                    <controls:NumberStepper Grid.Column="1" Value="{Binding SatelliteDetectionSensitivity}" Minimum="0.40" Maximum="2.50" Increment="0.10" FormatString="0.00" Width="110"/>
+                </Grid>
             </StackPanel>
         </Border>
 

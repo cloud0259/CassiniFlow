@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Domain.Services;
@@ -20,14 +21,25 @@ public sealed record CelestialTargetClassification(
     double Confidence,
     string Details,
     string? SpecificBodyNameFr = null,
-    string? SpecificBodyNameEn = null
+    string? SpecificBodyNameEn = null,
+    int DetectedMoonsCount = 0,
+    IReadOnlyList<DetectedSatellite>? DetectedSatellites = null
 )
 {
     public string DisplayName(bool isFrench) => isFrench ? DisplayNameFr : DisplayNameEn;
 
-    public string ObjectSummary(bool isFrench) => isFrench
-        ? (SpecificBodyNameFr ?? DisplayNameFr)
-        : (SpecificBodyNameEn ?? DisplayNameEn);
+    public string ObjectSummary(bool isFrench)
+    {
+        string name = isFrench ? (SpecificBodyNameFr ?? DisplayNameFr) : (SpecificBodyNameEn ?? DisplayNameEn);
+        if (DetectedMoonsCount > 0)
+        {
+            string moons = isFrench
+                ? (DetectedMoonsCount == 1 ? "1 lune détectée" : $"{DetectedMoonsCount} lunes détectées")
+                : (DetectedMoonsCount == 1 ? "1 moon detected" : $"{DetectedMoonsCount} moons detected");
+            return $"{name} ({moons})";
+        }
+        return name;
+    }
 }
 
 public static class CelestialTargetClassifier
@@ -40,8 +52,19 @@ public static class CelestialTargetClassifier
     private static Func<string, int, int, (AstroFrame Frame, int OriginalWidth, int OriginalHeight)>? _previewFrameLoader;
 
     /// <summary>
-    /// Analyse une vid\u00e9o ou s\u00e9quence en \u00e9chantillonnant plusieurs frames r\u00e9parties dans le fichier
-    /// pour classifier l'objet c\u00e9leste (Plan\u00e8te, Lune ou Soleil).
+    /// Active ou désactive par défaut la détection des satellites naturels lors de la classification.
+    /// </summary>
+    public static bool DefaultDetectSatellites { get; set; } = true;
+
+    /// <summary>
+    /// Sensibilité par défaut de détection des satellites naturels (1.0 = Normal).
+    /// </summary>
+    public static double DefaultSatelliteSensitivity { get; set; } = 1.0;
+
+    /// <summary>
+    /// Analyse une vidéo ou séquence en échantillonnant plusieurs frames réparties dans le fichier
+    /// pour classifier l'objet céleste (Planète, Lune ou Soleil) et détecter ses satellites naturels
+    /// avec persistance temporelle multi-frame.
     /// </summary>
     public static CelestialTargetClassification ClassifyVideo(
         string filePath,
@@ -49,7 +72,9 @@ public static class CelestialTargetClassifier
         double? measuredDiameterPx = null,
         int originalWidth = 0,
         int originalHeight = 0,
-        Func<string, int, int, (AstroFrame Frame, int OriginalWidth, int OriginalHeight)>? frameLoader = null)
+        Func<string, int, int, (AstroFrame Frame, int OriginalWidth, int OriginalHeight)>? frameLoader = null,
+        bool? detectSatellites = null,
+        double? satelliteSensitivity = null)
     {
         var loader = frameLoader ?? PreviewFrameLoader;
         if (loader == null || string.IsNullOrWhiteSpace(filePath))
@@ -60,8 +85,11 @@ public static class CelestialTargetClassifier
                 "Unknown",
                 RecommendedPresetIndex: 0,
                 Confidence: 0.0,
-                Details: "Chargeur de preview non initialis\u00e9");
+                Details: "Chargeur de preview non initialisé");
         }
+
+        bool useSatellites = detectSatellites ?? DefaultDetectSatellites;
+        double useSensitivity = satelliteSensitivity ?? DefaultSatelliteSensitivity;
 
         if (frameCount <= 1)
         {
@@ -70,27 +98,33 @@ public static class CelestialTargetClassifier
                 var preview = loader(filePath, 0, 960);
                 if (preview.Frame != null)
                 {
-                    return Classify(preview.Frame, measuredDiameterPx, preview.OriginalWidth, preview.OriginalHeight);
+                    return Classify(
+                        preview.Frame,
+                        measuredDiameterPx,
+                        preview.OriginalWidth,
+                        preview.OriginalHeight,
+                        detectSatellites: useSatellites,
+                        satelliteSensitivity: useSensitivity);
                 }
             }
             catch { }
             return new CelestialTargetClassification(CelestialTargetType.Unknown, "Inconnu", "Unknown", 0, 0.0, "Impossible de lire la frame");
         }
 
-        // \u00c9chantillonnage de plusieurs frames r\u00e9parties dans la vid\u00e9o pour choisir la plus repr\u00e9sentative
-        int samples = Math.Clamp(frameCount, 2, 5);
-        var loadedFrames = new List<(AstroFrame Frame, int OrigW, int OrigH)>();
+        // Échantillonnage de plusieurs frames réparties dans la vidéo (jusqu'à 9 frames de 5% à 95%)
+        int samples = Math.Clamp(frameCount, 2, 9);
+        var loadedFrames = new List<(AstroFrame Frame, int OrigW, int OrigH, int FrameIndex)>();
 
         for (int i = 0; i < samples; i++)
         {
-            double t = 0.15 + 0.70 * i / (samples - 1);
+            double t = 0.05 + 0.90 * i / (samples - 1);
             int idx = Math.Clamp((int)(t * (frameCount - 1)), 0, frameCount - 1);
             try
             {
                 var preview = loader(filePath, idx, 960);
                 if (preview.Frame != null)
                 {
-                    loadedFrames.Add((preview.Frame, preview.OriginalWidth, preview.OriginalHeight));
+                    loadedFrames.Add((preview.Frame, preview.OriginalWidth, preview.OriginalHeight, idx));
                 }
             }
             catch { }
@@ -101,22 +135,59 @@ public static class CelestialTargetClassifier
             return new CelestialTargetClassification(CelestialTargetType.Unknown, "Inconnu", "Unknown", 0, 0.0, "Aucune frame lisible");
         }
 
-        // S\u00e9lection de la frame m\u00e9diane pour r\u00e9duire l'impact des turbulences extr\u00eames de d\u00e9but de s\u00e9quence
+        if (loadedFrames.Count == 1)
+        {
+            var single = loadedFrames[0];
+            return Classify(
+                single.Frame,
+                measuredDiameterPx,
+                single.OrigW,
+                single.OrigH,
+                detectSatellites: useSatellites,
+                satelliteSensitivity: useSensitivity);
+        }
+
+        IReadOnlyList<DetectedSatellite> confirmedSatellites = [];
+        if (useSatellites)
+        {
+            var first = loadedFrames[0];
+            double previewScale = first.OrigW > 0 ? (double)first.Frame.Width / first.OrigW : 1.0;
+            if (previewScale <= 0) previewScale = 1.0;
+            double? scaledDiameterPx = measuredDiameterPx.HasValue ? measuredDiameterPx.Value * previewScale : null;
+
+            var framePairs = loadedFrames.Select(lf => (lf.Frame, lf.FrameIndex)).ToList();
+            confirmedSatellites = NaturalSatelliteDetector.DetectAcrossFrames(
+                framePairs,
+                scaledDiameterPx,
+                new SatelliteDetectionOptions(Enabled: true, Sensitivity: useSensitivity));
+        }
+
+        // Sélection de la frame médiane pour la classification globale avec les satellites validés en multi-frame
         var midFrame = loadedFrames[loadedFrames.Count / 2];
-        return Classify(midFrame.Frame, measuredDiameterPx, midFrame.OrigW, midFrame.OrigH);
+        return Classify(
+            midFrame.Frame,
+            measuredDiameterPx,
+            midFrame.OrigW,
+            midFrame.OrigH,
+            detectSatellites: useSatellites,
+            satelliteSensitivity: useSensitivity,
+            precomputedSatellites: confirmedSatellites);
     }
 
     /// <summary>
-    /// Analyse une frame et un diam\u00e8tre mesur\u00e9 pour classer l'objet c\u00e9leste
-    /// (Plan\u00e8te, Lune/Soleil disque entier, ou Lune/Soleil surface/gros plan),
-    /// identifier pr\u00e9cis\u00e9ment le corps c\u00e9leste (Jupiter, Saturne avec anneaux, Mars, Lune, Soleil)
-    /// et recommander le preset ad\u00e9quat.
+    /// Analyse une frame et un diamètre mesuré pour classer l'objet céleste
+    /// (Planète, Lune/Soleil disque entier, ou Lune/Soleil surface/gros plan),
+    /// identifier précisément le corps céleste (Jupiter, Saturne avec anneaux, Mars, Lune, Soleil)
+    /// ainsi que ses satellites naturels, et recommander le preset adéquat.
     /// </summary>
     public static CelestialTargetClassification Classify(
         AstroFrame frame,
         double? measuredDiameterPx = null,
         int originalWidth = 0,
-        int originalHeight = 0)
+        int originalHeight = 0,
+        bool? detectSatellites = null,
+        double? satelliteSensitivity = null,
+        IReadOnlyList<DetectedSatellite>? precomputedSatellites = null)
     {
         int origW = originalWidth > 0 ? originalWidth : frame.Width;
         int origH = originalHeight > 0 ? originalHeight : frame.Height;
@@ -135,7 +206,10 @@ public static class CelestialTargetClassifier
                 Details: "Dimensions invalides");
         }
 
-        // 1. Analyse de la luminosit\u00e9 globale et chrominance
+        bool useSatellites = detectSatellites ?? DefaultDetectSatellites;
+        double useSensitivity = satelliteSensitivity ?? DefaultSatelliteSensitivity;
+
+        // 1. Analyse de la luminosité globale et chrominance
         long totalLum = 0;
         int step = (w > 640 || h > 640) ? 2 : 1;
         int sampleCount = 0;
@@ -179,78 +253,103 @@ public static class CelestialTargetClassifier
         double meanLum = sampleCount > 0 ? (double)totalLum / sampleCount : 0.0;
         double normMeanLum = meanLum / 65535.0;
 
-        // \u00c9chantillonnage des 4 coins (fond de ciel)
+        // Échantillonnage des 4 coins (fond de ciel)
         double cornerMeanLum = SampleCornersMeanLuminance(frame);
         double normCornerLum = cornerMeanLum / 65535.0;
 
-        // D\u00e9tection dominante H-Alpha (forte dominance rouge)
+        // Détection dominante H-Alpha (forte dominance rouge)
         bool isHAlphaRed = ch >= 3 && redSum > 1.35 * greenSum && redSum > 1.8 * blueSum;
 
-        // 2. Si un diam\u00e8tre est mesur\u00e9
+        // 2. Si un diamètre est mesuré
         if (measuredDiameterPx.HasValue && measuredDiameterPx.Value > 3.0)
         {
             double d = measuredDiameterPx.Value;
             double relRatio = (double)d / Math.Max(1, minDim);
+            double previewScale = origW > 0 ? (double)w / origW : 1.0;
+            if (previewScale <= 0) previewScale = 1.0;
+            double frameDiameter = d * previewScale;
 
-            // Plan\u00e8te : objet compact entour\u00e9 d'un fond de ciel noir (ratio < 0.35 et d < 320px)
+            // Planète : objet compact entouré d'un fond de ciel noir (ratio < 0.35 et d < 320px)
             if (relRatio < 0.35 && d < 320.0)
             {
-                var disk = AnalyzePlanetDisk(frame, d, cornerMeanLum);
+                var disk = AnalyzePlanetDisk(frame, frameDiameter, cornerMeanLum);
                 double aspectRatio = disk.AspectRatio;
+                bool isSaturn = aspectRatio >= 1.28 && d >= 18.0;
 
-                string bodyFr = "Plan\u00e8te";
+                IReadOnlyList<DetectedSatellite> satellites = [];
+                if (useSatellites)
+                {
+                    satellites = precomputedSatellites
+                        ?? NaturalSatelliteDetector.DetectInSingleFrame(
+                            frame,
+                            disk.Cx,
+                            disk.Cy,
+                            frameDiameter / 2.0,
+                            new SatelliteDetectionOptions(Enabled: true, Sensitivity: useSensitivity),
+                            isSaturn: isSaturn);
+                }
+
+                int moons = satellites.Count;
+
+                string bodyFr = "Planète";
                 string bodyEn = "Planet";
                 string details;
 
-                // 1. Saturne : forme aplatie / allong\u00e9e due aux anneaux (aspectRatio >= 1.28 et d >= 18)
-                if (aspectRatio >= 1.28 && d >= 18.0)
+                // 1. Saturne : forme aplatie / allongée due aux anneaux (aspectRatio >= 1.28 et d >= 18)
+                if (isSaturn)
                 {
                     bodyFr = "Saturne";
                     bodyEn = "Saturn";
-                    details = $"Saturne identifi\u00e9e : disque aplati / anneaux d\u00e9tect\u00e9s (ratio {aspectRatio:F2}, diam\u00e8tre apparent {d:F0} px)";
+                    details = moons > 0
+                        ? $"Saturne identifiée avec {moons} satellite{(moons > 1 ? "s" : "")} : anneaux détectés (ratio {aspectRatio:F2}, diamètre {d:F0} px)"
+                        : $"Saturne identifiée : disque aplati / anneaux détectés (ratio {aspectRatio:F2}, diamètre apparent {d:F0} px)";
                 }
-                // 2. Mars : teinte rouge\u00e2tre ocre (red > 1.2 * blue et red > 1.1 * green)
-                else if (ch >= 3 && redSum > 1.22 * blueSum && redSum > 1.12 * greenSum && d <= 85.0)
+                // 2. Mars : teinte rougeâtre ocre (red > 1.2 * blue et red > 1.1 * green)
+                else if (ch >= 3 && redSum > 1.22 * blueSum && redSum > 1.12 * greenSum && d <= 85.0 && moons == 0)
                 {
                     bodyFr = "Mars";
                     bodyEn = "Mars";
-                    details = $"Mars identifi\u00e9e : disque ocre rouge\u00e2tre d\u00e9tect\u00e9 (diam\u00e8tre apparent {d:F0} px)";
+                    details = $"Mars identifiée : disque ocre rougeâtre détecté (diamètre apparent {d:F0} px)";
                 }
                 // 3. Uranus / Neptune : teinte cyan / bleue distincte (blue > red et green > red)
-                else if (ch >= 3 && blueSum > 1.15 * redSum && greenSum > 1.05 * redSum && d <= 45.0)
+                else if (ch >= 3 && blueSum > 1.15 * redSum && greenSum > 1.05 * redSum && d <= 45.0 && moons == 0)
                 {
                     bodyFr = "Uranus ou Neptune";
                     bodyEn = "Uranus or Neptune";
-                    details = $"Uranus/Neptune identifi\u00e9e : disque bleut\u00e9 compact (diam\u00e8tre apparent {d:F0} px)";
+                    details = $"Uranus/Neptune identifiée : disque bleuté compact (diamètre apparent {d:F0} px)";
                 }
-                // 4. V\u00e9nus : disque tr\u00e8s brillant (albedo tr\u00e8s fort)
-                else if (normMeanLum > 0.40 && (d >= 20.0 || aspectRatio > 1.15))
+                // 4. Vénus : disque très brillant (albedo très fort) sans lune
+                else if (normMeanLum > 0.40 && moons == 0 && (d >= 20.0 || aspectRatio > 1.15))
                 {
-                    bodyFr = "V\u00e9nus";
+                    bodyFr = "Vénus";
                     bodyEn = "Venus";
-                    details = $"V\u00e9nus identifi\u00e9e : disque \u00e0 tr\u00e8s haut alb\u00e9do (diam\u00e8tre apparent {d:F0} px)";
+                    details = $"Vénus identifiée : disque à très haut albédo (diamètre apparent {d:F0} px)";
                 }
-                // 5. Jupiter : grand disque quasi-circulaire
-                else if (d >= 26.0 && aspectRatio < 1.25)
+                // 5. Jupiter : grand disque quasi-circulaire ou satellites détectés
+                else if (moons > 0 || (d >= 26.0 && aspectRatio < 1.25))
                 {
                     bodyFr = "Jupiter";
                     bodyEn = "Jupiter";
-                    details = $"Jupiter identifi\u00e9e : grand disque circulaire (diam\u00e8tre apparent {d:F0} px)";
+                    details = moons > 0
+                        ? $"Jupiter identifiée avec {moons} satellite{(moons > 1 ? "s" : "")} galiléen{(moons > 1 ? "s" : "")} (diamètre {d:F0} px)"
+                        : $"Jupiter identifiée : grand disque circulaire (diamètre apparent {d:F0} px)";
                 }
                 else
                 {
-                    details = $"Disque plan\u00e9taire compact d\u00e9tect\u00e9 : diam\u00e8tre apparent {d:F0} px ({relRatio * 100.0:F1} % du champ)";
+                    details = $"Disque planétaire compact détecté : diamètre apparent {d:F0} px ({relRatio * 100.0:F1} % du champ)";
                 }
 
                 return new CelestialTargetClassification(
                     CelestialTargetType.Planet,
-                    "Plan\u00e8te",
+                    "Planète",
                     "Planet",
                     RecommendedPresetIndex: 1, // PresetPlanetary
                     Confidence: Math.Clamp(1.0 - (relRatio / 0.35) * 0.3, 0.70, 0.98),
                     Details: details,
                     SpecificBodyNameFr: bodyFr,
-                    SpecificBodyNameEn: bodyEn);
+                    SpecificBodyNameEn: bodyEn,
+                    DetectedMoonsCount: moons,
+                    DetectedSatellites: satellites);
             }
 
             // Disque entier de la Lune ou du Soleil (remplit une part significative du champ)
@@ -287,12 +386,12 @@ public static class CelestialTargetClassifier
                 nameEn,
                 RecommendedPresetIndex: 3, // PresetSolarLunarFullDisc
                 Confidence: 0.92,
-                Details: $"Grand disque d\u00e9tect\u00e9 : diam\u00e8tre apparent {d:F0} px ({relRatio * 100.0:F1} % du champ)",
+                Details: $"Grand disque détecté : diamètre apparent {d:F0} px ({relRatio * 100.0:F1} % du champ)",
                 SpecificBodyNameFr: discBodyFr,
                 SpecificBodyNameEn: discBodyEn);
         }
 
-        // 3. Pas de diam\u00e8tre de disque isol\u00e9 mesur\u00e9 : surface lunaire/solaire ou champ vide
+        // 3. Pas de diamètre de disque isolé mesuré : surface lunaire/solaire ou champ vide
         if (normMeanLum >= 0.08 && normCornerLum >= 0.05)
         {
             string surfBodyFr;
@@ -328,7 +427,7 @@ public static class CelestialTargetClassifier
                 nameEn,
                 RecommendedPresetIndex: 2, // PresetSolarLunarCloseup
                 Confidence: 0.88,
-                Details: $"Texture de surface \u00e9tendue sans contour de ciel noir (luminosit\u00e9 moyenne {normMeanLum * 100:F0} %)",
+                Details: $"Texture de surface étendue sans contour de ciel noir (luminosité moyenne {normMeanLum * 100:F0} %)",
                 SpecificBodyNameFr: surfBodyFr,
                 SpecificBodyNameEn: surfBodyEn);
         }
@@ -343,7 +442,25 @@ public static class CelestialTargetClassifier
     }
 
     /// <summary>
-    /// Analyse morphologique du disque d'une plan\u00e8te (centre, rayon, allongement).
+    /// Détecte le nombre de satellites naturels autour d'une planète sur une frame unique.
+    /// </summary>
+    public static int DetectMoonsAroundPlanet(
+        AstroFrame frame,
+        double cx,
+        double cy,
+        double radiusPx,
+        double sensitivity = 1.0)
+    {
+        return NaturalSatelliteDetector.DetectInSingleFrame(
+            frame,
+            cx,
+            cy,
+            radiusPx,
+            new SatelliteDetectionOptions(Enabled: true, Sensitivity: sensitivity)).Count;
+    }
+
+    /// <summary>
+    /// Analyse morphologique du disque d'une planète (centre, rayon, allongement).
     /// </summary>
     public static (double Cx, double Cy, double Radius, double AspectRatio, bool Found) AnalyzePlanetDisk(
         AstroFrame frame,
@@ -426,52 +543,5 @@ public static class CelestialTargetClassifier
     }
 
     public static double SampleCornersMeanLuminance(AstroFrame frame)
-    {
-        int w = frame.Width;
-        int h = frame.Height;
-        int ch = frame.Channels;
-        int box = Math.Min(16, Math.Min(w / 4, h / 4));
-        if (box <= 0) return 0.0;
-
-        long cornerTotal = 0;
-        int count = 0;
-
-        unsafe
-        {
-            fixed (ushort* p = frame.Data)
-            {
-                int[] xs = [0, w - box];
-                int[] ys = [0, h - box];
-
-                foreach (int cornerY in ys)
-                {
-                    for (int dy = 0; dy < box; dy++)
-                    {
-                        int row = (cornerY + dy) * w;
-                        foreach (int cornerX in xs)
-                        {
-                            for (int dx = 0; dx < box; dx++)
-                            {
-                                int px = cornerX + dx;
-                                ushort lum;
-                                if (ch == 1)
-                                {
-                                    lum = p[row + px];
-                                }
-                                else
-                                {
-                                    int idx = (row + px) * 3;
-                                    lum = Math.Max(p[idx], Math.Max(p[idx + 1], p[idx + 2]));
-                                }
-                                cornerTotal += lum;
-                                count++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return count > 0 ? (double)cornerTotal / count : 0.0;
-    }
+        => NaturalSatelliteDetector.SampleCornersStats(frame).Mean;
 }
