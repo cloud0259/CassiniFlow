@@ -67,12 +67,12 @@ public static class UniversalMediaReader
             // Fallback to portable FFmpeg/FFprobe CLI backend on Linux (WSL), macOS, ARM64, or CPUs without AVX2
             IsOpenCvNativeAvailable = false;
         }
-        AutoRotationAligner.PreviewFrameLoader = (path, idx, maxDim) =>
+        AutoRotationAligner.PreviewFrameLoader ??= (path, idx, maxDim) =>
         {
             var p = ReadPreviewFrame(path, idx, maxDim);
             return (p.Frame, p.OriginalWidth, p.OriginalHeight);
         };
-        PlanetSizeAnalyzer.PreviewFrameLoader = (path, idx, maxDim) =>
+        PlanetSizeAnalyzer.PreviewFrameLoader ??= (path, idx, maxDim) =>
         {
             var p = ReadPreviewFrame(path, idx, maxDim);
             return (p.Frame, p.OriginalWidth, p.OriginalHeight);
