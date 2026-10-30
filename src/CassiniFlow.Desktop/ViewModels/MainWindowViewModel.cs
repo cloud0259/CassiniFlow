@@ -765,6 +765,10 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    public string DarkFilesTooltip => DarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, DarkFiles.Select(Path.GetFileName));
+    public string FlatFilesTooltip => FlatFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatFiles.Select(Path.GetFileName));
+    public string FlatDarkFilesTooltip => FlatDarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatDarkFiles.Select(Path.GetFileName));
+
     [RelayCommand]
     public void AddDarkFiles(IReadOnlyList<string> paths)
     {
@@ -773,6 +777,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (File.Exists(p) && !DarkFiles.Contains(p)) DarkFiles.Add(p);
         }
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌑 {DarkFiles.Count} trame(s) Dark enregistrée(s).", $"🌑 {DarkFiles.Count} Dark frame(s) registered.");
     }
 
     [RelayCommand]
@@ -780,6 +785,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         DarkFiles.Clear();
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Dark effacées.", "Dark frames cleared.");
     }
 
     [RelayCommand]
@@ -790,6 +796,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (File.Exists(p) && !FlatFiles.Contains(p)) FlatFiles.Add(p);
         }
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"⚪ {FlatFiles.Count} trame(s) Flat enregistrée(s).", $"⚪ {FlatFiles.Count} Flat frame(s) registered.");
     }
 
     [RelayCommand]
@@ -797,6 +804,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         FlatFiles.Clear();
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat effacées.", "Flat frames cleared.");
     }
 
     [RelayCommand]
@@ -807,6 +815,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (File.Exists(p) && !FlatDarkFiles.Contains(p)) FlatDarkFiles.Add(p);
         }
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌗 {FlatDarkFiles.Count} trame(s) Flat-Dark enregistrée(s).", $"🌗 {FlatDarkFiles.Count} Flat-Dark frame(s) registered.");
     }
 
     [RelayCommand]
@@ -814,6 +823,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         FlatDarkFiles.Clear();
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat-Dark effacées.", "Flat-Dark frames cleared.");
     }
 
     [RelayCommand]
@@ -823,6 +833,7 @@ public partial class MainWindowViewModel : ObservableObject
         FlatFiles.Clear();
         FlatDarkFiles.Clear();
         UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Toutes les trames de calibration ont été effacées.", "All calibration frames cleared.");
     }
 
     private void UpdateCalibrationStatus()
@@ -831,6 +842,9 @@ public partial class MainWindowViewModel : ObservableObject
         FlatCountText = $"{FlatFiles.Count} flat(s)";
         FlatDarkCountText = $"{FlatDarkFiles.Count} flat-dark(s)";
         HasCalibrationFiles = DarkFiles.Count > 0 || FlatFiles.Count > 0 || FlatDarkFiles.Count > 0;
+        OnPropertyChanged(nameof(DarkFilesTooltip));
+        OnPropertyChanged(nameof(FlatFilesTooltip));
+        OnPropertyChanged(nameof(FlatDarkFilesTooltip));
     }
 
     [RelayCommand]

@@ -149,6 +149,9 @@ public class CalibrationFrameTests
             Assert.Single(vm.Options.DarkFiles);
             Assert.Single(vm.Options.FlatFiles);
             Assert.Single(vm.Options.FlatDarkFiles);
+            Assert.Contains(Path.GetFileName(tempDark), vm.DarkFilesTooltip);
+            Assert.Contains(Path.GetFileName(tempFlat), vm.FlatFilesTooltip);
+            Assert.Contains(Path.GetFileName(tempFlatDark), vm.FlatDarkFilesTooltip);
 
             // Clear calibration
             vm.ClearAllCalibrationFiles();
@@ -156,6 +159,9 @@ public class CalibrationFrameTests
             Assert.Empty(vm.FlatFiles);
             Assert.Empty(vm.FlatDarkFiles);
             Assert.False(vm.HasCalibrationFiles);
+            Assert.Empty(vm.DarkFilesTooltip);
+            Assert.Empty(vm.FlatFilesTooltip);
+            Assert.Empty(vm.FlatDarkFilesTooltip);
         }
         finally
         {

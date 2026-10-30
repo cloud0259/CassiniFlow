@@ -205,6 +205,50 @@ public partial class MainWindow : Window
         }
     }
 
+    private async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> PickCalibrationFilesAsync(string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Astrophotography Calibration (SER, FITS, TIFF, PNG, BMP, AVI)")
+                {
+                    Patterns = ["*.ser", "*.fit", "*.fits", "*.tif", "*.tiff", "*.png", "*.bmp", "*.avi"]
+                },
+                FilePickerFileTypes.All
+            ]
+        });
+
+        return files
+            .Select(f => f.TryGetLocalPath())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+    }
+
+    private async void OnAddDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Dark (SER, FITS, TIFF, PNG)", "Select Dark frames (SER, FITS, TIFF, PNG)"));
+        if (paths.Count > 0) vm.AddDarkFiles(paths);
+    }
+
+    private async void OnAddFlatFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Flat (SER, FITS, TIFF, PNG)", "Select Flat frames (SER, FITS, TIFF, PNG)"));
+        if (paths.Count > 0) vm.AddFlatFiles(paths);
+    }
+
+    private async void OnAddFlatDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Flat-Dark (SER, FITS, TIFF, PNG)", "Select Flat-Dark frames (SER, FITS, TIFF, PNG)"));
+        if (paths.Count > 0) vm.AddFlatDarkFiles(paths);
+    }
+
     private async void OnSelectOutputFolderClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;

@@ -9,12 +9,23 @@
     <Grid RowDefinitions="Auto,*,Auto" Margin="2">
 
         <!-- Barre d'outils structurée en 2 rangées professionnelles -->
-        <Border Grid.Row="0" Classes="groupbox" Padding="6,5" Margin="0,0,0,4" IsEnabled="{Binding !IsLoadingFiles}">
+        <Border Grid.Row="0" Classes="groupbox" Padding="6,5" Margin="0,0,0,4" IsEnabled="{Binding !IsFileListBusy}">
             <StackPanel Spacing="5">
-                <!-- Rangée 1 : Actions principales (Ajouter & Mesurer) -->
-                <Grid ColumnDefinitions="*,Auto">
+                <!-- Rangée 1 : Actions principales (Ajouter & Mesurer & Calibration) -->
+                <Grid ColumnDefinitions="*,Auto,Auto">
                     <Button Grid.Column="0" Content="{loc:Tr SourceFiles.AddFiles}" Click="OnAddVideoFilesClick" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="10,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0"/>
-                    <Button Grid.Column="1" Content="{loc:Tr SourceFiles.MeasureSizes}" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="11" Padding="8,5" ToolTip.Tip="{loc:Tr SourceFiles.MeasureSizesTip}"/>
+                    <Button Grid.Column="1" Content="{loc:Tr SourceFiles.AddCalibration}" FontSize="11" Padding="8,5" Margin="0,0,4,0">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="{loc:Tr SourceFiles.AddDarks}" Click="OnAddDarkFilesClick"/>
+                                <MenuItem Header="{loc:Tr SourceFiles.AddFlats}" Click="OnAddFlatFilesClick"/>
+                                <MenuItem Header="{loc:Tr SourceFiles.AddFlatDarks}" Click="OnAddFlatDarkFilesClick"/>
+                                <MenuItem Header="-"/>
+                                <MenuItem Header="{loc:Tr SourceFiles.ClearCalibration}" Command="{Binding ClearAllCalibrationFilesCommand}"/>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button Grid.Column="2" Content="{loc:Tr SourceFiles.MeasureSizes}" Command="{Binding AnalyzePlanetSizesCommand}" FontSize="11" Padding="8,5" ToolTip.Tip="{loc:Tr SourceFiles.MeasureSizesTip}"/>
                 </Grid>
 
                 <!-- Rangée 2 : Actions groupées (Tri, Réorganisation, Nettoyage) -->
@@ -43,6 +54,43 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
+                <!-- Bandeau récapitulatif Calibration (Darks, Flats, Flat-Darks) -->
+                <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="0,2,0,0" IsVisible="{Binding HasCalibrationFiles}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                            <!-- Badge Darks -->
+                            <Border Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="0,0,4,0" IsVisible="{Binding DarkFiles.Count}" ToolTip.Tip="{Binding DarkFilesTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="🌑" FontSize="9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DarkCountText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppAccent}" VerticalAlignment="Center"/>
+                                    <Button Content="✕" Command="{Binding ClearDarkFilesCommand}" FontSize="8" Padding="2,0" Background="Transparent" BorderThickness="0" VerticalAlignment="Center" ToolTip.Tip="{loc:Tr SourceFiles.ClearCalibration}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Badge Flats -->
+                            <Border Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="0,0,4,0" IsVisible="{Binding FlatFiles.Count}" ToolTip.Tip="{Binding FlatFilesTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="⚪" FontSize="9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding FlatCountText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" VerticalAlignment="Center"/>
+                                    <Button Content="✕" Command="{Binding ClearFlatFilesCommand}" FontSize="8" Padding="2,0" Background="Transparent" BorderThickness="0" VerticalAlignment="Center" ToolTip.Tip="{loc:Tr SourceFiles.ClearCalibration}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Badge Flat-Darks -->
+                            <Border Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="0,0,4,0" IsVisible="{Binding FlatDarkFiles.Count}" ToolTip.Tip="{Binding FlatDarkFilesTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="🌗" FontSize="9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding FlatDarkCountText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeFormat}" VerticalAlignment="Center"/>
+                                    <Button Content="✕" Command="{Binding ClearFlatDarkFilesCommand}" FontSize="8" Padding="2,0" Background="Transparent" BorderThickness="0" VerticalAlignment="Center" ToolTip.Tip="{loc:Tr SourceFiles.ClearCalibration}"/>
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <!-- Tout effacer -->
+                        <Button Grid.Column="1" Content="✕" Command="{Binding ClearAllCalibrationFilesCommand}" ToolTip.Tip="{loc:Tr SourceFiles.ClearCalibration}" FontSize="9" Padding="4,2" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Border>
 
