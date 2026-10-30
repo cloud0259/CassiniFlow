@@ -23,6 +23,8 @@ public sealed class UserSettings
     public bool EnableCropping { get; set; } = true;
     public bool EnableQualityEstimation { get; set; } = false;
     public int QualityFramesToKeep { get; set; } = 25;
+    public bool DetectNaturalSatellites { get; set; } = true;
+    public double SatelliteDetectionSensitivity { get; set; } = 1.0;
 }
 
 /// <summary>

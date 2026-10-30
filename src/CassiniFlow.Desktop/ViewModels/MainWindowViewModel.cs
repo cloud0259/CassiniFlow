@@ -213,6 +213,13 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _qualityKeepValue = UserSettingsService.Current.QualityFramesToKeep;
         }
+        _detectNaturalSatellites = UserSettingsService.Current.DetectNaturalSatellites;
+        _satelliteDetectionSensitivity = Math.Clamp(
+            UserSettingsService.Current.SatelliteDetectionSensitivity > 0 ? UserSettingsService.Current.SatelliteDetectionSensitivity : 1.0,
+            0.40,
+            2.50);
+        CelestialTargetClassifier.DefaultDetectSatellites = _detectNaturalSatellites;
+        CelestialTargetClassifier.DefaultSatelliteSensitivity = _satelliteDetectionSensitivity;
 
         Loc.LanguageChanged += RefreshLocalizedTexts;
         ThemeManager.ThemeChanged += OnThemeChanged;
@@ -306,6 +313,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _afbSize = 64;
     [ObservableProperty] private int _targetBoxX = 240;
     [ObservableProperty] private int _targetBoxY = 180;
+    [ObservableProperty] private bool _detectNaturalSatellites = true;
+    [ObservableProperty] private double _satelliteDetectionSensitivity = 1.0;
 
     // Cropping (Default to 448x448 matching CassiniFlow v2.5.9 Planetary Crop)
     [ObservableProperty] private bool _enableCropping = true;
@@ -552,6 +561,21 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnCustomOutputDirectoryChanged(string value)
     {
         UserSettingsService.Current.CustomOutputDirectory = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnDetectNaturalSatellitesChanged(bool value)
+    {
+        CelestialTargetClassifier.DefaultDetectSatellites = value;
+        UserSettingsService.Current.DetectNaturalSatellites = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnSatelliteDetectionSensitivityChanged(double value)
+    {
+        double clamped = Math.Clamp(value, 0.40, 2.50);
+        CelestialTargetClassifier.DefaultSatelliteSensitivity = clamped;
+        UserSettingsService.Current.SatelliteDetectionSensitivity = clamped;
         UserSettingsService.Save();
     }
     partial void OnSelectedBinningIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -989,7 +1013,9 @@ public partial class MainWindowViewModel : ObservableObject
                     classification = CelestialTargetClassifier.ClassifyVideo(
                         it.FullPath,
                         it.Frames,
-                        d);
+                        d,
+                        detectSatellites: DetectNaturalSatellites,
+                        satelliteSensitivity: SatelliteDetectionSensitivity);
                 }
                 catch { }
 
@@ -1066,7 +1092,9 @@ public partial class MainWindowViewModel : ObservableObject
             var classification = CelestialTargetClassifier.ClassifyVideo(
                 item.FullPath,
                 item.Frames,
-                item.PlanetDiameterPx);
+                item.PlanetDiameterPx,
+                detectSatellites: DetectNaturalSatellites,
+                satelliteSensitivity: SatelliteDetectionSensitivity);
             if (classification is null || classification.TargetType == CelestialTargetType.Unknown) return;
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
