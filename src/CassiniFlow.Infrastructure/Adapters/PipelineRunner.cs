@@ -305,6 +305,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         {
             int totalIn = 0, totalOut = 0, totalNoPlanet = 0, totalOver = 0, totalQual = 0;
             string lastOutputPath = string.Empty;
+            string lastLogPath = string.Empty;
             object batchLock = new();
             int completedFiles = 0;
 
@@ -327,12 +328,16 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                         if (!string.IsNullOrEmpty(subSummary.OutputFilePath))
                         {
                             lastOutputPath = subSummary.OutputFilePath;
+                            if (!string.IsNullOrEmpty(subSummary.LogFilePath))
+                            {
+                                lastLogPath = subSummary.LogFilePath;
+                            }
                         }
                     }
                 });
 
             sw.Stop();
-            return new PipelineRunSummary(totalOut > 0, sw.Elapsed, totalIn, totalOut, totalNoPlanet, totalOver, totalQual, lastOutputPath);
+            return new PipelineRunSummary(totalOut > 0, sw.Elapsed, totalIn, totalOut, totalNoPlanet, totalOver, totalQual, lastOutputPath, lastLogPath);
         }
 
         return await ProcessFileGroupStreamingAsync(validPaths, options, outputDirectory, progress, cancellationToken, masterDark, masterFlat);
@@ -869,7 +874,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             totalInputFrames,
             $"Terminé en {sw.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps) — {outputFramesWritten} frames écrites dans '{outputPath}'."));
 
-        return new PipelineRunSummary(
+        string logPath = Path.Combine(outputDirectory, $"{fullStem}_log.txt");
+        var summary = new PipelineRunSummary(
             outputFramesWritten > 0,
             sw.Elapsed,
             totalInputFrames,
@@ -877,7 +883,23 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             discardedNoPlanet,
             0,
             discardedQuality,
-            outputPath);
+            outputPath,
+            logPath);
+
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                groupFiles,
+                timestampUtc: DateTime.UtcNow);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+
+        return summary;
     }
 
     /// <summary>
@@ -1775,7 +1797,21 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         }
 
         sw.Stop();
-        return new PipelineRunSummary(accepted.Count > 0, sw.Elapsed, total, accepted.Count, discardedNoPlanet, 0, discardedQuality, outputPath);
+        string logPath = Path.Combine(outputDirectory, "cassiniflow_output_log.txt");
+        var summary = new PipelineRunSummary(accepted.Count > 0, sw.Elapsed, total, accepted.Count, discardedNoPlanet, 0, discardedQuality, outputPath, logPath);
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                sourceFiles: [],
+                timestampUtc: DateTime.UtcNow);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+        return summary;
     }
 
     /// <summary>

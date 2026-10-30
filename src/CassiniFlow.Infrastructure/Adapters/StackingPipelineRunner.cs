@@ -402,7 +402,9 @@ public static class StackingPipelineRunner
                 totalInputFrames,
                 $"Empilement terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s. {outputFramesWritten} image(s) générée(s) : {generatedFilesText}"));
 
-            return new PipelineRunSummary(
+            string logStem = validFiles.Count == 1 ? Path.GetFileNameWithoutExtension(validFiles[0]) : "stacking_batch";
+            string logPath = Path.Combine(outputDirectory, $"{logStem}_stacked_log.txt");
+            var runSummary = new PipelineRunSummary(
                 Success: File.Exists(lastOutputPath),
                 Elapsed: sw.Elapsed,
                 TotalInputFrames: totalInputFrames,
@@ -410,7 +412,24 @@ public static class StackingPipelineRunner
                 DiscardedNoPlanet: discardedNoPlanet,
                 DiscardedOverexposed: 0,
                 DiscardedQuality: discardedQuality,
-                OutputFilePath: lastOutputPath);
+                OutputFilePath: lastOutputPath,
+                LogFilePath: logPath);
+
+            try
+            {
+                string logText = ExecutionLogGenerator.Generate(
+                    options,
+                    runSummary,
+                    validFiles,
+                    timestampUtc: DateTime.UtcNow,
+                    generatedFiles: allGeneratedFiles);
+                File.WriteAllText(logPath, logText);
+            }
+            catch
+            {
+            }
+
+            return runSummary;
     }
 
     private static PipelineRunSummary ExecuteJoinModeInternal(
@@ -758,7 +777,8 @@ public static class StackingPipelineRunner
             totalInputFrames,
             $"Empilement fusionné terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s ({validFiles.Count} vidéos combinées). Image(s) générée(s) : {generatedFilesText}"));
 
-        return new PipelineRunSummary(
+        string logPath = Path.Combine(outputDirectory, $"{baseStem}_joined_stacked_log.txt");
+        var summary = new PipelineRunSummary(
             Success: File.Exists(lastOutputPath),
             Elapsed: sw.Elapsed,
             TotalInputFrames: totalInputFrames,
@@ -766,7 +786,24 @@ public static class StackingPipelineRunner
             DiscardedNoPlanet: discardedNoPlanet,
             DiscardedOverexposed: 0,
             DiscardedQuality: discardedQuality,
-            OutputFilePath: lastOutputPath);
+            OutputFilePath: lastOutputPath,
+            LogFilePath: logPath);
+
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                validFiles,
+                timestampUtc: DateTime.UtcNow,
+                generatedFiles: allGeneratedFiles);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+
+        return summary;
     }
 
     private static void AccumulateFrameIntoTiers(
