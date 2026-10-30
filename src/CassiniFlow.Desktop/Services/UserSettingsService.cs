@@ -10,6 +10,19 @@ public sealed class UserSettings
     public int MaxCpuUsagePercent { get; set; } = 80;
     public int CpuWarningThresholdPercent { get; set; } = 85;
     public bool HasSeenTutorial { get; set; } = false;
+
+    // Persisted preferences (Feature #40)
+    public bool WinJuposNaming { get; set; } = false;
+    public int SelectedOutputFormatIndex { get; set; } = 0;
+    public int SelectedStackingImageFormatIndex { get; set; } = 0;
+    public string OutputSuffix { get; set; } = "_cassiniflow";
+    public string CustomOutputDirectory { get; set; } = string.Empty;
+    public bool AutoRotateAlign { get; set; } = false;
+    public int CropWidth { get; set; } = 448;
+    public int CropHeight { get; set; } = 448;
+    public bool EnableCropping { get; set; } = true;
+    public bool EnableQualityEstimation { get; set; } = false;
+    public int QualityFramesToKeep { get; set; } = 25;
 }
 
 /// <summary>
@@ -90,6 +103,33 @@ public static class UserSettingsService
     public static void MarkTutorialSeen()
     {
         Current.HasSeenTutorial = true;
+        Save();
+    }
+
+    public static void UpdateProcessingSettings(
+        bool winJuposNaming,
+        int outputFormatIndex,
+        int stackingFormatIndex,
+        string outputSuffix,
+        string customOutputDir,
+        bool autoRotate,
+        int cropWidth,
+        int cropHeight,
+        bool enableCropping,
+        bool enableQuality,
+        int qualityKeep)
+    {
+        Current.WinJuposNaming = winJuposNaming;
+        Current.SelectedOutputFormatIndex = outputFormatIndex;
+        Current.SelectedStackingImageFormatIndex = stackingFormatIndex;
+        Current.OutputSuffix = outputSuffix;
+        Current.CustomOutputDirectory = customOutputDir;
+        Current.AutoRotateAlign = autoRotate;
+        Current.CropWidth = cropWidth;
+        Current.CropHeight = cropHeight;
+        Current.EnableCropping = enableCropping;
+        Current.EnableQualityEstimation = enableQuality;
+        Current.QualityFramesToKeep = qualityKeep;
         Save();
     }
 }
