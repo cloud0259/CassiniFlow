@@ -1,3 +1,4 @@
+using CassiniFlow.Desktop.Localization;
 using CassiniFlow.Desktop.ViewModels;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
@@ -116,6 +117,88 @@ public class FieldDerotationTests
 
         string info = vm.DerotationInfoText;
         Assert.Contains("°/min", info);
+        Assert.DoesNotContain("Â", info);
+        Assert.DoesNotContain("Ã", info);
         Assert.True(info.Contains("sans d") || info.Contains("without derotation"));
+    }
+
+    [Fact]
+    public void Derotation_Accordion_MutualExclusionAndVisibility()
+    {
+        var vm = new MainWindowViewModel();
+
+        // Visible par défaut (DirectStreamAllInOne)
+        Assert.True(vm.IsSectionDerotationVisible);
+        Assert.Equal("⟳", vm.SectionDerotationBadgeText);
+
+        // Ouverture de l'accordéon Dérotation -> ferme les autres
+        vm.IsSection1Expanded = true;
+        Assert.False(vm.IsSectionDerotationExpanded);
+
+        vm.IsSectionDerotationExpanded = true;
+        Assert.False(vm.IsSection1Expanded);
+        Assert.False(vm.IsSection2Expanded);
+        Assert.False(vm.IsSection3Expanded);
+        Assert.False(vm.IsSection4Expanded);
+        Assert.True(vm.IsSectionDerotationExpanded);
+
+        // Ouverture d'une autre section -> ferme Dérotation
+        vm.IsSection3Expanded = true;
+        Assert.False(vm.IsSectionDerotationExpanded);
+
+        // Masqué en mode StackingOnly
+        vm.SetWorkflowMode("stack");
+        Assert.False(vm.IsSectionDerotationVisible);
+        Assert.False(vm.IsSectionDerotationExpanded);
+
+        // Réactivé en mode PreProcessingOnly
+        vm.SetWorkflowMode("prep");
+        Assert.True(vm.IsSectionDerotationVisible);
+    }
+
+    [Fact]
+    public void Derotation_Translations_NoMojibakeAndNoUselessParentheses()
+    {
+        // Test Français
+        Loc.SetLanguage(AppLanguage.French);
+        string frEnable = Loc.Get("Derotation.Enable");
+        string frLat = Loc.Get("Derotation.Latitude");
+        string frAlt = Loc.Get("Derotation.Altitude");
+        string frAz = Loc.Get("Derotation.Azimuth");
+        string frTab = Loc.Get("Tab.DerotationOptions");
+
+        Assert.DoesNotContain("(", frEnable);
+        Assert.DoesNotContain(")", frEnable);
+        Assert.DoesNotContain("(", frLat);
+        Assert.DoesNotContain("(", frAlt);
+        Assert.DoesNotContain("(", frAz);
+        Assert.DoesNotContain("Ã", frEnable);
+        Assert.DoesNotContain("Â", frEnable);
+        Assert.DoesNotContain("Ã", frTab);
+        Assert.NotEmpty(Loc.Get("Derotation.EnableTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.LatitudeTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.AltitudeTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.AzimuthTip"));
+
+        // Test Anglais
+        Loc.SetLanguage(AppLanguage.English);
+        string enEnable = Loc.Get("Derotation.Enable");
+        string enLat = Loc.Get("Derotation.Latitude");
+        string enAlt = Loc.Get("Derotation.Altitude");
+        string enAz = Loc.Get("Derotation.Azimuth");
+        string enTab = Loc.Get("Tab.DerotationOptions");
+
+        Assert.DoesNotContain("(", enEnable);
+        Assert.DoesNotContain(")", enEnable);
+        Assert.DoesNotContain("(", enLat);
+        Assert.DoesNotContain("(", enAlt);
+        Assert.DoesNotContain("(", enAz);
+        Assert.DoesNotContain("Ã", enEnable);
+        Assert.DoesNotContain("Â", enEnable);
+        Assert.DoesNotContain("Ã", enTab);
+        Assert.NotEmpty(Loc.Get("Derotation.EnableTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.LatitudeTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.AltitudeTip"));
+        Assert.NotEmpty(Loc.Get("Derotation.AzimuthTip"));
     }
 }
