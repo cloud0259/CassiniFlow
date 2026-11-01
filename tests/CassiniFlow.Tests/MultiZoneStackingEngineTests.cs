@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class MultiZoneStackingEngineTests
 {
     private readonly ITestOutputHelper _output;

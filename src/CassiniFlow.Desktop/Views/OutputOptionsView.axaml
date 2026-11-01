@@ -24,7 +24,7 @@
 
                     <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
-                    <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr OutputOptions.KeepFps}" ToolTip.Tip="{loc:Tr OutputOptions.KeepFpsTip}" IsChecked="{Binding MatchInputFps}" FontSize="12"/>
                     <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !MatchInputFps}">
                         <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.CustomFps}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
                         <controls:NumberStepper Grid.Column="1" Value="{Binding OutputFps}" Minimum="1" Maximum="240" FormatString="0" Width="110"/>
@@ -33,15 +33,15 @@
 
                 <!-- Mode Empilement Seul / Flux Direct : Format Image Haute Dynamique Unique -->
                 <StackPanel Spacing="8" IsVisible="{Binding !IsWorkflowPreProcessingOnly}">
-                    <TextBlock Text="Format d'image empilée (Sortie unique)" Classes="grouptitle"/>
+                    <TextBlock Text="{loc:Tr OutputOptions.StackingFormatTitle}" Classes="grouptitle"/>
                     <ComboBox SelectedIndex="{Binding SelectedStackingImageFormatIndex}" HorizontalAlignment="Stretch">
-                        <ComboBoxItem Content="TIFF 16-bit (Recommandé - Standard astronomique)"/>
-                        <ComboBoxItem Content="FITS (Format scientifique astronomique)"/>
-                        <ComboBoxItem Content="PNG 16-bit (Image universelle non compressée)"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.StackingFormatTiff}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.StackingFormatFits}"/>
+                        <ComboBoxItem Content="{loc:Tr OutputOptions.StackingFormatPng}"/>
                     </ComboBox>
 
                     <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2,0,0">
-                        <TextBlock Text="L'empilement produit une image composite haute dynamique unique issue de la fusion des meilleures trames." FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{loc:Tr OutputOptions.StackingFormatHint}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
                     </Border>
                 </StackPanel>
 
@@ -49,9 +49,9 @@
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{loc:Tr OutputOptions.FileSuffix}" Classes="label" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
-                    <TextBox Grid.Column="1" Text="{Binding OutputSuffix}" Width="110"/>
+                    <TextBox Grid.Column="1" Text="{Binding OutputSuffix}" ToolTip.Tip="{loc:Tr OutputOptions.FileSuffixTip}" Width="110"/>
                 </Grid>
-                <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
+                <CheckBox Content="{loc:Tr OutputOptions.WinJuposNaming}" ToolTip.Tip="{loc:Tr OutputOptions.WinJuposNamingTip}" IsChecked="{Binding WinJuposNaming}" FontSize="12"/>
             </StackPanel>
         </Border>
 

@@ -17,7 +17,7 @@ namespace CassiniFlow.Desktop.ViewModels;
 
 public sealed partial class SourceFileItem : ObservableObject
 {
-    [ObservableProperty] private bool _isChecked;
+    [ObservableProperty] private bool _isChecked = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlanetSizeText))]
@@ -27,9 +27,26 @@ public sealed partial class SourceFileItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(PlanetSizeText))]
     private bool _isMeasuring;
 
-    public void RefreshLocalizedText() => OnPropertyChanged(nameof(PlanetSizeText));
+    public void RefreshLocalizedText()
+    {
+        OnPropertyChanged(nameof(PlanetSizeText));
+        OnPropertyChanged(nameof(IdentifiedObjectBadge));
+        OnPropertyChanged(nameof(IdentifiedObjectSummary));
+    }
 
     public string PlanetSizeText => IsMeasuring ? Loc.Pick("mesure...", "measuring...") : PlanetDiameterPx is double d ? $"{d:F0} px" : "—";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectSummary))]
+    [NotifyPropertyChangedFor(nameof(IdentifiedObjectBadge))]
+    [NotifyPropertyChangedFor(nameof(HasIdentifiedObject))]
+    private string _identifiedObjectText = string.Empty;
+
+    public bool HasIdentifiedObject => !string.IsNullOrWhiteSpace(IdentifiedObjectText);
+    public string IdentifiedObjectBadge => HasIdentifiedObject ? $"🪐 {IdentifiedObjectText}" : string.Empty;
+    public string IdentifiedObjectSummary => HasIdentifiedObject ? IdentifiedObjectText : "—";
+
+
     public string FileName { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
     public string FormatBadge { get; init; } = string.Empty;
@@ -59,6 +76,16 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<SourceFileItem> SourceFiles { get; } = [];
 
+    public ObservableCollection<string> DarkFiles { get; } = [];
+    public ObservableCollection<string> FlatFiles { get; } = [];
+    public ObservableCollection<string> FlatDarkFiles { get; } = [];
+
+    [ObservableProperty] private string _darkCountText = "0 dark(s)";
+    [ObservableProperty] private string _flatCountText = "0 flat(s)";
+    [ObservableProperty] private string _flatDarkCountText = "0 flat-dark(s)";
+    [ObservableProperty] private bool _hasCalibrationFiles = false;
+    [ObservableProperty] private int _selectedSourceFileTabIndex = 0;
+
     private UniversalPreviewFrame? _cachedPreviewResult;
     private string? _cachedRawFilePath;
     private AstroFrame? _lastProcessedPreviewFrame;
@@ -81,15 +108,40 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(IsFileListBusy))]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
     private bool _isLoadingFiles;
 
     [ObservableProperty]
     private double _loadingProgress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
     private string _loadingStatusText = string.Empty;
 
-    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(IsFileListBusy))]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private bool _isMeasuringPlanetSizes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BusyStatusText))]
+    [NotifyPropertyChangedFor(nameof(GlobalStatusText))]
+    private string _measuringStatusText = string.Empty;
+
+    public bool IsFileListBusy => IsLoadingFiles || IsMeasuringPlanetSizes;
+
+    public string BusyStatusText => IsMeasuringPlanetSizes ? MeasuringStatusText : LoadingStatusText;
+
+    public string GlobalStatusText => IsMeasuringPlanetSizes
+        ? MeasuringStatusText
+        : IsProcessing
+            ? ProcessingStageText
+            : string.Empty;
+
+    public bool CanAddFiles => !IsProcessing && !IsLoadingFiles && !IsMeasuringPlanetSizes;
 
     // Viewer state
     [ObservableProperty] private int _currentFrameIndex = 1;
@@ -138,12 +190,43 @@ public partial class MainWindowViewModel : ObservableObject
         };
         _selectedLanguageIndex = string.Equals(UserSettingsService.Current.Language, "en", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
+        _winJuposNaming = UserSettingsService.Current.WinJuposNaming;
+        _selectedOutputFormatIndex = Math.Clamp(UserSettingsService.Current.SelectedOutputFormatIndex, 0, 5);
+        _selectedStackingImageFormatIndex = Math.Clamp(UserSettingsService.Current.SelectedStackingImageFormatIndex, 0, 2);
+        if (!string.IsNullOrEmpty(UserSettingsService.Current.OutputSuffix))
+        {
+            _outputSuffix = UserSettingsService.Current.OutputSuffix;
+        }
+        _customOutputDirectory = UserSettingsService.Current.CustomOutputDirectory;
+        _autoRotateAlign = UserSettingsService.Current.AutoRotateAlign;
+        if (UserSettingsService.Current.CropWidth > 0)
+        {
+            _cropWidth = UserSettingsService.Current.CropWidth;
+        }
+        if (UserSettingsService.Current.CropHeight > 0)
+        {
+            _cropHeight = UserSettingsService.Current.CropHeight;
+        }
+        _enableCropping = UserSettingsService.Current.EnableCropping;
+        _enableQuality = UserSettingsService.Current.EnableQualityEstimation;
+        if (UserSettingsService.Current.QualityFramesToKeep > 0)
+        {
+            _qualityKeepValue = UserSettingsService.Current.QualityFramesToKeep;
+        }
+        _detectNaturalSatellites = UserSettingsService.Current.DetectNaturalSatellites;
+        _satelliteDetectionSensitivity = Math.Clamp(
+            UserSettingsService.Current.SatelliteDetectionSensitivity > 0 ? UserSettingsService.Current.SatelliteDetectionSensitivity : 1.0,
+            0.40,
+            2.50);
+        CelestialTargetClassifier.DefaultDetectSatellites = _detectNaturalSatellites;
+        CelestialTargetClassifier.DefaultSatelliteSensitivity = _satelliteDetectionSensitivity;
+
         Loc.LanguageChanged += RefreshLocalizedTexts;
         ThemeManager.ThemeChanged += OnThemeChanged;
+        SourceFiles.CollectionChanged += OnSourceFilesCollectionChanged;
 
         UpdateCpuStatus();
     }
-
     partial void OnMaxCpuUsagePercentChanged(int value)
     {
         UpdateCpuStatus();
@@ -230,6 +313,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _afbSize = 64;
     [ObservableProperty] private int _targetBoxX = 240;
     [ObservableProperty] private int _targetBoxY = 180;
+    [ObservableProperty] private bool _detectNaturalSatellites = true;
+    [ObservableProperty] private double _satelliteDetectionSensitivity = 1.0;
 
     // Cropping (Default to 448x448 matching CassiniFlow v2.5.9 Planetary Crop)
     [ObservableProperty] private bool _enableCropping = true;
@@ -311,7 +396,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
     private bool _isProcessing;
     [ObservableProperty] private int _processingProgress;
-    [ObservableProperty] private string _processingStageText = Loc.Tr("Prêt", "Ready");
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(GlobalStatusText))] private string _processingStageText = Loc.Tr("Prêt", "Ready");
     [ObservableProperty] private string _lastOutputFilePath = string.Empty;
     partial void OnLastOutputFilePathChanged(string value) => OnPropertyChanged(nameof(PlayOrOpenOutputText));
 
@@ -485,6 +570,47 @@ public partial class MainWindowViewModel : ObservableObject
             2 => 4, // PNG
             _ => 5  // TIFF
         };
+        UserSettingsService.Current.SelectedStackingImageFormatIndex = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnSelectedOutputFormatIndexChanged(int value)
+    {
+        UserSettingsService.Current.SelectedOutputFormatIndex = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnWinJuposNamingChanged(bool value)
+    {
+        UserSettingsService.Current.WinJuposNaming = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnOutputSuffixChanged(string value)
+    {
+        UserSettingsService.Current.OutputSuffix = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnCustomOutputDirectoryChanged(string value)
+    {
+        UserSettingsService.Current.CustomOutputDirectory = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnDetectNaturalSatellitesChanged(bool value)
+    {
+        CelestialTargetClassifier.DefaultDetectSatellites = value;
+        UserSettingsService.Current.DetectNaturalSatellites = value;
+        UserSettingsService.Save();
+    }
+
+    partial void OnSatelliteDetectionSensitivityChanged(double value)
+    {
+        double clamped = Math.Clamp(value, 0.40, 2.50);
+        CelestialTargetClassifier.DefaultSatelliteSensitivity = clamped;
+        UserSettingsService.Current.SatelliteDetectionSensitivity = clamped;
+        UserSettingsService.Save();
     }
     partial void OnSelectedBinningIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnSelectedStabilisationModeIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -548,7 +674,12 @@ public partial class MainWindowViewModel : ObservableObject
         if (value) PreviewCroppedOutput = true;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
-    partial void OnAutoRotateAlignChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+        partial void OnAutoRotateAlignChanged(bool value)
+    {
+        UserSettingsService.Current.AutoRotateAlign = value;
+        UserSettingsService.Save();
+        RequestPreviewUpdate(reloadFromDisk: false);
+    }
 
     public void SetAnchorOrCropTarget(int x, int y)
     {
@@ -695,6 +826,35 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    private void OnSourceFilesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+        {
+            foreach (SourceFileItem item in e.NewItems)
+            {
+                item.PropertyChanged += OnSourceFileItemPropertyChanged;
+            }
+        }
+        if (e.OldItems != null)
+        {
+            foreach (SourceFileItem item in e.OldItems)
+            {
+                item.PropertyChanged -= OnSourceFileItemPropertyChanged;
+            }
+        }
+        UpdateAvailableFrames();
+        OnPropertyChanged(nameof(AreAllFilesChecked));
+    }
+
+    private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+        {
+            UpdateAvailableFrames();
+            OnPropertyChanged(nameof(AreAllFilesChecked));
+        }
+    }
+
     public bool? AreAllFilesChecked
     {
         get
@@ -721,6 +881,118 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    public string DarkFilesTooltip => DarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, DarkFiles.Select(Path.GetFileName));
+    public string FlatFilesTooltip => FlatFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatFiles.Select(Path.GetFileName));
+    public string FlatDarkFilesTooltip => FlatDarkFiles.Count == 0 ? string.Empty : string.Join(Environment.NewLine, FlatDarkFiles.Select(Path.GetFileName));
+
+    [RelayCommand]
+    public void AddDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !DarkFiles.Contains(p)) DarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌑 {DarkFiles.Count} trame(s) Dark enregistrée(s).", $"🌑 {DarkFiles.Count} Dark frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearDarkFiles()
+    {
+        DarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Dark effacées.", "Dark frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveDarkFile(string path)
+    {
+        if (DarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Dark supprimée : {Path.GetFileName(path)}", $"Dark frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void AddFlatFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatFiles.Contains(p)) FlatFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"⚪ {FlatFiles.Count} trame(s) Flat enregistrée(s).", $"⚪ {FlatFiles.Count} Flat frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearFlatFiles()
+    {
+        FlatFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat effacées.", "Flat frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveFlatFile(string path)
+    {
+        if (FlatFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat supprimée : {Path.GetFileName(path)}", $"Flat frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void AddFlatDarkFiles(IReadOnlyList<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) && !FlatDarkFiles.Contains(p)) FlatDarkFiles.Add(p);
+        }
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick($"🌗 {FlatDarkFiles.Count} trame(s) Flat-Dark enregistrée(s).", $"🌗 {FlatDarkFiles.Count} Flat-Dark frame(s) registered.");
+    }
+
+    [RelayCommand]
+    public void ClearFlatDarkFiles()
+    {
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Trames Flat-Dark effacées.", "Flat-Dark frames cleared.");
+    }
+
+    [RelayCommand]
+    public void RemoveFlatDarkFile(string path)
+    {
+        if (FlatDarkFiles.Remove(path))
+        {
+            UpdateCalibrationStatus();
+            ConsoleLogText = Loc.Pick($"Trame Flat-Dark supprimée : {Path.GetFileName(path)}", $"Flat-Dark frame removed: {Path.GetFileName(path)}");
+        }
+    }
+
+    [RelayCommand]
+    public void ClearAllCalibrationFiles()
+    {
+        DarkFiles.Clear();
+        FlatFiles.Clear();
+        FlatDarkFiles.Clear();
+        UpdateCalibrationStatus();
+        ConsoleLogText = Loc.Pick("Toutes les trames de calibration ont été effacées.", "All calibration frames cleared.");
+    }
+
+    private void UpdateCalibrationStatus()
+    {
+        DarkCountText = $"{DarkFiles.Count} dark(s)";
+        FlatCountText = $"{FlatFiles.Count} flat(s)";
+        FlatDarkCountText = $"{FlatDarkFiles.Count} flat-dark(s)";
+        HasCalibrationFiles = DarkFiles.Count > 0 || FlatFiles.Count > 0 || FlatDarkFiles.Count > 0;
+        OnPropertyChanged(nameof(DarkFilesTooltip));
+        OnPropertyChanged(nameof(FlatFilesTooltip));
+        OnPropertyChanged(nameof(FlatDarkFilesTooltip));
+    }
+
     [RelayCommand]
     public void MoveSelectedFileUp() => MoveSelectedFile(-1);
 
@@ -745,77 +1017,119 @@ public partial class MainWindowViewModel : ObservableObject
     {
         var items = SourceFiles.ToList();
         if (items.Count == 0) return;
+
+        IsMeasuringPlanetSizes = true;
+        MeasuringStatusText = Loc.Pick(
+            $"Mesure et identification en cours... (0/{items.Count})",
+            $"Measuring and identifying targets... (0/{items.Count})");
+
         foreach (var it in items) it.IsMeasuring = true;
+
+        var detectedList = new List<(SourceFileItem Item, CelestialTargetClassification Classification)>();
 
         await Task.Run(() =>
         {
+            int current = 0;
             foreach (var it in items)
             {
+                current++;
                 double? d = null;
-                try { d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames); } catch { }
+                CelestialTargetClassification? classification = null;
+
+                try
+                {
+                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames);
+                }
+                catch { }
+
+                try
+                {
+                    classification = CelestialTargetClassifier.ClassifyVideo(
+                        it.FullPath,
+                        it.Frames,
+                        d,
+                        detectSatellites: DetectNaturalSatellites,
+                        satelliteSensitivity: SatelliteDetectionSensitivity);
+                }
+                catch { }
+
+                int step = current;
+                var classResult = classification;
                 Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
                 {
                     it.PlanetDiameterPx = d;
+                    if (classResult is not null && classResult.TargetType != CelestialTargetType.Unknown)
+                    {
+                        it.IdentifiedObjectText = classResult.ObjectSummary(!Loc.IsEnglish);
+                        detectedList.Add((it, classResult));
+                    }
                     it.IsMeasuring = false;
+                    MeasuringStatusText = Loc.Pick(
+                        $"Mesure et identification en cours... ({step}/{items.Count})",
+                        $"Measuring and identifying targets... ({step}/{items.Count})");
                 });
             }
         });
 
+        IsMeasuringPlanetSizes = false;
+
         var sizes = SourceFiles.Where(f => f.PlanetDiameterPx.HasValue).Select(f => f.PlanetDiameterPx!.Value).ToList();
-        ConsoleLogText = sizes.Count switch
+        string sizeLog = sizes.Count switch
         {
-            0 => Loc.Pick("Taille de l'objet non détectable dans les fichiers (vérifiez le seuil / la présence de la planète).", "Object size could not be detected in the files (check the threshold / that the planet is present)."),
+            0 => Loc.Pick("Taille de l'objet non d\u00e9tectable dans les fichiers (v\u00e9rifiez le seuil / la pr\u00e9sence de la plan\u00e8te).", "Object size could not be detected in the files (check the threshold / that the planet is present)."),
             1 => Loc.Pick($"Taille de l'objet : {sizes[0]:F0} px.", $"Object size: {sizes[0]:F0} px."),
             _ => FormatObjectSizeSpread(sizes)
         };
 
-        // Reconnaissance automatique de l'objet : uniquement si l'utilisateur n'a pas sélectionné manuellement un preset
-        var targetFile = SelectedSourceFile;
-        if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && targetFile is not null && PlanetSizeAnalyzer.PreviewFrameLoader is not null)
-        {
-            try
-            {
-                var preview = PlanetSizeAnalyzer.PreviewFrameLoader(targetFile.FullPath, 0, 960);
-                var classification = CelestialTargetClassifier.Classify(
-                    preview.Frame,
-                    targetFile.PlanetDiameterPx,
-                    preview.OriginalWidth,
-                    preview.OriginalHeight);
+        var sb = new System.Text.StringBuilder(sizeLog);
 
-                if (classification.TargetType != CelestialTargetType.Unknown &&
-                    classification.RecommendedPresetIndex > 0)
+        if (detectedList.Count > 0)
+        {
+            var primary = detectedList.FirstOrDefault(x => x.Item == SelectedSourceFile).Classification
+                          ?? detectedList[0].Classification;
+
+            string objName = primary.ObjectSummary(!Loc.IsEnglish);
+            string idLine = Loc.Pick(
+                $"\U0001FA90 Objet c\u00e9leste identifi\u00e9 : {objName} \u2014 {primary.Details}",
+                $"\U0001FA90 Identified celestial object: {objName} \u2014 {primary.Details}");
+            sb.AppendLine().Append(idLine);
+
+            if (!_userManuallySelectedPreset && SelectedPresetIndex == 0 && primary.RecommendedPresetIndex > 0)
+            {
+                try
                 {
-                    try
-                    {
-                        _isAutoDetectingPreset = true;
-                        SelectedPresetIndex = classification.RecommendedPresetIndex;
-                    }
-                    finally
-                    {
-                        _isAutoDetectingPreset = false;
-                    }
-                    ConsoleLogText += $"\n{Loc.Pick($"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé automatiquement.", $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" selected automatically.")}";
+                    _isAutoDetectingPreset = true;
+                    SelectedPresetIndex = primary.RecommendedPresetIndex;
                 }
+                finally
+                {
+                    _isAutoDetectingPreset = false;
+                }
+                string presetLine = Loc.Pick(
+                    $"\U0001F3AF Preset \u00ab {GetPresetName(primary.RecommendedPresetIndex)} \u00bb activ\u00e9 automatiquement.",
+                    $"\U0001F3AF Preset \"{GetPresetName(primary.RecommendedPresetIndex)}\" selected automatically.");
+                sb.AppendLine().Append(presetLine);
             }
-            catch { }
         }
+
+        ConsoleLogText = sb.ToString();
     }
 
     [RelayCommand]
     public void AutoDetectPreset()
     {
         var item = SelectedSourceFile;
-        if (item is null || PlanetSizeAnalyzer.PreviewFrameLoader is null) return;
+        if (item is null) return;
 
         try
         {
-            var preview = PlanetSizeAnalyzer.PreviewFrameLoader(item.FullPath, 0, 960);
-            var classification = CelestialTargetClassifier.Classify(
-                preview.Frame,
+            var classification = CelestialTargetClassifier.ClassifyVideo(
+                item.FullPath,
+                item.Frames,
                 item.PlanetDiameterPx,
-                preview.OriginalWidth,
-                preview.OriginalHeight);
-
+                detectSatellites: DetectNaturalSatellites,
+                satelliteSensitivity: SatelliteDetectionSensitivity);
+            if (classification is null || classification.TargetType == CelestialTargetType.Unknown) return;
             if (classification.TargetType != CelestialTargetType.Unknown &&
                 classification.RecommendedPresetIndex > 0)
             {
@@ -830,8 +1144,8 @@ public partial class MainWindowViewModel : ObservableObject
                     _isAutoDetectingPreset = false;
                 }
                 ConsoleLogText = Loc.Pick(
-                    $"🎯 Reconnaissance automatique : {classification.DisplayNameFr} -> Preset « {GetPresetName(classification.RecommendedPresetIndex)} » activé ({classification.Details}).",
-                    $"🎯 Automatic recognition: {classification.DisplayNameEn} -> Preset \"{GetPresetName(classification.RecommendedPresetIndex)}\" activated ({classification.Details}).");
+                    $"\U0001FA90 Objet c\u00e9leste identifi\u00e9 : {classification.ObjectSummary(true)} \u2014 {classification.Details}",
+                    $"\U0001FA90 Identified celestial object: {classification.ObjectSummary(false)} \u2014 {classification.Details}");
             }
             else
             {
@@ -849,8 +1163,8 @@ public partial class MainWindowViewModel : ObservableObject
     private static string GetPresetName(int index) => index switch
     {
         1 => Loc.Pick("Planétaire", "Planetary"),
-        2 => Loc.Pick("Solaire / Lunaire (gros plan)", "Solar / Lunar Close-up"),
-        3 => Loc.Pick("Solaire / Lunaire (disque entier)", "Solar / Lunar Full Disc"),
+        2 => Loc.Pick("Gros plan Solaire / Lunaire", "Solar / Lunar Close-up"),
+        3 => Loc.Pick("Disque entier Solaire / Lunaire", "Solar / Lunar Full Disc"),
         4 => Loc.Pick("ISS", "ISS"),
         5 => Loc.Pick("Animation planétaire", "Planetary Animation"),
         _ => Loc.Pick("Manuel", "Manual")
@@ -1227,24 +1541,30 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void UpdateAvailableFrames()
     {
-        if (SourceFiles.Count == 0)
+        var activeFiles = SourceFiles.Where(f => f.IsChecked).ToList();
+        if (activeFiles.Count == 0)
+        {
+            activeFiles = SourceFiles.ToList();
+        }
+
+        if (activeFiles.Count == 0)
         {
             MaxAvailableFrames = 999999;
             return;
         }
 
         int available;
-        if (SourceFiles.Count > 1 && IsJoinMode)
+        if (activeFiles.Count > 1 && IsJoinMode)
         {
-            available = Math.Max(1, SourceFiles.Sum(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Sum(f => Math.Max(1, f.Frames)));
         }
-        else if (SelectedSourceFile is not null)
+        else if (SelectedSourceFile is { IsChecked: true })
         {
             available = Math.Max(1, SelectedSourceFile.Frames);
         }
         else
         {
-            available = Math.Max(1, SourceFiles.Max(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Max(f => Math.Max(1, f.Frames)));
         }
 
         MaxAvailableFrames = Math.Max(1, available);
@@ -1389,6 +1709,18 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task SaveUserSettings()
     {
         UserSettingsService.UpdateCpuSettings(MaxCpuUsagePercent, CpuWarningThresholdPercent);
+        UserSettingsService.UpdateProcessingSettings(
+            WinJuposNaming,
+            SelectedOutputFormatIndex,
+            SelectedStackingImageFormatIndex,
+            OutputSuffix,
+            CustomOutputDirectory,
+            AutoRotateAlign,
+            CropWidth,
+            CropHeight,
+            EnableCropping,
+            EnableQuality,
+            QualityKeepValue);
         IsSettingsSavedFeedbackVisible = true;
         await Task.Delay(2500);
         IsSettingsSavedFeedbackVisible = false;
@@ -1541,7 +1873,12 @@ public partial class MainWindowViewModel : ObservableObject
         Options.StartFrame = Math.Max(1, StartFrame);
         Options.EndFrame = Math.Max(Options.StartFrame, EndFrame);
 
-        Options.DarkFrameSubtract = DarkSubtractEnabled;
+        Options.DarkFiles = DarkFiles.ToList();
+        Options.FlatFiles = FlatFiles.ToList();
+        Options.FlatDarkFiles = FlatDarkFiles.ToList();
+        Options.DarkFrameSubtract = DarkSubtractEnabled || DarkFiles.Count > 0;
+        Options.FlatFrameCalibrate = FlatFiles.Count > 0;
+        Options.FlatDarkFrameSubtract = FlatDarkFiles.Count > 0;
         Options.HotPixelThreshold = HotPixelThreshold;
         Options.DebayerEnabled = DebayerEnabled;
         Options.DebayerPattern = (BayerPattern)Math.Clamp(SelectedBayerPatternIndex, 0, 3);
@@ -1658,6 +1995,14 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        var selectedFiles = SourceFiles.Where(f => f.IsChecked).ToList();
+        if (selectedFiles.Count == 0)
+        {
+            SelectedTabIndex = 0;
+            ConsoleLogText = Loc.Pick("Aucun fichier n'est sélectionné. Veuillez cocher au moins un fichier dans la liste.", "No files selected. Please check at least one file in the list.");
+            return;
+        }
+
         if (IsProcessing) return;
 
         IsSection10Expanded = true;
@@ -1668,7 +2013,7 @@ public partial class MainWindowViewModel : ObservableObject
         _processingCts?.Cancel();
         _processingCts = new CancellationTokenSource();
 
-        string firstPath = (SelectedSourceFile ?? SourceFiles[0]).FullPath;
+        string firstPath = (SelectedSourceFile is { IsChecked: true } ? SelectedSourceFile : selectedFiles[0]).FullPath;
         string baseDir = !string.IsNullOrWhiteSpace(CustomOutputDirectory) && Directory.Exists(CustomOutputDirectory)
             ? CustomOutputDirectory
             : Path.GetDirectoryName(firstPath) ?? Environment.CurrentDirectory;
@@ -1685,7 +2030,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var filesToRun = SourceFiles.Select(f => f.FullPath).ToList();
+            var filesToRun = selectedFiles.Select(f => f.FullPath).ToList();
             string modeLabel = IsJoinMode ? Loc.Pick("Mode Fusion (fusion en 1 fichier)", "Join Mode (merge into 1 file)") : Loc.Pick("Mode Lot (1 fichier de sortie par source)", "Batch Mode (1 output file per source)");
             InitProcessingLog(filesToRun.Count);
 
@@ -1762,6 +2107,14 @@ public partial class MainWindowViewModel : ObservableObject
             $"[{DateTime.Now:HH:mm:ss}] Traitement terminé avec succès.\nDernier fichier généré : {summary.OutputFilePath}",
             $"[{DateTime.Now:HH:mm:ss}] Processing finished successfully.\nLast file generated: {summary.OutputFilePath}");
         _processingLogLines.Add(finishMsg);
+
+        if (!string.IsNullOrWhiteSpace(summary.LogFilePath) && File.Exists(summary.LogFilePath))
+        {
+            string logMsg = Loc.Pick(
+                $"[{DateTime.Now:HH:mm:ss}] Journal d'exécution généré : {summary.LogFilePath}",
+                $"[{DateTime.Now:HH:mm:ss}] Execution log generated: {summary.LogFilePath}");
+            _processingLogLines.Add(logMsg);
+        }
         ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
     }
 

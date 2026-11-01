@@ -27,6 +27,12 @@ public static class StackingPipelineRunner
     {
         return await Task.Run(() =>
         {
+            var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(
+                options,
+                outputDirectory,
+                progress,
+                cancellationToken);
+
             var sw = Stopwatch.StartNew();
             Directory.CreateDirectory(outputDirectory);
 
@@ -38,10 +44,10 @@ public static class StackingPipelineRunner
 
             if (options.RunMode == ProcessingRunMode.JoinMode && validFiles.Count > 1)
             {
-                return ExecuteJoinModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken);
+                return ExecuteJoinModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken, masterDark, masterFlat);
             }
 
-            return ExecuteBatchModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken);
+            return ExecuteBatchModeInternal(validFiles, options, outputDirectory, sw, progress, cancellationToken, masterDark, masterFlat);
         }, cancellationToken);
     }
 
@@ -51,7 +57,9 @@ public static class StackingPipelineRunner
         string outputDirectory,
         Stopwatch sw,
         IProgress<PipelineProgressReport>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AstroFrame? masterDark = null,
+        AstroFrame? masterFlat = null)
     {
         int totalInputFrames = 0;
         int discardedNoPlanet = 0;
@@ -104,7 +112,7 @@ public static class StackingPipelineRunner
                     }, i =>
                     {
                         var raw = ser.ReadFrame(i, options.SerBitDepthOverride);
-                        var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                        var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat);
                         if (!accepted)
                         {
                             Interlocked.Increment(ref discardedNoPlanet);
@@ -161,7 +169,7 @@ public static class StackingPipelineRunner
                         totalInputFrames++;
                         pass1Processed++;
 
-                        var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                        var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat);
                         if (!accepted)
                         {
                             discardedNoPlanet++;
@@ -394,7 +402,9 @@ public static class StackingPipelineRunner
                 totalInputFrames,
                 $"Empilement terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s. {outputFramesWritten} image(s) générée(s) : {generatedFilesText}"));
 
-            return new PipelineRunSummary(
+            string logStem = validFiles.Count == 1 ? Path.GetFileNameWithoutExtension(validFiles[0]) : "stacking_batch";
+            string logPath = Path.Combine(outputDirectory, $"{logStem}_stacked_log.txt");
+            var runSummary = new PipelineRunSummary(
                 Success: File.Exists(lastOutputPath),
                 Elapsed: sw.Elapsed,
                 TotalInputFrames: totalInputFrames,
@@ -402,7 +412,24 @@ public static class StackingPipelineRunner
                 DiscardedNoPlanet: discardedNoPlanet,
                 DiscardedOverexposed: 0,
                 DiscardedQuality: discardedQuality,
-                OutputFilePath: lastOutputPath);
+                OutputFilePath: lastOutputPath,
+                LogFilePath: logPath);
+
+            try
+            {
+                string logText = ExecutionLogGenerator.Generate(
+                    options,
+                    runSummary,
+                    validFiles,
+                    timestampUtc: DateTime.UtcNow,
+                    generatedFiles: allGeneratedFiles);
+                File.WriteAllText(logPath, logText);
+            }
+            catch
+            {
+            }
+
+            return runSummary;
     }
 
     private static PipelineRunSummary ExecuteJoinModeInternal(
@@ -411,7 +438,9 @@ public static class StackingPipelineRunner
         string outputDirectory,
         Stopwatch sw,
         IProgress<PipelineProgressReport>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AstroFrame? masterDark = null,
+        AstroFrame? masterFlat = null)
     {
         int totalInputFrames = 0;
         int discardedNoPlanet = 0;
@@ -462,7 +491,7 @@ public static class StackingPipelineRunner
                 }, i =>
                 {
                     var raw = ser.ReadFrame(i, options.SerBitDepthOverride);
-                    var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                    var work = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat);
                     if (!accepted)
                     {
                         Interlocked.Increment(ref discardedNoPlanet);
@@ -522,7 +551,7 @@ public static class StackingPipelineRunner
                     totalInputFrames++;
                     int done = Interlocked.Increment(ref globalPass1Count);
 
-                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted);
+                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat);
                     if (!accepted)
                     {
                         discardedNoPlanet++;
@@ -748,7 +777,8 @@ public static class StackingPipelineRunner
             totalInputFrames,
             $"Empilement fusionné terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s ({validFiles.Count} vidéos combinées). Image(s) générée(s) : {generatedFilesText}"));
 
-        return new PipelineRunSummary(
+        string logPath = Path.Combine(outputDirectory, $"{baseStem}_joined_stacked_log.txt");
+        var summary = new PipelineRunSummary(
             Success: File.Exists(lastOutputPath),
             Elapsed: sw.Elapsed,
             TotalInputFrames: totalInputFrames,
@@ -756,7 +786,24 @@ public static class StackingPipelineRunner
             DiscardedNoPlanet: discardedNoPlanet,
             DiscardedOverexposed: 0,
             DiscardedQuality: discardedQuality,
-            OutputFilePath: lastOutputPath);
+            OutputFilePath: lastOutputPath,
+            LogFilePath: logPath);
+
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                validFiles,
+                timestampUtc: DateTime.UtcNow,
+                generatedFiles: allGeneratedFiles);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+
+        return summary;
     }
 
     private static void AccumulateFrameIntoTiers(
@@ -814,10 +861,23 @@ public static class StackingPipelineRunner
         ProcessingOptions options,
         out int centroidX,
         out int centroidY,
-        out bool accepted)
+        out bool accepted,
+        AstroFrame? masterDark = null,
+        AstroFrame? masterFlat = null)
     {
         var work = raw;
         accepted = true;
+
+        if (masterDark != null || masterFlat != null)
+        {
+            ImageProcessor.ApplyCalibration(
+                work,
+                masterDark,
+                options.ReplaceHotPixels,
+                options.HotPixelThreshold,
+                options.DarkDataHasBayer,
+                masterFlat);
+        }
 
         // Démattriçage systématique des trames Bayer pour éliminer tout motif de trame en pointillés
         if (work.Channels == 1 && !options.ProtectBayerPattern &&
@@ -850,6 +910,8 @@ public static class StackingPipelineRunner
             var (prepFrame, det) = PipelineRunner.PreviewSingleFrame(
                 work,
                 options,
+                masterDark,
+                masterFlat,
                 applyCropToOutput: options.EnableCropping);
 
             if (options.CheckPlanetObjectPresent && !det.Accepted)

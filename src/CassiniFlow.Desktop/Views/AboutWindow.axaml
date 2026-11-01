@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:CassiniFlow.Desktop.Localization"
         x:Class="CassiniFlow.Desktop.Views.AboutWindow"
-        Title="À propos de CassiniFlow"
+        Title="{loc:Tr About.Title}"
         Width="460"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
@@ -26,13 +27,13 @@
             <!-- Card de description sobre et aérée (aucun débordement) -->
             <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16,14">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Pré-traitement, centrage et stabilisation de séquences planétaires, lunaires et solaires." FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
-                    <TextBlock Text="Formats pris en charge : SER, FITS, AVI, MP4, TIFF, PNG, BMP." FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{loc:Tr About.Description}" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{loc:Tr About.Formats}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
                 </StackPanel>
             </Border>
 
             <!-- Bouton Fermer -->
-            <Button Content="Fermer" Click="OnCloseClick" HorizontalAlignment="Center" Padding="28,7" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" CornerRadius="6" Margin="0,4,0,0"/>
+            <Button Content="{loc:Tr About.Close}" Click="OnCloseClick" HorizontalAlignment="Center" Padding="28,7" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" CornerRadius="6" Margin="0,4,0,0"/>
 
         </StackPanel>
     </Border>

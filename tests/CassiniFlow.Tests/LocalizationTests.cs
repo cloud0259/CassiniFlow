@@ -122,4 +122,67 @@ public class LocalizationTests
 
         Loc.SetLanguage(AppLanguage.French, save: false);
     }
+
+    [Fact]
+    public void Loc_OutputOptions_HasCompleteTranslationsInFrenchAndEnglish()
+    {
+        Loc.SetLanguage(AppLanguage.French, save: false);
+        Assert.Contains("empil", Loc.Get("OutputOptions.StackingFormatTitle"));
+        Assert.Contains("TIFF 16-bit", Loc.Get("OutputOptions.StackingFormatTiff"));
+        Assert.Contains("FITS", Loc.Get("OutputOptions.StackingFormatFits"));
+        Assert.Contains("PNG 16-bit", Loc.Get("OutputOptions.StackingFormatPng"));
+        Assert.Contains("fusion des meilleures trames", Loc.Get("OutputOptions.StackingFormatHint"));
+
+        Loc.SetLanguage(AppLanguage.English, save: false);
+        Assert.Equal("Stacked Image Format (Single output)", Loc.Get("OutputOptions.StackingFormatTitle"));
+        Assert.Contains("TIFF 16-bit", Loc.Get("OutputOptions.StackingFormatTiff"));
+        Assert.Contains("FITS", Loc.Get("OutputOptions.StackingFormatFits"));
+        Assert.Contains("PNG 16-bit", Loc.Get("OutputOptions.StackingFormatPng"));
+        Assert.Contains("fusion of the best frames", Loc.Get("OutputOptions.StackingFormatHint"));
+
+        Loc.SetLanguage(AppLanguage.French, save: false);
+    }
+
+    [Fact]
+    public void Loc_AboutAndMetadata_HaveCompleteTranslationsInFrenchAndEnglish()
+    {
+        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CassiniFlow.Desktop", "Localization", "Languages"));
+        using var frDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(basePath, "fr.json")));
+        using var enDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(basePath, "en.json")));
+
+        Assert.True(frDoc.RootElement.TryGetProperty("About", out var frAbout));
+        Assert.True(enDoc.RootElement.TryGetProperty("About", out var enAbout));
+        Assert.True(frDoc.RootElement.TryGetProperty("Metadata", out var frMeta));
+        Assert.True(enDoc.RootElement.TryGetProperty("Metadata", out var enMeta));
+
+        Assert.Contains("propos", frAbout.GetProperty("Title").GetString());
+        Assert.Contains("centrage", frAbout.GetProperty("Description").GetString());
+        Assert.Equal("Fermer", frAbout.GetProperty("Close").GetString());
+        Assert.Contains("donn", frMeta.GetProperty("Title").GetString());
+        Assert.Contains("Taille", frMeta.GetProperty("Size").GetString());
+        Assert.Contains("Cadence", frMeta.GetProperty("Fps").GetString());
+        Assert.Contains("tre", frMeta.GetProperty("Diameter").GetString());
+
+        Assert.Equal("About CassiniFlow", enAbout.GetProperty("Title").GetString());
+        Assert.Contains("centering and stabilisation", enAbout.GetProperty("Description").GetString());
+        Assert.Equal("Close", enAbout.GetProperty("Close").GetString());
+        Assert.Contains("Metadata", enMeta.GetProperty("Title").GetString());
+        Assert.Equal("Size:", enMeta.GetProperty("Size").GetString());
+        Assert.Equal("FPS:", enMeta.GetProperty("Fps").GetString());
+        Assert.Equal("Diameter:", enMeta.GetProperty("Diameter").GetString());
+
+        // When assembly is compiled with latest embedded resources (e.g. CI)
+        if (Loc.Get("About.Title") != "About.Title")
+        {
+            Loc.SetLanguage(AppLanguage.French, save: false);
+            Assert.Contains("propos", Loc.Get("About.Title"));
+            Assert.Equal("Fermer", Loc.Get("About.Close"));
+
+            Loc.SetLanguage(AppLanguage.English, save: false);
+            Assert.Equal("About CassiniFlow", Loc.Get("About.Title"));
+            Assert.Equal("Close", Loc.Get("About.Close"));
+
+            Loc.SetLanguage(AppLanguage.French, save: false);
+        }
+    }
 }
