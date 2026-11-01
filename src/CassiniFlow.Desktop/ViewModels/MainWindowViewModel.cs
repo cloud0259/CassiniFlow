@@ -681,6 +681,16 @@ public partial class MainWindowViewModel : ObservableObject
         RequestPreviewUpdate(reloadFromDisk: false);
     }
 
+    partial void OnDarkSubtractEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnHotPixelThresholdChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnMinObjectSizePixelsChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableQualityChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnSelectedQualityAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableFieldDerotationChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnObserverLatitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnTargetAltitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnTargetAzimuthDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+
     public void SetAnchorOrCropTarget(int x, int y)
     {
         switch (SelectedStabilisationModeIndex)
@@ -991,6 +1001,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(DarkFilesTooltip));
         OnPropertyChanged(nameof(FlatFilesTooltip));
         OnPropertyChanged(nameof(FlatDarkFilesTooltip));
+        RequestPreviewUpdate(reloadFromDisk: false);
     }
 
     [RelayCommand]
@@ -1880,6 +1891,7 @@ public partial class MainWindowViewModel : ObservableObject
         Options.FlatFrameCalibrate = FlatFiles.Count > 0;
         Options.FlatDarkFrameSubtract = FlatDarkFiles.Count > 0;
         Options.HotPixelThreshold = HotPixelThreshold;
+        Options.ReplaceHotPixels = DarkSubtractEnabled;
         Options.DebayerEnabled = DebayerEnabled;
         Options.DebayerPattern = (BayerPattern)Math.Clamp(SelectedBayerPatternIndex, 0, 3);
         Options.DebayerType = (DebayerAlgorithm)Math.Clamp(SelectedDebayerAlgoIndex, 0, 2);

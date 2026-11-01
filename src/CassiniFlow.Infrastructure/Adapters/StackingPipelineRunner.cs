@@ -879,14 +879,17 @@ public static class StackingPipelineRunner
                 masterFlat);
         }
 
-        // Démattriçage systématique des trames Bayer pour éliminer tout motif de trame en pointillés
-        if (work.Channels == 1 && !options.ProtectBayerPattern &&
-            (options.DebayerEnabled || work.IsBayerRaw || DetectBayerPatternFast(work, out _)))
+        if (options.DebayerEnabled && !options.ProtectBayerPattern)
         {
-            var pattern = work.IsBayerRaw
-                ? work.BayerPattern
-                : (DetectBayerPatternFast(work, out var detected) ? detected : options.DebayerPattern);
-            work = ImageProcessor.Debayer(work, pattern, options.DebayerType);
+            if (work.Channels == 1)
+            {
+                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+            }
+            else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+            {
+                var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+            }
         }
 
         if (options.EnableFieldDerotation)

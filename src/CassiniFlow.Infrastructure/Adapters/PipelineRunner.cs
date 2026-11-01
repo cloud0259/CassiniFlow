@@ -48,9 +48,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.DarkDataHasBayer,
             masterFlat);
 
-        if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+        if (options.DebayerEnabled && !options.ProtectBayerPattern)
         {
-            work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+            if (work.Channels == 1)
+            {
+                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+            }
+            else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+            {
+                var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+            }
         }
 
         if (options.Binning != BinningMode.Disabled)
@@ -170,6 +178,19 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 };
                 detection = detection with { CentroidX = rx, CentroidY = ry };
             }
+        }
+
+        if (options.EnableFieldDerotation)
+        {
+            double safeFps = (double)options.WinJuposInputFps > 0 ? (double)options.WinJuposInputFps : 30.0;
+            double angle = FieldDerotationEngine.ComputeFrameDerotationAngle(
+                work.FrameIndex,
+                Math.Max(100, work.FrameIndex + 1),
+                safeFps,
+                options.ObserverLatitudeDegrees,
+                options.TargetAltitudeDegrees,
+                options.TargetAzimuthDegrees);
+            work = FieldDerotationEngine.ApplyDerotation(work, angle);
         }
 
         work.DetectedCentroidX = detection.CentroidX;
@@ -1190,9 +1211,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             var work = raw;
             work.FrameIndex = globalFrameBase + (raw.FrameIndex - startIdx);
 
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1354,9 +1383,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             int done = Interlocked.Increment(ref scannedCount);
             var work = raw;
 
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1490,9 +1527,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             cancellationToken.ThrowIfCancellationRequested();
             var work = raw;
 
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
