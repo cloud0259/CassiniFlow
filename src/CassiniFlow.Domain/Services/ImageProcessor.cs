@@ -237,7 +237,7 @@ public static class ImageProcessor
         };
     }
 
-    private static AstroFrame DebayerBilinear(AstroFrame src, BayerPattern pattern)
+    private static unsafe AstroFrame DebayerBilinear(AstroFrame src, BayerPattern pattern)
     {
         int w = src.Width;
         int h = src.Height;
@@ -261,55 +261,94 @@ public static class ImageProcessor
         ushort[] sData = src.Data;
         ushort[] dData = dst.Data;
 
-        ushort GetClamped(int x, int y)
+        fixed (ushort* pSrc = sData)
+        fixed (ushort* pDst = dData)
         {
-            int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
-            int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
-            return sData[cy * w + cx];
-        }
-
-        for (int y = 0; y < h; y++)
-        {
-            bool isRedRow = (y & 1) == ry;
-            int rowBase = y * w;
-            for (int x = 0; x < w; x++)
+            ushort GetClamped(int x, int y)
             {
-                bool isRedCol = (x & 1) == rx;
-                (ushort r, ushort g, ushort b) = (isRedRow, isRedCol) switch
-                {
-                    (true, true) => (
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
-                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2)
-                    ),
-                    (false, false) => (
-                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2),
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
-                        sData[rowBase + x]
-                    ),
-                    (true, false) => (
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1),
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1)
-                    ),
-                    _ => (
-                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1),
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1)
-                    )
-                };
+                int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+                int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+                return sData[cy * w + cx];
+            }
 
-                int outIdx = (rowBase + x) * 3;
-                dData[outIdx] = r;
-                dData[outIdx + 1] = g;
-                dData[outIdx + 2] = b;
+            for (int y = 0; y < h; y++)
+            {
+                bool isRedRow = (y & 1) == ry;
+                int rowBase = y * w;
+                bool yInterior = y > 0 && y < h - 1;
+
+                for (int x = 0; x < w; x++)
+                {
+                    bool isRedCol = (x & 1) == rx;
+                    ushort r, g, b;
+
+                    if (yInterior && x > 0 && x < w - 1)
+                    {
+                        int idx = rowBase + x;
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[idx];
+                            g = (ushort)((pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) >> 2);
+                            b = (ushort)((pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) >> 2);
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            r = (ushort)((pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) >> 2);
+                            g = (ushort)((pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) >> 2);
+                            b = pSrc[idx];
+                        }
+                        else if (isRedRow)
+                        {
+                            r = (ushort)((pSrc[idx - 1] + pSrc[idx + 1]) >> 1);
+                            g = pSrc[idx];
+                            b = (ushort)((pSrc[idx - w] + pSrc[idx + w]) >> 1);
+                        }
+                        else
+                        {
+                            r = (ushort)((pSrc[idx - w] + pSrc[idx + w]) >> 1);
+                            g = pSrc[idx];
+                            b = (ushort)((pSrc[idx - 1] + pSrc[idx + 1]) >> 1);
+                        }
+                    }
+                    else
+                    {
+                        (r, g, b) = (isRedRow, isRedCol) switch
+                        {
+                            (true, true) => (
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                                (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2)
+                            ),
+                            (false, false) => (
+                                (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2),
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                                pSrc[rowBase + x]
+                            ),
+                            (true, false) => (
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1),
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1)
+                            ),
+                            _ => (
+                                (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1),
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1)
+                            )
+                        };
+                    }
+
+                    int outIdx = (rowBase + x) * 3;
+                    pDst[outIdx] = r;
+                    pDst[outIdx + 1] = g;
+                    pDst[outIdx + 2] = b;
+                }
             }
         }
 
         return dst;
     }
 
-    private static AstroFrame DebayerHqLinear(AstroFrame src, BayerPattern pattern)
+    private static unsafe AstroFrame DebayerHqLinear(AstroFrame src, BayerPattern pattern)
     {
         int w = src.Width;
         int h = src.Height;
@@ -332,70 +371,120 @@ public static class ImageProcessor
 
         ushort[] sData = src.Data;
         ushort[] dData = dst.Data;
+        int w2 = w * 2;
 
-        ushort Get(int x, int y)
+        fixed (ushort* pSrc = sData)
+        fixed (ushort* pDst = dData)
         {
-            int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
-            int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
-            return sData[cy * w + cx];
-        }
-
-        for (int y = 0; y < h; y++)
-        {
-            bool isRedRow = (y & 1) == ry;
-            int rowBase = y * w;
-            for (int x = 0; x < w; x++)
+            ushort Get(int x, int y)
             {
-                bool isRedCol = (x & 1) == rx;
-                ushort r, g, b;
+                int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+                int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+                return sData[cy * w + cx];
+            }
 
-                if (isRedRow && isRedCol)
-                {
-                    r = sData[rowBase + x];
-                    int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
-                                4 * r -
-                                Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
-                    g = (ushort)Math.Clamp(gVal, 0, 65535);
+            for (int y = 0; y < h; y++)
+            {
+                bool isRedRow = (y & 1) == ry;
+                int rowBase = y * w;
+                bool yInterior = y >= 2 && y < h - 2;
 
-                    int bVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
-                                6 * r -
-                                3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
-                    b = (ushort)Math.Clamp(bVal, 0, 65535);
-                }
-                else if (!isRedRow && !isRedCol)
+                for (int x = 0; x < w; x++)
                 {
-                    b = sData[rowBase + x];
-                    int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
-                                4 * b -
-                                Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
-                    g = (ushort)Math.Clamp(gVal, 0, 65535);
+                    bool isRedCol = (x & 1) == rx;
+                    ushort r, g, b;
 
-                    int rVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
-                                6 * b -
-                                3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
-                    r = (ushort)Math.Clamp(rVal, 0, 65535);
-                }
-                else if (isRedRow && !isRedCol)
-                {
-                    g = sData[rowBase + x];
-                    int rVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
-                    int bVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
-                    r = (ushort)Math.Clamp(rVal, 0, 65535);
-                    b = (ushort)Math.Clamp(bVal, 0, 65535);
-                }
-                else
-                {
-                    g = sData[rowBase + x];
-                    int rVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
-                    int bVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
-                    r = (ushort)Math.Clamp(rVal, 0, 65535);
-                    b = (ushort)Math.Clamp(bVal, 0, 65535);
-                }
+                    if (yInterior && x >= 2 && x < w - 2)
+                    {
+                        int idx = rowBase + x;
+                        int crossAxial = pSrc[idx - 2] + pSrc[idx + 2] + pSrc[idx - w2] + pSrc[idx + w2];
 
-                int outIdx = (rowBase + x) * 3;
-                dData[outIdx] = r;
-                dData[outIdx + 1] = g;
-                dData[outIdx + 2] = b;
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[idx];
+                            int gVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) + 4 * r - crossAxial) >> 4;
+                            g = (ushort)(gVal < 0 ? 0 : (gVal > 65535 ? 65535 : gVal));
+
+                            int bVal = (4 * (pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) + 6 * r - ((3 * crossAxial) >> 1)) >> 4;
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            b = pSrc[idx];
+                            int gVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) + 4 * b - crossAxial) >> 4;
+                            g = (ushort)(gVal < 0 ? 0 : (gVal > 65535 ? 65535 : gVal));
+
+                            int rVal = (4 * (pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) + 6 * b - ((3 * crossAxial) >> 1)) >> 4;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                        }
+                        else if (isRedRow)
+                        {
+                            g = pSrc[idx];
+                            int rVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1]) + 2 * g - pSrc[idx - 2] - pSrc[idx + 2]) >> 3;
+                            int bVal = (4 * (pSrc[idx - w] + pSrc[idx + w]) + 2 * g - pSrc[idx - w2] - pSrc[idx + w2]) >> 3;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                        else
+                        {
+                            g = pSrc[idx];
+                            int rVal = (4 * (pSrc[idx - w] + pSrc[idx + w]) + 2 * g - pSrc[idx - w2] - pSrc[idx + w2]) >> 3;
+                            int bVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1]) + 2 * g - pSrc[idx - 2] - pSrc[idx + 2]) >> 3;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                    }
+                    else
+                    {
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[rowBase + x];
+                            int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
+                                        4 * r -
+                                        Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
+                            g = (ushort)Math.Clamp(gVal, 0, 65535);
+
+                            int bVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
+                                        6 * r -
+                                        3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            b = pSrc[rowBase + x];
+                            int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
+                                        4 * b -
+                                        Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
+                            g = (ushort)Math.Clamp(gVal, 0, 65535);
+
+                            int rVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
+                                        6 * b -
+                                        3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                        }
+                        else if (isRedRow && !isRedCol)
+                        {
+                            g = pSrc[rowBase + x];
+                            int rVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
+                            int bVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                        else
+                        {
+                            g = pSrc[rowBase + x];
+                            int rVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
+                            int bVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                    }
+
+                    int outIdx = (rowBase + x) * 3;
+                    pDst[outIdx] = r;
+                    pDst[outIdx + 1] = g;
+                    pDst[outIdx + 2] = b;
+                }
             }
         }
 

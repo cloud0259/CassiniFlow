@@ -17,12 +17,14 @@ public static class ExecutionLogGenerator
         IReadOnlyList<string> sourceFiles,
         DateTime? timestampUtc = null,
         IReadOnlyList<string>? generatedFiles = null,
-        string? detectedTarget = null)
+        string? detectedTarget = null,
+        IReadOnlyList<StackedTierSummary>? stackedTiers = null)
     {
-        var sb = new StringBuilder(2048);
+        var sb = new StringBuilder(2560);
         var time = timestampUtc ?? DateTime.UtcNow;
         double elapsedSec = Math.Max(0.001, summary.Elapsed.TotalSeconds);
         double fps = summary.TotalInputFrames / elapsedSec;
+        var tiersToReport = stackedTiers ?? summary.StackedTiers;
 
         sb.AppendLine("================================================================================");
         sb.AppendLine("                           CASSINIFLOW EXECUTION LOG                            ");
@@ -89,6 +91,13 @@ public static class ExecutionLogGenerator
         }
         sb.AppendLine(CultureInfo.InvariantCulture, $"  Rotation Angle     : {options.Rotation}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"  Auto-Rotate Align  : {options.AutoRotateAlign}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"  Field Derotation   : {options.EnableFieldDerotation}");
+        if (options.EnableFieldDerotation)
+        {
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"  Derotation Params  : Lat={options.ObserverLatitudeDegrees:F2}°, Alt={options.TargetAltitudeDegrees:F2}°, Az={options.TargetAzimuthDegrees:F2}°, FPS={options.WinJuposInputFps}");
+        }
         sb.AppendLine(CultureInfo.InvariantCulture, $"  Flip (Horiz / Vert): {options.FlipHorizontalX} / {options.FlipVerticalY}");
 
         sb.AppendLine();
@@ -127,9 +136,23 @@ public static class ExecutionLogGenerator
             sb.AppendLine("[Stacking Engine]");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Stabilisation Mode : {options.Stacking.StabilisationMode}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Reference Mode     : {options.Stacking.ReferenceMode}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  Alignment Tile Size: {options.Stacking.AlignmentTileSize} px");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Stack Percentages  : {string.Join(", ", options.Stacking.StackPercentages.Select(t => $"{t.ToString(CultureInfo.InvariantCulture)}%"))}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Drizzle Mode       : {options.Stacking.Drizzle}");
-            sb.AppendLine(CultureInfo.InvariantCulture, $"  Sharpening Active  : {options.Stacking.SharpeningEnabled}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  ADC RGB Alignment  : {options.Stacking.CorrectAtmosphericDispersion}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  Sharpening Active  : {options.Stacking.SharpeningEnabled} ({options.Stacking.SharpeningBlendPercent}%)");
+
+            if (tiersToReport is { Count: > 0 })
+            {
+                sb.AppendLine();
+                sb.AppendLine("[Stacked Tiers Breakdown]");
+                foreach (var tier in tiersToReport)
+                {
+                    sb.AppendLine(
+                        CultureInfo.InvariantCulture,
+                        $"  - Tier {tier.Percentage:F0}% : {tier.FramesStacked} / {tier.TotalValidFrames} frames stacked ({tier.ActiveApCount} AP, tile {tier.TileSize}px) -> {Path.GetFileName(tier.OutputFilePath)}");
+                }
+            }
         }
 
         sb.AppendLine();

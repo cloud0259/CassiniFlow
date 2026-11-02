@@ -10,6 +10,14 @@ public sealed record PipelineProgressReport(
     int TotalFrames,
     string LogMessage);
 
+public sealed record StackedTierSummary(
+    double Percentage,
+    int FramesStacked,
+    int TotalValidFrames,
+    int ActiveApCount,
+    int TileSize,
+    string OutputFilePath);
+
 public sealed record PipelineRunSummary(
     bool Success,
     TimeSpan Elapsed,
@@ -19,7 +27,8 @@ public sealed record PipelineRunSummary(
     int DiscardedOverexposed,
     int DiscardedQuality,
     string OutputFilePath,
-    string LogFilePath = "");
+    string LogFilePath = "",
+    IReadOnlyList<StackedTierSummary>? StackedTiers = null);
 
 public sealed record PreviewFrameResult(
     AstroFrame ProcessedFrame,

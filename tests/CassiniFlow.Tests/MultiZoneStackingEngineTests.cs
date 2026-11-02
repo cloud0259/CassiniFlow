@@ -4,19 +4,12 @@ using CassiniFlow.Infrastructure.Adapters;
 using CassiniFlow.Infrastructure.Codecs;
 using CassiniFlow.Infrastructure.Synthetic;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace CassiniFlow.Tests;
 
 [Collection("Localization")]
 public class MultiZoneStackingEngineTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public MultiZoneStackingEngineTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
     [Fact]
     public void AlignmentGridGenerator_GeneratesExpectedPointsAndPrunesDarkBackground()
     {
@@ -400,18 +393,25 @@ public class MultiZoneStackingEngineTests
     }
 
     [Fact]
-    public void MainWindowViewModel_MultiTierPercentages_DefaultsToZeroAndFiltersActive()
+    public void MainWindowViewModel_MultiTierPercentages_DefaultsTo25AndFiltersActive()
     {
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
+
         var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
 
-        // 3 choices initialized to 0% at startup as requested
-        Assert.Equal(0, vm.StackPercentage1);
+        // Default Tier 1 is 25%, Tier 2 and 3 are 0%
+        Assert.Equal(25, vm.StackPercentage1);
         Assert.Equal(0, vm.StackPercentage2);
         Assert.Equal(0, vm.StackPercentage3);
 
-        // When all 0, active percentages list is empty
+        // When all 0, active percentages list is empty (and no hidden fallback to 25% in SyncOptionsFromUi)
+        vm.StackPercentage1 = 0;
         var emptyActive = vm.GetActiveStackPercentages();
         Assert.Empty(emptyActive);
+        vm.SyncOptionsFromUi();
+        Assert.Empty(vm.Options.Stacking.StackPercentages);
 
         // Configure 5% and 10%
         vm.StackPercentage1 = 5;
@@ -422,6 +422,146 @@ public class MultiZoneStackingEngineTests
         Assert.Equal(2, active.Count);
         Assert.Equal(5.0, active[0]);
         Assert.Equal(10.0, active[1]);
+
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
+    }
+
+    [Fact]
+    public void MainWindowViewModel_CanStartProcessing_EnforcesValidationAndPreProcessingOnlyApRules()
+    {
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
+
+        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+
+        // 1. Blocked when no source file is added
+        Assert.False(vm.CanStartProcessing);
+        Assert.True(vm.HasStartValidationIssue);
+        Assert.NotEmpty(vm.StartProcessingValidationMessage);
+
+        var file = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "saturn.ser",
+            FullPath = "C:\\fake\\saturn.ser",
+            Frames = 1000,
+            Width = 448,
+            Height = 448,
+            IsChecked = true
+        };
+        vm.SourceFiles.Add(file);
+
+        // 2. In DirectStreamAllInOne mode, blocked if 0 APs are placed
+        vm.SetWorkflowMode("all");
+        vm.StackPercentage1 = 25;
+        vm.ClearAlignmentGrid();
+        Assert.False(vm.CanStartProcessing);
+
+        // 3. Add a manual AP -> now valid!
+        vm.AddManualAlignmentPoint(224, 224);
+        Assert.Equal(1, vm.CurrentAlignmentGrid.ActiveCount);
+        Assert.True(vm.CanStartProcessing);
+        Assert.False(vm.HasStartValidationIssue);
+
+        // 4. Set all stack percentages to 0% -> blocked!
+        vm.StackPercentage1 = 0;
+        vm.StackPercentage2 = 0;
+        vm.StackPercentage3 = 0;
+        Assert.False(vm.CanStartProcessing);
+
+        // 5. Switch to PreProcessingOnly -> AP grid is hidden, manual AP addition is ignored, and CanStartProcessing is true!
+        vm.SetWorkflowMode("prep");
+        Assert.False(vm.IsAlignmentGridVisible);
+        Assert.True(vm.CanStartProcessing);
+
+        int countBefore = vm.CurrentAlignmentGrid.ActiveCount;
+        vm.AddManualAlignmentPoint(100, 100);
+        Assert.Equal(countBefore, vm.CurrentAlignmentGrid.ActiveCount);
+
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
+        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
+    }
+
+    [Fact]
+    public void ReferenceCorrelationCache_IsRobustAgainstSkyShotNoise_AndRegularizesTileShifts()
+    {
+        int w = 256, h = 256;
+        var refFrame = new AstroFrame(w, h, 1, 16)
+        {
+            DetectedCentroidX = 128,
+            DetectedCentroidY = 128
+        };
+        var curFrame = new AstroFrame(w, h, 1, 16)
+        {
+            DetectedCentroidX = 130,
+            DetectedCentroidY = 127
+        };
+
+        var rng = new Random(42);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                // Bruit de fond de ciel haute fréquence indépendant entre ref et cur
+                refFrame.Data[y * w + x] = (ushort)rng.Next(500, 1800);
+                curFrame.Data[y * w + x] = (ushort)rng.Next(500, 1800);
+
+                // Astre centré à (128, 128) sur ref et (130, 127) sur cur -> décalage attendu (-2, +1)
+                double dRef = (x - 128) * (x - 128) + (y - 128) * (y - 128);
+                if (dRef < 900)
+                {
+                    refFrame.Data[y * w + x] = (ushort)Math.Clamp(45000 - dRef * 42, 2000, 60000);
+                }
+
+                double dCur = (x - 130) * (x - 130) + (y - 127) * (y - 127);
+                if (dCur < 900)
+                {
+                    curFrame.Data[y * w + x] = (ushort)Math.Clamp(45000 - dCur * 42, 2000, 60000);
+                }
+            }
+        }
+
+        var options = new StackingOptions
+        {
+            AlignmentTileSize = 32,
+            MinBrightnessThreshold = 12,
+            EnablePruning = true
+        };
+        var grid = AlignmentGridGenerator.GenerateGrid(refFrame, options);
+        using var cache = new ReferenceCorrelationCache(refFrame, grid);
+
+        var (gdx, gdy) = cache.ComputeGlobalShift(curFrame);
+        Assert.InRange(gdx, -2.6, -1.4);
+        Assert.InRange(gdy, 0.4, 1.6);
+
+        var sx = new double[cache.CachedActivePoints.Count];
+        var sy = new double[cache.CachedActivePoints.Count];
+        cache.ComputeAllTileShiftsThreadSafe(curFrame, gdx, gdy, sx, sy);
+
+        for (int i = 0; i < sx.Length; i++)
+        {
+            Assert.InRange(sx[i], gdx - 2.5, gdx + 2.5);
+            Assert.InRange(sy[i], gdy - 2.5, gdy + 2.5);
+        }
+    }
+
+    [Fact]
+    public void AlignmentGridGenerator_RecommendOptimalTileSize_AdaptsToPlanetSizeAndTarget()
+    {
+        // Small Saturn (~150px) -> 48px tiles
+        Assert.Equal(48, AlignmentGridGenerator.RecommendOptimalTileSize(150.0, CelestialTargetType.Planet, 448, 448));
+
+        // Very small Mars (~65px) -> 24px tiles
+        Assert.Equal(24, AlignmentGridGenerator.RecommendOptimalTileSize(65.0, CelestialTargetType.Planet, 448, 448));
+
+        // Large Jupiter (~340px) -> 104px tiles
+        Assert.Equal(104, AlignmentGridGenerator.RecommendOptimalTileSize(340.0, CelestialTargetType.Planet, 600, 600));
+
+        // Lunar close-up -> 104px or 140px tiles
+        Assert.Equal(140, AlignmentGridGenerator.RecommendOptimalTileSize(null, CelestialTargetType.MoonOrSunSurface, 1920, 1080));
     }
 
     [Fact]
@@ -448,10 +588,21 @@ public class MultiZoneStackingEngineTests
 
             Assert.True(summary.Success);
             Assert.Equal(2, summary.OutputFramesWritten);
+            Assert.NotNull(summary.StackedTiers);
+            Assert.Equal(2, summary.StackedTiers!.Count);
+            Assert.Equal(20.0, summary.StackedTiers[0].Percentage);
+            Assert.Equal(50.0, summary.StackedTiers[1].Percentage);
+
             var generatedTifs = Directory.GetFiles(tempOutDir, "*_stacked_*.tif");
             Assert.Equal(2, generatedTifs.Length);
             Assert.Contains(generatedTifs, f => f.Contains("_p20_"));
             Assert.Contains(generatedTifs, f => f.Contains("_p50_"));
+
+            Assert.True(File.Exists(summary.LogFilePath));
+            string logText = File.ReadAllText(summary.LogFilePath);
+            Assert.Contains("[Stacked Tiers Breakdown]", logText);
+            Assert.Contains("Tier 20%", logText);
+            Assert.Contains("Tier 50%", logText);
         }
         finally
         {
@@ -561,6 +712,173 @@ public class MultiZoneStackingEngineTests
             UniversalMediaReader.ClosePreviewCache();
             if (File.Exists(tempAvi1)) File.Delete(tempAvi1);
             if (File.Exists(tempAvi2)) File.Delete(tempAvi2);
+            if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task StackingPipeline_WithFieldDerotationAndCropping_CentersOffAxisPlanetInsteadOfBlackCornerAsync()
+    {
+        string tempSer = Path.Combine(Path.GetTempPath(), $"stack_derot_{Guid.NewGuid():N}.ser");
+        string tempAvi = Path.Combine(Path.GetTempPath(), $"stack_derot_{Guid.NewGuid():N}.avi");
+        string tempOutDir = Path.Combine(Path.GetTempPath(), $"stack_derot_out_{Guid.NewGuid():N}");
+
+        try
+        {
+            int width = 320;
+            int height = 240;
+            int planetCx = 230;
+            int planetCy = 175;
+            var frames = new List<AstroFrame>();
+
+            for (int f = 0; f < 8; f++)
+            {
+                var frame = new AstroFrame(width, height, 1, 8)
+                {
+                    FrameIndex = f,
+                    IsBayerRaw = true,
+                    BayerPattern = BayerPattern.Rggb
+                };
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        double dx = x - (planetCx + (f % 3) - 1);
+                        double dy = y - (planetCy + (f % 2));
+                        double r2 = dx * dx + dy * dy;
+                        ushort val = 512;
+                        if (r2 <= 22.0 * 22.0)
+                        {
+                            val = (ushort)(18000 + 28000 * Math.Exp(-r2 / 180.0));
+                        }
+                        frame.Data[y * width + x] = val;
+                    }
+                }
+                frames.Add(frame);
+            }
+
+            using (var writer = new SerStreamWriter(tempSer, width, height, 1, pixelDepthPerPlane: 8, isBayerRaw: true, bayerPattern: BayerPattern.Rggb))
+            {
+                foreach (var f in frames)
+                {
+                    writer.WriteFrame(f);
+                }
+            }
+            UniversalMediaReader.WriteVideoFile(tempAvi, frames, 30.0, false);
+
+            var options = new ProcessingOptions
+            {
+                DebayerEnabled = true,
+                DebayerPattern = BayerPattern.Rggb,
+                CentreObjectInFrame = true,
+                StabilisationMode = StabilisationMode.ObjectPlanetary,
+                EnableCropping = true,
+                CropWidth = 112,
+                CropHeight = 112,
+                EnableFieldDerotation = true,
+                ObserverLatitudeDegrees = 45.0,
+                TargetAltitudeDegrees = 55.0,
+                TargetAzimuthDegrees = 180.0,
+                WinJuposInputFps = 30m,
+                OutputFormat = OutputFormat.Tiff
+            };
+            options.Stacking.WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+            options.Stacking.AlignmentTileSize = 32;
+            options.Stacking.StackPercentages = [50.0];
+
+            // 1. Test sur fichier SER (chemin zero-alloc Passe 1 + ReadFrameCropped Passe 2)
+            var serSummary = await PipelineRunner.ExecuteFilesAsync([tempSer], options, tempOutDir);
+            Assert.True(serSummary.Success);
+            Assert.True(File.Exists(serSummary.OutputFilePath));
+
+            var stackedSer = UniversalMediaReader.ReadSingleFrame(serSummary.OutputFilePath, 0);
+            Assert.Equal(112, stackedSer.Width);
+            Assert.Equal(112, stackedSer.Height);
+
+            // Le centre de l'image empilée (56, 56) doit contenir la planète brillante (> 15000 ADU), pas un coin noir
+            int centerIdx = (56 * 112 + 56) * stackedSer.Channels;
+            Assert.True(stackedSer.Data[centerIdx] > 15000, $"Expected bright planet at center of SER stack, got {stackedSer.Data[centerIdx]}");
+
+            // 2. Test sur fichier AVI (chemin PrepareFrame Passe 1 + PrepareFrameFastForStacking Passe 2)
+            string aviOutDir = Path.Combine(tempOutDir, "avi");
+            var aviSummary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, aviOutDir);
+            Assert.True(aviSummary.Success);
+            Assert.True(File.Exists(aviSummary.OutputFilePath));
+
+            var stackedAvi = UniversalMediaReader.ReadSingleFrame(aviSummary.OutputFilePath, 0);
+            int aviCenterIdx = (56 * 112 + 56) * stackedAvi.Channels;
+            Assert.True(stackedAvi.Data[aviCenterIdx] > 15000, $"Expected bright planet at center of AVI stack, got {stackedAvi.Data[aviCenterIdx]}");
+
+            // Vérifie que le log mentionne la dérotation de champ
+            var logs = Directory.GetFiles(tempOutDir, "*_stacked_log.txt");
+            Assert.NotEmpty(logs);
+            string logText = File.ReadAllText(logs[0]);
+            Assert.Contains("Field Derotation   : True", logText);
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            if (File.Exists(tempSer)) File.Delete(tempSer);
+            if (File.Exists(tempAvi)) File.Delete(tempAvi);
+            if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task StackingPipeline_FitsAndBmpSequenceJoinMode_WithCropping_StacksInParallelAccuratelyAsync()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"stack_img_seq_{Guid.NewGuid():N}");
+        string tempOutDir = Path.Combine(Path.GetTempPath(), $"stack_img_out_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var frames = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, frameCount: 8, width: 160, height: 160);
+            var inputFiles = new List<string>();
+
+            for (int i = 0; i < frames.Count; i++)
+            {
+                string ext = (i % 2 == 0) ? ".fit" : ".bmp";
+                string path = Path.Combine(tempDir, $"frame_{i:D3}{ext}");
+                UniversalMediaReader.WriteSingleImageFile(path, frames[i], is16Bit: ext == ".fit");
+                inputFiles.Add(path);
+            }
+
+            var options = new ProcessingOptions
+            {
+                RunMode = ProcessingRunMode.JoinMode,
+                DebayerEnabled = true,
+                DebayerPattern = BayerPattern.Rggb,
+                CentreObjectInFrame = true,
+                StabilisationMode = StabilisationMode.ObjectPlanetary,
+                EnableCropping = true,
+                CropWidth = 96,
+                CropHeight = 96,
+                OutputFormat = OutputFormat.Tiff
+            };
+            options.Stacking.WorkflowMode = StackingWorkflowMode.DirectStreamAllInOne;
+            options.Stacking.AlignmentTileSize = 32;
+            options.Stacking.StackPercentages = [25.0, 50.0];
+
+            var summary = await PipelineRunner.ExecuteFilesAsync(inputFiles, options, tempOutDir);
+
+            Assert.True(summary.Success);
+            Assert.Equal(8, summary.TotalInputFrames);
+            Assert.Equal(2, summary.OutputFramesWritten);
+            Assert.NotNull(summary.StackedTiers);
+            Assert.Equal(2, summary.StackedTiers!.Count);
+
+            var stacked = UniversalMediaReader.ReadSingleFrame(summary.OutputFilePath, 0);
+            Assert.Equal(96, stacked.Width);
+            Assert.Equal(96, stacked.Height);
+            int centerIdx = (48 * 96 + 48) * stacked.Channels;
+            Assert.True(stacked.Data[centerIdx] > 5000);
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
     }

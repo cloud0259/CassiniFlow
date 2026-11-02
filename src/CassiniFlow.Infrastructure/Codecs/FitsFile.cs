@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
@@ -129,48 +130,275 @@ public static class FitsFile
         return frame;
     }
 
-    private static void Read8BitPlanes(FileStream fs, AstroFrame frame, int pixelCount, int channels)
+    /// <summary>
+    /// Reads only a cropped sub-window around (centerX, centerY) from a FITS file without reading or allocating the full sensor frame.
+    /// </summary>
+    public static unsafe AstroFrame ReadFrameCropped(
+        string filePath,
+        int centerX,
+        int centerY,
+        int cropWidth,
+        int cropHeight,
+        int offsetX = 0,
+        int offsetY = 0,
+        bool protectBayerEvenSteps = true)
     {
-        byte[] buf = new byte[pixelCount * channels];
-        fs.ReadExactly(buf);
-        if (channels == 1)
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var meta = ReadMetadata(fs);
+        if (!meta.Simple || meta.Width <= 0 || meta.Height <= 0)
         {
-            for (int i = 0; i < pixelCount; i++) frame.Data[i] = (ushort)(buf[i] * 257);
+            throw new InvalidDataException($"Invalid FITS header in '{filePath}'.");
         }
-        else
+
+        cropWidth = Math.Max(16, cropWidth);
+        cropHeight = Math.Max(16, cropHeight);
+
+        int startX = centerX - (cropWidth / 2) - offsetX;
+        int startY = centerY - (cropHeight / 2) - offsetY;
+
+        int channels = meta.Planes >= 3 ? 3 : 1;
+        bool isBayer = !string.IsNullOrEmpty(meta.BayerPat);
+        if (protectBayerEvenSteps && (isBayer || channels == 1))
         {
-            // FITS stores planar R, G, B
-            for (int i = 0; i < pixelCount; i++)
+            startX &= ~1;
+            startY &= ~1;
+        }
+
+        var dst = new AstroFrame(cropWidth, cropHeight, channels, Math.Abs(meta.BitPix))
+        {
+            IsBayerRaw = isBayer,
+            DetectedCentroidX = cropWidth / 2,
+            DetectedCentroidY = cropHeight / 2
+        };
+
+        int srcW = meta.Width;
+        int srcH = meta.Height;
+
+        int copyY0 = Math.Max(0, -startY);
+        int copyY1 = Math.Min(cropHeight, srcH - startY);
+        int copyX0 = Math.Max(0, -startX);
+        int copyX1 = Math.Min(cropWidth, srcW - startX);
+
+        int copyW = copyX1 - copyX0;
+        int copyH = copyY1 - copyY0;
+        if (copyW <= 0 || copyH <= 0)
+        {
+            return dst;
+        }
+
+        int srcStartX = startX + copyX0;
+        int srcStartY = startY + copyY0;
+        int bytesPerSample = meta.BitPix switch
+        {
+            8 => 1,
+            16 => 2,
+            _ => throw new NotSupportedException($"Unsupported FITS BITPIX={meta.BitPix}. Only 8 and 16-bit are currently supported.")
+        };
+
+        long planeBytes = (long)srcW * srcH * bytesPerSample;
+        long rowBytes = (long)srcW * bytesPerSample;
+        int subBlockBytes = (int)((long)(copyH - 1) * rowBytes + (long)copyW * bytesPerSample);
+        byte[] rented = ArrayPool<byte>.Shared.Rent(subBlockBytes);
+
+        try
+        {
+            bool isStandardU16 = Math.Abs(meta.BZero - 32768.0) < 1e-6 && Math.Abs(meta.BScale - 1.0) < 1e-6;
+            double bZero = meta.BZero;
+            double bScale = meta.BScale;
+
+            fixed (byte* pBuf = rented)
+            fixed (ushort* pDst = dst.Data)
             {
-                frame.Data[i * 3] = (ushort)(buf[i] * 257);
-                frame.Data[i * 3 + 1] = (ushort)(buf[pixelCount + i] * 257);
-                frame.Data[i * 3 + 2] = (ushort)(buf[pixelCount * 2 + i] * 257);
+                for (int c = 0; c < channels; c++)
+                {
+                    long offset = meta.DataStartOffset + c * planeBytes + srcStartY * rowBytes + (long)srcStartX * bytesPerSample;
+                    fs.Seek(offset, SeekOrigin.Begin);
+                    fs.ReadExactly(rented.AsSpan(0, subBlockBytes));
+
+                    for (int r = 0; r < copyH; r++)
+                    {
+                        int dstY = copyY0 + r;
+                        byte* pRow = pBuf + r * rowBytes;
+
+                        if (bytesPerSample == 1)
+                        {
+                            if (channels == 1)
+                            {
+                                ushort* dstRow = pDst + dstY * cropWidth + copyX0;
+                                for (int x = 0; x < copyW; x++)
+                                {
+                                    dstRow[x] = (ushort)(pRow[x] * 257);
+                                }
+                            }
+                            else
+                            {
+                                ushort* dstRow = pDst + (dstY * cropWidth + copyX0) * 3 + c;
+                                for (int x = 0; x < copyW; x++)
+                                {
+                                    dstRow[x * 3] = (ushort)(pRow[x] * 257);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            short* pRow16 = (short*)pRow;
+                            if (channels == 1)
+                            {
+                                ushort* dstRow = pDst + dstY * cropWidth + copyX0;
+                                if (isStandardU16)
+                                {
+                                    for (int x = 0; x < copyW; x++)
+                                    {
+                                        short s = BinaryPrimitives.ReverseEndianness(pRow16[x]);
+                                        dstRow[x] = (ushort)(s + 32768);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int x = 0; x < copyW; x++)
+                                    {
+                                        short s = BinaryPrimitives.ReverseEndianness(pRow16[x]);
+                                        dstRow[x] = (ushort)Math.Clamp(bZero + bScale * s, 0, 65535);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                ushort* dstRow = pDst + (dstY * cropWidth + copyX0) * 3 + c;
+                                if (isStandardU16)
+                                {
+                                    for (int x = 0; x < copyW; x++)
+                                    {
+                                        short s = BinaryPrimitives.ReverseEndianness(pRow16[x]);
+                                        dstRow[x * 3] = (ushort)(s + 32768);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int x = 0; x < copyW; x++)
+                                    {
+                                        short s = BinaryPrimitives.ReverseEndianness(pRow16[x]);
+                                        dstRow[x * 3] = (ushort)Math.Clamp(bZero + bScale * s, 0, 65535);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
+
+        return dst;
+    }
+
+    private static unsafe void Read8BitPlanes(FileStream fs, AstroFrame frame, int pixelCount, int channels)
+    {
+        int totalBytes = pixelCount * channels;
+        byte[] buf = ArrayPool<byte>.Shared.Rent(totalBytes);
+        try
+        {
+            fs.ReadExactly(buf.AsSpan(0, totalBytes));
+            fixed (byte* pSrc = buf)
+            fixed (ushort* pDst = frame.Data)
+            {
+                if (channels == 1)
+                {
+                    for (int i = 0; i < pixelCount; i++) pDst[i] = (ushort)(pSrc[i] * 257);
+                }
+                else
+                {
+                    // FITS stores planar R, G, B
+                    byte* pR = pSrc;
+                    byte* pG = pSrc + pixelCount;
+                    byte* pB = pSrc + pixelCount * 2;
+                    for (int i = 0; i < pixelCount; i++)
+                    {
+                        int d = i * 3;
+                        pDst[d] = (ushort)(pR[i] * 257);
+                        pDst[d + 1] = (ushort)(pG[i] * 257);
+                        pDst[d + 2] = (ushort)(pB[i] * 257);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
         }
     }
 
-    private static void Read16BitPlanes(FileStream fs, AstroFrame frame, FitsMetadata meta, int pixelCount, int channels)
+    private static unsafe void Read16BitPlanes(FileStream fs, AstroFrame frame, FitsMetadata meta, int pixelCount, int channels)
     {
-        byte[] buf = new byte[pixelCount * channels * 2];
-        fs.ReadExactly(buf);
-        ReadOnlySpan<byte> span = buf;
-        for (int c = 0; c < channels; c++)
+        int totalBytes = pixelCount * channels * 2;
+        byte[] buf = ArrayPool<byte>.Shared.Rent(totalBytes);
+        try
         {
-            for (int i = 0; i < pixelCount; i++)
+            fs.ReadExactly(buf.AsSpan(0, totalBytes));
+            bool isStandardU16 = Math.Abs(meta.BZero - 32768.0) < 1e-6 && Math.Abs(meta.BScale - 1.0) < 1e-6;
+            double bZero = meta.BZero;
+            double bScale = meta.BScale;
+
+            fixed (byte* pSrcBytes = buf)
+            fixed (ushort* pDst = frame.Data)
             {
-                int srcIdx = (c * pixelCount + i) * 2;
-                short s = BinaryPrimitives.ReadInt16BigEndian(span.Slice(srcIdx, 2));
-                double physical = meta.BZero + meta.BScale * s;
-                ushort u = (ushort)Math.Clamp(physical, 0, 65535);
-                if (channels == 1) frame.Data[i] = u;
-                else frame.Data[i * 3 + c] = u;
+                short* pSrc = (short*)pSrcBytes;
+                if (channels == 1)
+                {
+                    if (isStandardU16)
+                    {
+                        for (int i = 0; i < pixelCount; i++)
+                        {
+                            short s = BinaryPrimitives.ReverseEndianness(pSrc[i]);
+                            pDst[i] = (ushort)(s + 32768);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < pixelCount; i++)
+                        {
+                            short s = BinaryPrimitives.ReverseEndianness(pSrc[i]);
+                            pDst[i] = (ushort)Math.Clamp(bZero + bScale * s, 0, 65535);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int c = 0; c < channels; c++)
+                    {
+                        short* pPlane = pSrc + c * pixelCount;
+                        if (isStandardU16)
+                        {
+                            for (int i = 0; i < pixelCount; i++)
+                            {
+                                short s = BinaryPrimitives.ReverseEndianness(pPlane[i]);
+                                pDst[i * 3 + c] = (ushort)(s + 32768);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < pixelCount; i++)
+                            {
+                                short s = BinaryPrimitives.ReverseEndianness(pPlane[i]);
+                                pDst[i * 3 + c] = (ushort)Math.Clamp(bZero + bScale * s, 0, 65535);
+                            }
+                        }
+                    }
+                }
             }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
         }
     }
 
-    public static void WriteFrame(string outputPath, AstroFrame frame)
+    public static unsafe void WriteFrame(string outputPath, AstroFrame frame)
     {
-        using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536);
         var cards = new List<string>
         {
             FormatCard("SIMPLE", "T", "Standard FITS format"),
@@ -188,45 +416,56 @@ public static class FitsFile
         cards.Add(FormatCard("SWCREATE", "'New-CassiniFlow .NET 10'", "Created by New-CassiniFlow"));
         cards.Add("END".PadRight(CardSize, ' '));
 
-        byte[] hdrBuf = new byte[BlockSize];
-        Array.Fill(hdrBuf, (byte)' ');
+        Span<byte> hdrBuf = stackalloc byte[BlockSize];
+        hdrBuf.Fill((byte)' ');
         for (int i = 0; i < cards.Count; i++)
         {
-            Encoding.ASCII.GetBytes(cards[i], 0, CardSize, hdrBuf, i * CardSize);
+            Encoding.ASCII.GetBytes(cards[i].AsSpan(0, CardSize), hdrBuf.Slice(i * CardSize, CardSize));
         }
         fs.Write(hdrBuf);
 
         int pixelCount = frame.Width * frame.Height;
         int totalSamples = pixelCount * frame.Channels;
-        byte[] dataBuf = new byte[totalSamples * 2];
-        Span<byte> span = dataBuf;
-
-        if (frame.Channels == 1)
+        int totalBytes = totalSamples * 2;
+        byte[] dataBuf = ArrayPool<byte>.Shared.Rent(totalBytes);
+        try
         {
-            for (int i = 0; i < pixelCount; i++)
+            fixed (ushort* pSrc = frame.Data)
+            fixed (byte* pDstBytes = dataBuf)
             {
-                short s = (short)(frame.Data[i] - 32768);
-                BinaryPrimitives.WriteInt16BigEndian(span.Slice(i * 2, 2), s);
-            }
-        }
-        else
-        {
-            for (int c = 0; c < 3; c++)
-            {
-                for (int i = 0; i < pixelCount; i++)
+                short* pDst = (short*)pDstBytes;
+                if (frame.Channels == 1)
                 {
-                    short s = (short)(frame.Data[i * 3 + c] - 32768);
-                    int dstIdx = (c * pixelCount + i) * 2;
-                    BinaryPrimitives.WriteInt16BigEndian(span.Slice(dstIdx, 2), s);
+                    for (int i = 0; i < pixelCount; i++)
+                    {
+                        pDst[i] = BinaryPrimitives.ReverseEndianness((short)(pSrc[i] - 32768));
+                    }
+                }
+                else
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        short* pPlane = pDst + c * pixelCount;
+                        for (int i = 0; i < pixelCount; i++)
+                        {
+                            pPlane[i] = BinaryPrimitives.ReverseEndianness((short)(pSrc[i * 3 + c] - 32768));
+                        }
+                    }
                 }
             }
-        }
 
-        fs.Write(dataBuf);
-        int remainder = dataBuf.Length % BlockSize;
-        if (remainder != 0)
+            fs.Write(dataBuf.AsSpan(0, totalBytes));
+            int remainder = totalBytes % BlockSize;
+            if (remainder != 0)
+            {
+                Span<byte> pad = stackalloc byte[BlockSize - remainder];
+                pad.Clear();
+                fs.Write(pad);
+            }
+        }
+        finally
         {
-            fs.Write(new byte[BlockSize - remainder]);
+            ArrayPool<byte>.Shared.Return(dataBuf);
         }
     }
 

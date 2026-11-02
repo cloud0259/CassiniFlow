@@ -190,7 +190,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 options.ObserverLatitudeDegrees,
                 options.TargetAltitudeDegrees,
                 options.TargetAzimuthDegrees);
-            work = FieldDerotationEngine.ApplyDerotation(work, angle);
+            double? pivX = (applyCropToOutput && options.EnableCropping) ? null : detection.CentroidX;
+            double? pivY = (applyCropToOutput && options.EnableCropping) ? null : detection.CentroidY;
+            work = FieldDerotationEngine.ApplyDerotation(work, angle, pivX, pivY);
         }
 
         work.DetectedCentroidX = detection.CentroidX;
@@ -1203,26 +1205,82 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return; }
         }
 
-        // Non-video files (SER, FITS, BMP, PNG, TIFF)
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(filePath);
+            int last = Math.Min(ser.Header.FrameCount - 1, endIdx);
+            for (int idx = Math.Max(0, startIdx); idx <= last; idx++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int done = Interlocked.Increment(ref scannedCount);
+
+                var (accepted, cx, cy, fastScore) = ser.AnalyzeFrameZeroAlloc(idx, options, options.SerBitDepthOverride);
+                if (enforcePlanetRejection && !accepted)
+                {
+                    Interlocked.Increment(ref discardedNoPlanet);
+                    onStep(done);
+                    continue;
+                }
+
+                Interlocked.Increment(ref acceptedBeforeLimit);
+                double score = options.EnableQualityEstimation ? fastScore : 100.0;
+
+                bool shouldExtract;
+                lock (heapLock)
+                {
+                    shouldExtract = topKHeap.Count < maxKeepTarget || score > currentMinScoreInHeap;
+                }
+
+                if (shouldExtract)
+                {
+                    int targetX = centrePlanet ? cx : ser.Header.ImageWidth / 2;
+                    int targetY = centrePlanet ? cy : ser.Header.ImageHeight / 2;
+                    AstroFrame work = options.EnableCropping
+                        ? ser.ReadFrameCropped(
+                            idx,
+                            targetX,
+                            targetY,
+                            options.CropWidth,
+                            options.CropHeight,
+                            options.CropOffsetX,
+                            options.CropOffsetY,
+                            options.SerBitDepthOverride)
+                        : ser.ReadFrame(idx, options.SerBitDepthOverride);
+
+                    work.FrameIndex = globalFrameBase + (idx - startIdx);
+                    if (options.DebayerEnabled && !options.ProtectBayerPattern && work.Channels == 1)
+                    {
+                        work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                    }
+                    work.QualityScore = score;
+
+                    lock (heapLock)
+                    {
+                        if (topKHeap.Count < maxKeepTarget)
+                        {
+                            topKHeap.Enqueue(work, score);
+                            topKHeap.TryPeek(out _, out currentMinScoreInHeap);
+                        }
+                        else if (score > currentMinScoreInHeap)
+                        {
+                            topKHeap.DequeueEnqueue(work, score);
+                            topKHeap.TryPeek(out _, out currentMinScoreInHeap);
+                        }
+                    }
+                }
+
+                onStep(done);
+            }
+            return;
+        }
+
+        // Non-video files (FITS, BMP, PNG, TIFF)
         foreach (var raw in UniversalMediaReader.EnumerateFrames(filePath, startIdx, endIdx, options.SerBitDepthOverride))
         {
             cancellationToken.ThrowIfCancellationRequested();
             int done = Interlocked.Increment(ref scannedCount);
             var work = raw;
             work.FrameIndex = globalFrameBase + (raw.FrameIndex - startIdx);
-
-            if (options.DebayerEnabled && !options.ProtectBayerPattern)
-            {
-                if (work.Channels == 1)
-                {
-                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
-                }
-                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
-                {
-                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
-                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
-                }
-            }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
                 work,
@@ -1255,7 +1313,20 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     options.CropHeight,
                     options.CropOffsetX,
                     options.CropOffsetY,
-                    options.ProtectBayerPattern);
+                    protectBayerEvenSteps: work.IsBayerRaw || options.DebayerEnabled);
+            }
+
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
+            {
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             double score = options.EnableQualityEstimation
@@ -1308,6 +1379,31 @@ public sealed class PipelineRunner : IRunPipelineUseCase
     {
         string ext = Path.GetExtension(filePath).ToLowerInvariant();
         var localEntries = new List<FrameScanEntry>(Math.Max(16, endIdx - startIdx + 1));
+
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(filePath);
+            int last = Math.Min(ser.Header.FrameCount - 1, endIdx);
+            for (int idx = Math.Max(0, startIdx); idx <= last; idx++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int done = Interlocked.Increment(ref scannedCount);
+                var (accepted, cx, cy, fastScore) = ser.AnalyzeFrameZeroAlloc(idx, options, options.SerBitDepthOverride);
+                if (enforcePlanetRejection && !accepted)
+                {
+                    Interlocked.Increment(ref discardedNoPlanet);
+                    onStep(done);
+                    continue;
+                }
+                localEntries.Add(new FrameScanEntry(fileIndex, idx, cx, cy, options.EnableQualityEstimation ? fastScore : 100.0));
+                onStep(done);
+            }
+            lock (scanLock)
+            {
+                scanEntries.AddRange(localEntries);
+            }
+            return;
+        }
 
         if (UniversalMediaReader.IsOpenCvNativeAvailable && UniversalMediaReader.VideoExtensions.Contains(ext))
         {
@@ -1731,7 +1827,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 options.ObserverLatitudeDegrees,
                 options.TargetAltitudeDegrees,
                 options.TargetAzimuthDegrees);
-            work = FieldDerotationEngine.ApplyDerotation(work, angle);
+            double? pivX = options.EnableCropping ? null : det.CentroidX;
+            double? pivY = options.EnableCropping ? null : det.CentroidY;
+            work = FieldDerotationEngine.ApplyDerotation(work, angle, pivX, pivY);
         }
 
         work.DetectedCentroidX = det.CentroidX;

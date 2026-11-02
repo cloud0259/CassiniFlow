@@ -101,11 +101,11 @@ public static class FieldDerotationEngine
     }
 
     /// <summary>
-    /// Applique la dérotation sur une trame en la faisant pivoter autour de son centre géométrique.
+    /// Applique la dérotation sur une trame en la faisant pivoter autour de son centre géométrique (ou d'un pivot donné).
     /// </summary>
-    public static AstroFrame ApplyDerotation(AstroFrame frame, double angleDegrees)
+    public static AstroFrame ApplyDerotation(AstroFrame frame, double angleDegrees, double? pivotX = null, double? pivotY = null)
     {
         if (Math.Abs(angleDegrees) < 0.01) return frame;
-        return AutoRotationAligner.Rotate(frame, angleDegrees);
+        return AutoRotationAligner.Rotate(frame, angleDegrees, pivotX, pivotY);
     }
 }

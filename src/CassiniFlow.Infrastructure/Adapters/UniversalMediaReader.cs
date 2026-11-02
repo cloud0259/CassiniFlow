@@ -487,8 +487,29 @@ public static class UniversalMediaReader
         int h = mat.Height;
         int ch = mat.Channels();
         int stride = (int)mat.Step();
+        bool is16Bit = mat.ElemSize1() == 2;
         byte* pBase = (byte*)mat.Data;
         int minArea = Math.Max(4, (int)(Math.PI * (minObjectSizePixels * 0.5) * (minObjectSizePixels * 0.5)) / 2);
+
+        static byte ReadPixelLum8(byte* row, int x, int ch, bool is16)
+        {
+            if (is16)
+            {
+                ushort* row16 = (ushort*)row;
+                if (ch == 1) return (byte)(row16[x] >> 8);
+                int idx = x * ch;
+                ushort b = row16[idx], g = row16[idx + 1], r = row16[idx + 2];
+                ushort maxC = r >= g ? (r >= b ? r : b) : (g >= b ? g : b);
+                return (byte)(maxC >> 8);
+            }
+            else
+            {
+                if (ch == 1) return row[x];
+                int idx = x * ch;
+                byte b = row[idx], g = row[idx + 1], r = row[idx + 2];
+                return r >= g ? (r >= b ? r : b) : (g >= b ? g : b);
+            }
+        }
 
         // 1. Try fast local tracking window around previous frame's centroid (8 microseconds!)
         if (hintX >= 0 && hintY >= 0 && cachedThreshold8 > 0)
@@ -508,44 +529,20 @@ public static class UniversalMediaReader
             for (int y = ry0; y < ry1; y += localStep)
             {
                 byte* row = pBase + y * stride;
-                if (ch == 1)
+                for (int x = rx0; x < rx1; x += localStep)
                 {
-                    for (int x = rx0; x < rx1; x += localStep)
+                    byte lum = ReadPixelLum8(row, x, ch, is16Bit);
+                    if (lum >= thresh)
                     {
-                        byte lum = row[x];
-                        if (lum >= thresh)
-                        {
-                            lDet += localStep * localStep;
-                            long wt = lum - thresh + 1;
-                            lSumX += (long)x * wt;
-                            lSumY += (long)y * wt;
-                            lWeight += wt;
-                            if (x < lMinX) lMinX = x;
-                            if (x > lMaxX) lMaxX = x;
-                            if (y < lMinY) lMinY = y;
-                            if (y > lMaxY) lMaxY = y;
-                        }
-                    }
-                }
-                else
-                {
-                    for (int x = rx0; x < rx1; x += localStep)
-                    {
-                        int idx = x * 3;
-                        byte b = row[idx], g = row[idx + 1], r = row[idx + 2];
-                        byte lum = r >= g ? (r >= b ? r : b) : (g >= b ? g : b);
-                        if (lum >= thresh)
-                        {
-                            lDet += localStep * localStep;
-                            long wt = lum - thresh + 1;
-                            lSumX += (long)x * wt;
-                            lSumY += (long)y * wt;
-                            lWeight += wt;
-                            if (x < lMinX) lMinX = x;
-                            if (x > lMaxX) lMaxX = x;
-                            if (y < lMinY) lMinY = y;
-                            if (y > lMaxY) lMaxY = y;
-                        }
+                        lDet += localStep * localStep;
+                        long wt = lum - thresh + 1;
+                        lSumX += (long)x * wt;
+                        lSumY += (long)y * wt;
+                        lWeight += wt;
+                        if (x < lMinX) lMinX = x;
+                        if (x > lMaxX) lMaxX = x;
+                        if (y < lMinY) lMinY = y;
+                        if (y > lMaxY) lMaxY = y;
                     }
                 }
             }
@@ -585,6 +582,24 @@ public static class UniversalMediaReader
             }
             else
             {
+                // Estimate sky background from 32 border points
+                Span<int> bgSamples = stackalloc int[32];
+                int bgCount = 0;
+                ReadOnlySpan<int> xPcts = [3, 15, 85, 97];
+                ReadOnlySpan<int> yPcts = [3, 15, 85, 97];
+                for (int yi = 0; yi < 4; yi++)
+                {
+                    int sy = Math.Clamp((h * yPcts[yi]) / 100, 0, h - 1);
+                    byte* row = pBase + sy * stride;
+                    for (int xi = 0; xi < 4; xi++)
+                    {
+                        int sx = Math.Clamp((w * xPcts[xi]) / 100, 0, w - 1);
+                        bgSamples[bgCount++] = ReadPixelLum8(row, sx, ch, is16Bit);
+                    }
+                }
+                bgSamples[..bgCount].Sort();
+                int skyBg8 = bgSamples[bgCount / 4];
+
                 byte maxVal = 0;
                 int tStep = step * 2;
                 for (int y = 0; y < h; y += tStep)
@@ -592,11 +607,12 @@ public static class UniversalMediaReader
                     byte* row = pBase + y * stride;
                     for (int x = 0; x < w; x += tStep)
                     {
-                        byte lum = ch == 1 ? row[x] : Math.Max(row[x * 3], Math.Max(row[x * 3 + 1], row[x * 3 + 2]));
+                        byte lum = ReadPixelLum8(row, x, ch, is16Bit);
                         if (lum > maxVal) maxVal = lum;
                     }
                 }
-                threshold8 = Math.Clamp((int)(maxVal * 0.14), 8, 180);
+                int range8 = Math.Max(0, maxVal - skyBg8);
+                threshold8 = Math.Clamp(Math.Max(skyBg8 + (int)(range8 * 0.14), skyBg8 + 4), 4, 220);
                 cachedThreshold8 = threshold8;
             }
         }
@@ -605,52 +621,79 @@ public static class UniversalMediaReader
             cachedThreshold8 = manualThreshold8Bit;
         }
 
-        long sumX = 0, sumY = 0;
-        long totalWeight = 0;
-        int detectedPixels = 0;
-        int minX = w, maxX = 0, minY = h, maxY = 0;
+        int numCols = (w + step - 1) / step;
+        int numRows = (h + step - 1) / step;
+        Span<int> colCounts = numCols <= 1024 ? stackalloc int[numCols] : new int[numCols];
+        Span<int> rowCounts = numRows <= 1024 ? stackalloc int[numRows] : new int[numRows];
+        colCounts.Clear();
+        rowCounts.Clear();
 
-        for (int y = 0; y < h; y += step)
+        int totalDetectedSamples = 0;
+        for (int y = 0, ry = 0; y < h; y += step, ry++)
         {
             byte* row = pBase + y * stride;
-            if (ch == 1)
+            for (int x = 0, cxIdx = 0; x < w; x += step, cxIdx++)
             {
-                for (int x = 0; x < w; x += step)
+                byte lum = ReadPixelLum8(row, x, ch, is16Bit);
+                if (lum >= threshold8)
                 {
-                    byte lum = row[x];
-                    if (lum >= threshold8)
-                    {
-                        detectedPixels += step * step;
-                        long wt = lum - threshold8 + 1;
-                        sumX += (long)x * wt;
-                        sumY += (long)y * wt;
-                        totalWeight += wt;
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-                    }
+                    colCounts[cxIdx]++;
+                    rowCounts[ry]++;
+                    totalDetectedSamples++;
                 }
             }
-            else
+        }
+
+        int detectedPixels = totalDetectedSamples * step * step;
+        int minProj = Math.Max(2, minObjectSizePixels / (step * 4));
+        int minX = w, maxX = 0, minY = h, maxY = 0;
+        for (int cxIdx = 0; cxIdx < numCols; cxIdx++)
+        {
+            if (colCounts[cxIdx] >= minProj)
             {
-                for (int x = 0; x < w; x += step)
+                int x = cxIdx * step;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+            }
+        }
+        for (int ry = 0; ry < numRows; ry++)
+        {
+            if (rowCounts[ry] >= minProj)
+            {
+                int y = ry * step;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+
+        if (minX > maxX || minY > maxY)
+        {
+            minX = 0; maxX = w - 1;
+            minY = 0; maxY = h - 1;
+        }
+        else
+        {
+            int pad = step * 3;
+            minX = Math.Max(0, minX - pad);
+            maxX = Math.Min(w - 1, maxX + pad);
+            minY = Math.Max(0, minY - pad);
+            maxY = Math.Min(h - 1, maxY + pad);
+        }
+
+        long sumX = 0, sumY = 0;
+        long totalWeight = 0;
+        for (int y = minY; y <= maxY; y += step)
+        {
+            byte* row = pBase + y * stride;
+            for (int x = minX; x <= maxX; x += step)
+            {
+                byte lum = ReadPixelLum8(row, x, ch, is16Bit);
+                if (lum >= threshold8)
                 {
-                    int idx = x * 3;
-                    byte b = row[idx], g = row[idx + 1], r = row[idx + 2];
-                    byte lum = r >= g ? (r >= b ? r : b) : (g >= b ? g : b);
-                    if (lum >= threshold8)
-                    {
-                        detectedPixels += step * step;
-                        long wt = lum - threshold8 + 1;
-                        sumX += (long)x * wt;
-                        sumY += (long)y * wt;
-                        totalWeight += wt;
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-                    }
+                    long wt = lum - threshold8 + 1;
+                    sumX += (long)x * wt;
+                    sumY += (long)y * wt;
+                    totalWeight += wt;
                 }
             }
         }
@@ -688,7 +731,7 @@ public static class UniversalMediaReader
     }
 
     /// <summary>
-    /// Computes CassiniFlow's quality score directly on the 8-bit Mat within the crop region around (centerX, centerY)
+    /// Computes CassiniFlow's quality score directly on the OpenCV Mat within the crop region around (centerX, centerY)
     /// with ZERO memory allocations, allowing rejected frames to be skipped before allocating AstroFrame.
     /// </summary>
     public static unsafe double ComputeQualityOnMatRoiFast(
@@ -700,12 +743,15 @@ public static class UniversalMediaReader
         QualityAlgorithm algorithm,
         int minSubsample = 3,
         int maxSubsample = 5,
-        int subsampleInc = 1)
+        int subsampleInc = 1,
+        int noiseRobust = 6,
+        int noiseFloor8 = 0)
     {
         int srcW = mat.Width;
         int srcH = mat.Height;
         int ch = mat.Channels();
         int stride = (int)mat.Step();
+        bool is16Bit = mat.ElemSize1() == 2;
         byte* pBase = (byte*)mat.Data;
 
         int x0 = Math.Clamp(centerX - roiWidth / 2, 0, Math.Max(0, srcW - 8));
@@ -716,6 +762,16 @@ public static class UniversalMediaReader
         int h = y1 - y0;
         if (w < 8 || h < 8) return 0.0;
 
+        static int ReadGreenOrLum8(byte* row, int x, int ch, bool is16)
+        {
+            if (is16)
+            {
+                ushort* row16 = (ushort*)row;
+                return ch == 1 ? (row16[x] >> 8) : (row16[x * ch + 1] >> 8);
+            }
+            return ch == 1 ? row[x] : row[x * ch + 1];
+        }
+
         if (algorithm == QualityAlgorithm.TotalBrightness)
         {
             long sum = 0;
@@ -724,7 +780,7 @@ public static class UniversalMediaReader
                 byte* row = pBase + y * stride;
                 for (int x = x0; x < x1; x += 2)
                 {
-                    sum += ch == 1 ? row[x] : row[x * ch + 1];
+                    sum += ReadGreenOrLum8(row, x, ch, is16Bit);
                 }
             }
             return (double)(sum * 4) / (w * h);
@@ -738,7 +794,7 @@ public static class UniversalMediaReader
                 byte* row = pBase + y * stride;
                 for (int x = x0; x < x1; x += 2)
                 {
-                    int v = ch == 1 ? row[x] : row[x * ch + 1];
+                    int v = ReadGreenOrLum8(row, x, ch, is16Bit);
                     hist[v]++;
                 }
             }
@@ -747,11 +803,13 @@ public static class UniversalMediaReader
             return weighted / (w * h);
         }
 
-        int minSub = Math.Max(2, minSubsample);
+        int baseStep = Math.Max(2, noiseRobust / 2);
+        int minSub = Math.Max(baseStep, minSubsample);
         int maxSub = Math.Max(minSub, maxSubsample);
         int inc = Math.Max(1, subsampleInc);
 
         double totalGrad = 0;
+        int activePixels = 0;
         for (int step = minSub; step <= maxSub; step += inc)
         {
             long stepGrad = 0;
@@ -759,40 +817,82 @@ public static class UniversalMediaReader
             {
                 byte* row = pBase + y * stride;
                 byte* downRow = pBase + (y + step) * stride;
-                if (ch == 1)
+                for (int x = x0; x < x1 - step; x += step)
                 {
-                    for (int x = x0; x < x1 - step; x += step)
-                    {
-                        int c = row[x];
-                        int dx = c - row[x + step];
-                        int dy = c - downRow[x];
-                        if (dx < 0) dx = -dx;
-                        if (dy < 0) dy = -dy;
-                        stepGrad += dx + dy;
-                    }
-                }
-                else
-                {
-                    for (int x = x0; x < x1 - step; x += step)
-                    {
-                        int idx = x * ch + 1; // Green channel
-                        int c = row[idx];
-                        int dx = c - row[(x + step) * ch + 1];
-                        int dy = c - downRow[idx];
-                        if (dx < 0) dx = -dx;
-                        if (dy < 0) dy = -dy;
-                        stepGrad += dx + dy;
-                    }
+                    int c = ReadGreenOrLum8(row, x, ch, is16Bit);
+                    if (c < noiseFloor8) continue;
+                    int right = ReadGreenOrLum8(row, x + step, ch, is16Bit);
+                    int down = ReadGreenOrLum8(downRow, x, ch, is16Bit);
+                    int dx = c - right;
+                    int dy = c - down;
+                    if (dx < 0) dx = -dx;
+                    if (dy < 0) dy = -dy;
+                    stepGrad += dx + dy;
+                    if (step == minSub) activePixels++;
                 }
             }
             totalGrad += stepGrad * 257.0;
         }
 
-        return totalGrad / (w * h);
+        int normArea = activePixels >= 16 ? activePixels * (minSub * minSub) : (w * h);
+        return totalGrad / Math.Max(16, normArea);
+    }
+
+    /// <summary>
+    /// Zero-allocation Pass 1 analyzer directly on an OpenCV Mat (for AVI/MP4/MOV/MKV and TIFF/PNG/JPG/DNG).
+    /// </summary>
+    public static (bool Accepted, int CentroidX, int CentroidY, double QualityScore) AnalyzeMatZeroAlloc(
+        Mat mat,
+        ProcessingOptions options,
+        ref int hintX,
+        ref int hintY,
+        ref int cachedThreshold8)
+    {
+        bool checkPlanet = options.CheckPlanetObjectPresent && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        bool centrePlanet = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+
+        var det = DetectOnMatFastTracked(
+            mat,
+            checkPlanet,
+            options.AutoDetectionThreshold,
+            options.ManualDetectionThreshold,
+            options.MinimumObjectSizePixels,
+            ref hintX,
+            ref hintY,
+            ref cachedThreshold8);
+
+        if (checkPlanet && !det.Accepted)
+        {
+            return (false, det.CentroidX, det.CentroidY, 0.0);
+        }
+
+        int targetX = centrePlanet ? det.CentroidX : mat.Width / 2;
+        int targetY = centrePlanet ? det.CentroidY : mat.Height / 2;
+
+        int estRadius = Math.Max(options.MinimumObjectSizePixels / 2, (int)Math.Sqrt(Math.Max(16, det.DetectedPixelCount) / Math.PI));
+        int planetDiameter = Math.Clamp(estRadius * 2 + 24, 48, Math.Min(mat.Width, mat.Height));
+        int roiW = options.EnableCropping ? Math.Min(Math.Max(16, options.CropWidth), planetDiameter) : planetDiameter;
+        int roiH = options.EnableCropping ? Math.Min(Math.Max(16, options.CropHeight), planetDiameter) : planetDiameter;
+
+        double score = ComputeQualityOnMatRoiFast(
+            mat,
+            targetX - (options.EnableCropping ? options.CropOffsetX : 0),
+            targetY - (options.EnableCropping ? options.CropOffsetY : 0),
+            roiW,
+            roiH,
+            options.QualityAlgorithm,
+            options.QualityMinSubsample,
+            options.QualityMaxSubsample,
+            options.QualitySubsampleIncrement,
+            options.Stacking.NoiseRobust,
+            noiseFloor8: Math.Max(4, det.Threshold8BitUsed));
+
+        return (true, det.CentroidX, det.CentroidY, score);
     }
 
     /// <summary>
     /// Crops a sub-region directly from an OpenCV Mat into an AstroFrame without ever converting the full 4K frame.
+    /// Supports both 8-bit and 16-bit Mats and optional 2x2 Bayer phase alignment.
     /// </summary>
     public static unsafe AstroFrame ExtractCroppedAstroFrameFromMat(
         Mat srcMat,
@@ -803,7 +903,8 @@ public static class UniversalMediaReader
         int cropHeight,
         int offsetX = 0,
         int offsetY = 0,
-        AstroFrame? reusableDst = null)
+        AstroFrame? reusableDst = null,
+        bool protectBayerEvenSteps = false)
     {
         cropWidth = Math.Max(16, cropWidth);
         cropHeight = Math.Max(16, cropHeight);
@@ -815,6 +916,13 @@ public static class UniversalMediaReader
         int srcH = srcMat.Height;
         int ch = srcMat.Channels();
         int outCh = ch == 1 ? 1 : 3;
+        bool is16Bit = srcMat.ElemSize1() == 2;
+
+        if (protectBayerEvenSteps && outCh == 1)
+        {
+            startX &= ~1;
+            startY &= ~1;
+        }
 
         AstroFrame dst;
         if (reusableDst is not null && reusableDst.Width == cropWidth && reusableDst.Height == cropHeight && reusableDst.Channels == outCh)
@@ -830,7 +938,7 @@ public static class UniversalMediaReader
         }
         else
         {
-            dst = new AstroFrame(cropWidth, cropHeight, outCh, 8)
+            dst = new AstroFrame(cropWidth, cropHeight, outCh, is16Bit ? 16 : 8)
             {
                 FrameIndex = frameIndex,
                 DetectedCentroidX = cropWidth / 2,
@@ -865,30 +973,109 @@ public static class UniversalMediaReader
                 if (copyPixels <= 0) continue;
 
                 byte* srcRow = pSrcBase + sy * stride;
-                if (outCh == 1)
+                if (is16Bit)
                 {
-                    ushort* dstRow = pDstBase + y * cropWidth;
-                    for (int i = 0; i < copyPixels; i++)
+                    ushort* srcRow16 = (ushort*)srcRow;
+                    if (outCh == 1)
                     {
-                        dstRow[dstXStart + i] = (ushort)(srcRow[srcXStart + i] * 257);
+                        ushort* dstRow = pDstBase + y * cropWidth;
+                        Buffer.MemoryCopy(srcRow16 + srcXStart, dstRow + dstXStart, copyPixels * sizeof(ushort), copyPixels * sizeof(ushort));
+                    }
+                    else
+                    {
+                        ushort* dstRow = pDstBase + y * cropWidth * 3;
+                        for (int i = 0; i < copyPixels; i++)
+                        {
+                            int sIdx = (srcXStart + i) * ch;
+                            int dIdx = (dstXStart + i) * 3;
+                            dstRow[dIdx] = srcRow16[sIdx + 2];     // R
+                            dstRow[dIdx + 1] = srcRow16[sIdx + 1]; // G
+                            dstRow[dIdx + 2] = srcRow16[sIdx];     // B
+                        }
                     }
                 }
                 else
                 {
-                    ushort* dstRow = pDstBase + y * cropWidth * 3;
-                    for (int i = 0; i < copyPixels; i++)
+                    if (outCh == 1)
                     {
-                        int sIdx = (srcXStart + i) * ch;
-                        int dIdx = (dstXStart + i) * 3;
-                        dstRow[dIdx] = (ushort)(srcRow[sIdx + 2] * 257);     // R
-                        dstRow[dIdx + 1] = (ushort)(srcRow[sIdx + 1] * 257); // G
-                        dstRow[dIdx + 2] = (ushort)(srcRow[sIdx] * 257);     // B
+                        ushort* dstRow = pDstBase + y * cropWidth;
+                        for (int i = 0; i < copyPixels; i++)
+                        {
+                            dstRow[dstXStart + i] = (ushort)(srcRow[srcXStart + i] * 257);
+                        }
+                    }
+                    else
+                    {
+                        ushort* dstRow = pDstBase + y * cropWidth * 3;
+                        for (int i = 0; i < copyPixels; i++)
+                        {
+                            int sIdx = (srcXStart + i) * ch;
+                            int dIdx = (dstXStart + i) * 3;
+                            dstRow[dIdx] = (ushort)(srcRow[sIdx + 2] * 257);     // R
+                            dstRow[dIdx + 1] = (ushort)(srcRow[sIdx + 1] * 257); // G
+                            dstRow[dIdx + 2] = (ushort)(srcRow[sIdx] * 257);     // B
+                        }
                     }
                 }
             }
         }
 
         return dst;
+    }
+
+    /// <summary>
+    /// Reads only a cropped sub-window around (centerX, centerY) from any single-image or SER file
+    /// without allocating a full-sensor AstroFrame.
+    /// </summary>
+    public static AstroFrame ReadSingleFrameCropped(
+        string filePath,
+        int frameIndex,
+        int centerX,
+        int centerY,
+        int cropWidth,
+        int cropHeight,
+        int offsetX = 0,
+        int offsetY = 0,
+        bool protectBayerEvenSteps = true,
+        int serBitDepthOverride = 0)
+    {
+        string ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(filePath);
+            int idx = Math.Clamp(frameIndex, 0, Math.Max(0, ser.Header.FrameCount - 1));
+            return ser.ReadFrameCropped(idx, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, serBitDepthOverride);
+        }
+
+        if (ext is ".fit" or ".fits" or ".fts")
+        {
+            return FitsFile.ReadFrameCropped(filePath, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, protectBayerEvenSteps);
+        }
+
+        if (ext == ".bmp")
+        {
+            return BmpAndAviWriter.ReadBmpCropped(filePath, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, protectBayerEvenSteps);
+        }
+
+        if (ext == ".dng")
+        {
+            using var dngMat = DngReader.Decode(filePath);
+            if (dngMat != null && !dngMat.Empty())
+            {
+                return ExtractCroppedAstroFrameFromMat(dngMat, frameIndex, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, protectBayerEvenSteps: protectBayerEvenSteps);
+            }
+        }
+
+        if (ImageExtensions.Contains(ext) && IsOpenCvNativeAvailable)
+        {
+            using var mat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
+            if (mat.Empty()) throw new InvalidDataException($"Impossible de lire l'image '{filePath}'.");
+            return ExtractCroppedAstroFrameFromMat(mat, frameIndex, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, protectBayerEvenSteps: protectBayerEvenSteps);
+        }
+
+        var full = ReadSingleFrame(filePath, frameIndex, serBitDepthOverride);
+        return ImageProcessor.CropAroundPoint(full, centerX, centerY, cropWidth, cropHeight, offsetX, offsetY, protectBayerEvenSteps);
     }
 
     public static List<AstroFrame> LoadFrames(string filePath, int maxFramesToLoad = 500, int serBitDepthOverride = 0)
