@@ -25,6 +25,19 @@ public sealed class UserSettings
     public int QualityFramesToKeep { get; set; } = 25;
     public bool DetectNaturalSatellites { get; set; } = true;
     public double SatelliteDetectionSensitivity { get; set; } = 1.0;
+
+    // Persisted stacking & alignment preferences
+    public int StackPercentage1 { get; set; } = 25;
+    public int StackPercentage2 { get; set; } = 0;
+    public int StackPercentage3 { get; set; } = 0;
+    public int AlignmentTileSize { get; set; } = 48;
+    public int MinBrightnessThreshold { get; set; } = 15;
+    public bool NormalizeBrightness { get; set; } = true;
+    public int NormalizeTargetPercent { get; set; } = 75;
+    public bool CorrectAtmosphericDispersion { get; set; } = true;
+    public bool SharpeningEnabled { get; set; } = true;
+    public int SharpeningBlendPercent { get; set; } = 10;
+    public bool FeatheringEnabled { get; set; } = true;
 }
 
 /// <summary>
@@ -119,7 +132,18 @@ public static class UserSettingsService
         int cropHeight,
         bool enableCropping,
         bool enableQuality,
-        int qualityKeep)
+        int qualityKeep,
+        int stackPct1 = 25,
+        int stackPct2 = 0,
+        int stackPct3 = 0,
+        int alignmentTileSize = 48,
+        int minBrightness = 15,
+        bool normalizeBrightness = true,
+        int normalizeTargetPct = 75,
+        bool correctAdc = true,
+        bool sharpeningEnabled = true,
+        int sharpeningBlendPct = 10,
+        bool featheringEnabled = true)
     {
         Current.WinJuposNaming = winJuposNaming;
         Current.SelectedOutputFormatIndex = outputFormatIndex;
@@ -132,6 +156,17 @@ public static class UserSettingsService
         Current.EnableCropping = enableCropping;
         Current.EnableQualityEstimation = enableQuality;
         Current.QualityFramesToKeep = qualityKeep;
+        Current.StackPercentage1 = Math.Clamp(stackPct1, 0, 100);
+        Current.StackPercentage2 = Math.Clamp(stackPct2, 0, 100);
+        Current.StackPercentage3 = Math.Clamp(stackPct3, 0, 100);
+        Current.AlignmentTileSize = Math.Clamp(alignmentTileSize, 16, 512);
+        Current.MinBrightnessThreshold = Math.Clamp(minBrightness, 1, 254);
+        Current.NormalizeBrightness = normalizeBrightness;
+        Current.NormalizeTargetPercent = Math.Clamp(normalizeTargetPct, 10, 100);
+        Current.CorrectAtmosphericDispersion = correctAdc;
+        Current.SharpeningEnabled = sharpeningEnabled;
+        Current.SharpeningBlendPercent = Math.Clamp(sharpeningBlendPct, 0, 100);
+        Current.FeatheringEnabled = featheringEnabled;
         Save();
     }
 }

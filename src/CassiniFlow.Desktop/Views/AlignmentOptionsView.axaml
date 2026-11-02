@@ -8,8 +8,15 @@
 
     <StackPanel Spacing="10" Margin="2,4,2,2">
 
+        <!-- Bannière informative en mode Pré-traitement seul -->
+        <Border Background="#1c1917" BorderBrush="#d97706" BorderThickness="1" CornerRadius="4" Padding="8,6"
+                IsVisible="{Binding IsWorkflowPreProcessingOnly}">
+            <TextBlock Text="Les points d'alignement (AP) sont désactivés en mode Pré-traitement seul."
+                       FontSize="11" Foreground="#fbbf24" TextWrapping="Wrap"/>
+        </Border>
+
         <!-- Tuiles d'alignement (Taille des zones AP) -->
-        <Border Classes="groupbox" Padding="10,8">
+        <Border Classes="groupbox" Padding="10,8" IsEnabled="{Binding !IsWorkflowPreProcessingOnly}">
             <StackPanel Spacing="8">
                 <TextBlock Text="{loc:Tr Tab.AlignmentOptions}" Classes="grouptitle"/>
 

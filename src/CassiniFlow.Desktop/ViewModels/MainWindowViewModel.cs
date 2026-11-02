@@ -221,6 +221,27 @@ public partial class MainWindowViewModel : ObservableObject
         CelestialTargetClassifier.DefaultDetectSatellites = _detectNaturalSatellites;
         CelestialTargetClassifier.DefaultSatelliteSensitivity = _satelliteDetectionSensitivity;
 
+        _stackPercentage1 = Math.Clamp(UserSettingsService.Current.StackPercentage1, 0, 100);
+        _stackPercentage2 = Math.Clamp(UserSettingsService.Current.StackPercentage2, 0, 100);
+        _stackPercentage3 = Math.Clamp(UserSettingsService.Current.StackPercentage3, 0, 100);
+        if (UserSettingsService.Current.AlignmentTileSize >= 16)
+        {
+            _alignmentTileSize = UserSettingsService.Current.AlignmentTileSize;
+        }
+        if (UserSettingsService.Current.MinBrightnessThreshold > 0)
+        {
+            _minBrightnessThreshold = UserSettingsService.Current.MinBrightnessThreshold;
+        }
+        _normalizeBrightness = UserSettingsService.Current.NormalizeBrightness;
+        if (UserSettingsService.Current.NormalizeTargetPercent >= 10)
+        {
+            _normalizeTargetPercent = UserSettingsService.Current.NormalizeTargetPercent;
+        }
+        _correctAtmosphericDispersion = UserSettingsService.Current.CorrectAtmosphericDispersion;
+        _sharpeningEnabled = UserSettingsService.Current.SharpeningEnabled;
+        _sharpeningBlendPercent = Math.Clamp(UserSettingsService.Current.SharpeningBlendPercent, 0, 100);
+        _featheringEnabled = UserSettingsService.Current.FeatheringEnabled;
+
         Loc.LanguageChanged += RefreshLocalizedTexts;
         ThemeManager.ThemeChanged += OnThemeChanged;
         SourceFiles.CollectionChanged += OnSourceFilesCollectionChanged;
@@ -394,6 +415,9 @@ public partial class MainWindowViewModel : ObservableObject
     // 7. Do Processing
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAddFiles))]
+    [NotifyPropertyChangedFor(nameof(CanStartProcessing))]
+    [NotifyPropertyChangedFor(nameof(HasStartValidationIssue))]
+    [NotifyPropertyChangedFor(nameof(StartProcessingValidationMessage))]
     private bool _isProcessing;
     [ObservableProperty] private int _processingProgress;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(GlobalStatusText))] private string _processingStageText = Loc.Tr("Prêt", "Ready");
@@ -554,12 +578,22 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTileSize104));
         OnPropertyChanged(nameof(IsTileSize140));
         OnPropertyChanged(nameof(IsTileSize200));
+        UserSettingsService.Current.AlignmentTileSize = Math.Clamp(value, 16, 512);
+        UserSettingsService.Save();
         CalculateAlignmentGrid();
+    }
+
+    partial void OnMinBrightnessThresholdChanged(int value)
+    {
+        UserSettingsService.Current.MinBrightnessThreshold = Math.Clamp(value, 1, 254);
+        UserSettingsService.Save();
+        RecalculateAlignmentGridIfActive();
     }
 
     partial void OnCurrentAlignmentGridChanged(AlignmentGrid value)
     {
         OnPropertyChanged(nameof(ActivePointsCountText));
+        NotifyStartProcessingValidation();
     }
 
     partial void OnSelectedStackingImageFormatIndexChanged(int value)
@@ -684,7 +718,23 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnDarkSubtractEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnHotPixelThresholdChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnMinObjectSizePixelsChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
-    partial void OnEnableQualityChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableQualityChanged(bool value)
+    {
+        UserSettingsService.Current.EnableQualityEstimation = value;
+        UserSettingsService.Save();
+        NotifyStartProcessingValidation();
+        RequestPreviewUpdate(reloadFromDisk: false);
+    }
+    partial void OnLimitQualityFramesChanged(bool value) => NotifyStartProcessingValidation();
+    partial void OnQualityKeepValueChanged(int value)
+    {
+        if (value > 0)
+        {
+            UserSettingsService.Current.QualityFramesToKeep = value;
+            UserSettingsService.Save();
+        }
+        NotifyStartProcessingValidation();
+    }
     partial void OnSelectedQualityAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnEnableFieldDerotationChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnObserverLatitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
@@ -854,6 +904,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         UpdateAvailableFrames();
         OnPropertyChanged(nameof(AreAllFilesChecked));
+        NotifyStartProcessingValidation();
     }
 
     private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -862,6 +913,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             UpdateAvailableFrames();
             OnPropertyChanged(nameof(AreAllFilesChecked));
+            NotifyStartProcessingValidation();
         }
     }
 
@@ -1096,8 +1148,10 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (detectedList.Count > 0)
         {
-            var primary = detectedList.FirstOrDefault(x => x.Item == SelectedSourceFile).Classification
-                          ?? detectedList[0].Classification;
+            var primaryEntry = detectedList.FirstOrDefault(x => x.Item == SelectedSourceFile);
+            if (primaryEntry.Item is null) primaryEntry = detectedList[0];
+            var primary = primaryEntry.Classification;
+            var primaryItem = primaryEntry.Item;
 
             string objName = primary.ObjectSummary(!Loc.IsEnglish);
             string idLine = Loc.Pick(
@@ -1120,6 +1174,40 @@ public partial class MainWindowViewModel : ObservableObject
                     $"\U0001F3AF Preset \u00ab {GetPresetName(primary.RecommendedPresetIndex)} \u00bb activ\u00e9 automatiquement.",
                     $"\U0001F3AF Preset \"{GetPresetName(primary.RecommendedPresetIndex)}\" selected automatically.");
                 sb.AppendLine().Append(presetLine);
+            }
+
+            int frameW = EnableCropping ? CropWidth : primaryItem.Width;
+            int frameH = EnableCropping ? CropHeight : primaryItem.Height;
+            int optimalTile = AlignmentGridGenerator.RecommendOptimalTileSize(
+                primaryItem.PlanetDiameterPx,
+                primary.TargetType,
+                frameW,
+                frameH);
+            AlignmentTileSize = optimalTile;
+            if (!IsWorkflowPreProcessingOnly)
+            {
+                CalculateAlignmentGrid();
+                if (CurrentAlignmentGrid.ActiveCount > 0)
+                {
+                    string apLine = Loc.Pick(
+                        $"\U0001F4CD Grille AP g\u00e9n\u00e9r\u00e9e automatiquement : {CurrentAlignmentGrid.ActiveCount} AP (tuiles {optimalTile} px).",
+                        $"\U0001F4CD AP grid generated automatically: {CurrentAlignmentGrid.ActiveCount} AP ({optimalTile} px tiles).");
+                    sb.AppendLine().Append(apLine);
+                }
+            }
+        }
+        else if (SelectedSourceFile is { } selItem)
+        {
+            int frameW = EnableCropping ? CropWidth : selItem.Width;
+            int frameH = EnableCropping ? CropHeight : selItem.Height;
+            AlignmentTileSize = AlignmentGridGenerator.RecommendOptimalTileSize(
+                selItem.PlanetDiameterPx,
+                CelestialTargetType.Unknown,
+                frameW,
+                frameH);
+            if (!IsWorkflowPreProcessingOnly)
+            {
+                CalculateAlignmentGrid();
             }
         }
 
@@ -1221,6 +1309,7 @@ public partial class MainWindowViewModel : ObservableObject
         SummaryStatsText = Loc.Retranslate(SummaryStatsText);
         ConsoleLogText = Loc.Retranslate(ConsoleLogText);
         UpdateCpuStatus();
+        NotifyStartProcessingValidation();
         foreach (var f in SourceFiles) f.RefreshLocalizedText();
         if (SelectedSourceFile is not null) RequestPreviewUpdate(reloadFromDisk: false);
         if (IsTutorialActive) UpdateTutorialStep();
@@ -1389,6 +1478,21 @@ public partial class MainWindowViewModel : ObservableObject
             if (IsSection1Visible) IsSection1Expanded = true;
             else if (IsSection5Visible) IsSection5Expanded = true;
         }
+
+        if (IsWorkflowPreProcessingOnly)
+        {
+            IsAlignmentGridVisible = false;
+        }
+        else
+        {
+            IsAlignmentGridVisible = true;
+            if (CurrentAlignmentGrid.Points.Count == 0 && (_lastProcessedPreviewFrame is not null || _cachedPreviewResult is not null))
+            {
+                CalculateAlignmentGrid();
+            }
+        }
+
+        NotifyStartProcessingValidation();
     }
 
     private bool IsAnyVisibleSectionExpanded()
@@ -1509,7 +1613,7 @@ public partial class MainWindowViewModel : ObservableObject
     // --- Points d'alignement (AP) ---
     [ObservableProperty] private bool _isAlignmentGridVisible = true;
     [ObservableProperty] private AlignmentGrid _currentAlignmentGrid = AlignmentGrid.Empty;
-    [ObservableProperty] private int _alignmentTileSize = 104;
+    [ObservableProperty] private int _alignmentTileSize = 48;
     [ObservableProperty] private int _minBrightnessThreshold = 15;
     [ObservableProperty] private bool _enablePruning = true;
     [ObservableProperty] private bool _enableMultiScaleGrid = true;
@@ -1529,13 +1633,34 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
 
     // --- Empilement Multi-Zones & Rendu ---
-    [ObservableProperty] private int _stackPercentage1 = 0;
+    [ObservableProperty] private int _stackPercentage1 = 25;
     [ObservableProperty] private int _stackPercentage2 = 0;
     [ObservableProperty] private int _stackPercentage3 = 0;
 
+    partial void OnStackPercentage1Changed(int value)
+    {
+        UserSettingsService.Current.StackPercentage1 = Math.Clamp(value, 0, 100);
+        UserSettingsService.Save();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnStackPercentage2Changed(int value)
+    {
+        UserSettingsService.Current.StackPercentage2 = Math.Clamp(value, 0, 100);
+        UserSettingsService.Save();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnStackPercentage3Changed(int value)
+    {
+        UserSettingsService.Current.StackPercentage3 = Math.Clamp(value, 0, 100);
+        UserSettingsService.Save();
+        NotifyStartProcessingValidation();
+    }
+
     public int StackPercentage
     {
-        get => StackPercentage1 > 0 ? StackPercentage1 : (StackPercentage2 > 0 ? StackPercentage2 : (StackPercentage3 > 0 ? StackPercentage3 : 25));
+        get => StackPercentage1 > 0 ? StackPercentage1 : (StackPercentage2 > 0 ? StackPercentage2 : (StackPercentage3 > 0 ? StackPercentage3 : 0));
         set => StackPercentage1 = value;
     }
 
@@ -1546,6 +1671,53 @@ public partial class MainWindowViewModel : ObservableObject
         if (StackPercentage2 > 0) list.Add(StackPercentage2);
         if (StackPercentage3 > 0) list.Add(StackPercentage3);
         return list.Distinct().OrderBy(p => p).ToList();
+    }
+
+    // --- Validation d'exécution (blocage du bouton Démarrer) ---
+    public bool CanStartProcessing => !IsProcessing && string.IsNullOrEmpty(GetStartProcessingValidationIssue());
+    public bool HasStartValidationIssue => !IsProcessing && !string.IsNullOrEmpty(GetStartProcessingValidationIssue());
+    public string StartProcessingValidationMessage => GetStartProcessingValidationIssue();
+
+    private string GetStartProcessingValidationIssue()
+    {
+        if (!SourceFiles.Any(f => f.IsChecked))
+        {
+            return Loc.Pick(
+                "Veuillez ajouter et cocher au moins un fichier source (section 1).",
+                "Please add and check at least one source file (section 1).");
+        }
+
+        if (!IsWorkflowPreProcessingOnly)
+        {
+            if (GetActiveStackPercentages().Count == 0)
+            {
+                return Loc.Pick(
+                    "Veuillez définir au moins un pourcentage de trames à empiler (> 0 %). Tous les paliers sont actuellement à 0 %.",
+                    "Please set at least one frame stacking percentage (> 0%). All tiers are currently set to 0%.");
+            }
+
+            if (CurrentAlignmentGrid.ActiveCount == 0)
+            {
+                return Loc.Pick(
+                    "Aucun point d'alignement (AP) n'est placé sur la cible. Cliquez sur « Placer les points » ou ajoutez un AP manuellement.",
+                    "No alignment points (AP) placed on target. Click 'Place Points' or add an AP manually.");
+            }
+        }
+        else if (EnableQuality && LimitQualityFrames && QualityKeepValue <= 0)
+        {
+            return Loc.Pick(
+                "Veuillez définir un nombre ou pourcentage de trames à conserver supérieur à 0.",
+                "Please set the number or percentage of frames to keep above 0.");
+        }
+
+        return string.Empty;
+    }
+
+    private void NotifyStartProcessingValidation()
+    {
+        OnPropertyChanged(nameof(CanStartProcessing));
+        OnPropertyChanged(nameof(HasStartValidationIssue));
+        OnPropertyChanged(nameof(StartProcessingValidationMessage));
     }
     [ObservableProperty] private int _stackFrameCount = 1000;
     [ObservableProperty] private int _maxAvailableFrames = 999999;
@@ -1588,6 +1760,37 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _sharpeningEnabled = true;
     [ObservableProperty] private int _sharpeningBlendPercent = 10;
     [ObservableProperty] private bool _featheringEnabled = true;
+
+    partial void OnNormalizeBrightnessChanged(bool value)
+    {
+        UserSettingsService.Current.NormalizeBrightness = value;
+        UserSettingsService.Save();
+    }
+    partial void OnNormalizeTargetPercentChanged(int value)
+    {
+        UserSettingsService.Current.NormalizeTargetPercent = Math.Clamp(value, 10, 100);
+        UserSettingsService.Save();
+    }
+    partial void OnCorrectAtmosphericDispersionChanged(bool value)
+    {
+        UserSettingsService.Current.CorrectAtmosphericDispersion = value;
+        UserSettingsService.Save();
+    }
+    partial void OnSharpeningEnabledChanged(bool value)
+    {
+        UserSettingsService.Current.SharpeningEnabled = value;
+        UserSettingsService.Save();
+    }
+    partial void OnSharpeningBlendPercentChanged(int value)
+    {
+        UserSettingsService.Current.SharpeningBlendPercent = Math.Clamp(value, 0, 100);
+        UserSettingsService.Save();
+    }
+    partial void OnFeatheringEnabledChanged(bool value)
+    {
+        UserSettingsService.Current.FeatheringEnabled = value;
+        UserSettingsService.Save();
+    }
 
     // Interactive Tutorial Wizard
     [ObservableProperty] private bool _isTutorialActive;
@@ -1731,7 +1934,18 @@ public partial class MainWindowViewModel : ObservableObject
             CropHeight,
             EnableCropping,
             EnableQuality,
-            QualityKeepValue);
+            QualityKeepValue,
+            StackPercentage1,
+            StackPercentage2,
+            StackPercentage3,
+            AlignmentTileSize,
+            MinBrightnessThreshold,
+            NormalizeBrightness,
+            NormalizeTargetPercent,
+            CorrectAtmosphericDispersion,
+            SharpeningEnabled,
+            SharpeningBlendPercent,
+            FeatheringEnabled);
         IsSettingsSavedFeedbackVisible = true;
         await Task.Delay(2500);
         IsSettingsSavedFeedbackVisible = false;
@@ -1861,8 +2075,9 @@ public partial class MainWindowViewModel : ObservableObject
                 _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
 
-                if (EnableCropping && CurrentAlignmentGrid is not null && CurrentAlignmentGrid.Points.Count > 0
-                    && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))
+                if (!IsWorkflowPreProcessingOnly &&
+                    (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
+                     (EnableCropping && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))))
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
                 }
@@ -1979,8 +2194,10 @@ public partial class MainWindowViewModel : ObservableObject
         Options.Stacking.EnablePruning = EnablePruning;
         Options.Stacking.EnableMultiScaleGrid = EnableMultiScaleGrid;
         var activePcts = GetActiveStackPercentages();
-        if (activePcts.Count == 0) activePcts = [25.0];
         Options.Stacking.StackPercentages = activePcts;
+        Options.Stacking.CustomAlignmentGrid = (!IsWorkflowPreProcessingOnly && CurrentAlignmentGrid.ActiveCount > 0)
+            ? CurrentAlignmentGrid
+            : null;
         Options.Stacking.StackFrameCounts = [StackFrameCount];
         Options.Stacking.Drizzle = SelectedDrizzleIndex switch
         {
@@ -2016,6 +2233,13 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         if (IsProcessing) return;
+
+        string validationIssue = GetStartProcessingValidationIssue();
+        if (!string.IsNullOrEmpty(validationIssue))
+        {
+            ConsoleLogText = validationIssue;
+            return;
+        }
 
         IsSection10Expanded = true;
         IsProcessing = true;
@@ -2186,6 +2410,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void CalculateAlignmentGrid()
     {
+        if (IsWorkflowPreProcessingOnly) return;
         SyncOptionsFromUi();
 
         AstroFrame? frame = null;
@@ -2240,6 +2465,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void AddManualAlignmentPoint(int x, int y)
     {
+        if (IsWorkflowPreProcessingOnly) return;
+
         int fw = CurrentAlignmentGrid.FrameWidth > 0 
             ? CurrentAlignmentGrid.FrameWidth 
             : (EnableCropping ? CropWidth : (_cachedPreviewResult?.Frame.Width ?? 0));
@@ -2315,7 +2542,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void RemoveManualAlignmentPoint(int x, int y)
     {
-        if (CurrentAlignmentGrid.Points.Count == 0)
+        if (IsWorkflowPreProcessingOnly || CurrentAlignmentGrid.Points.Count == 0)
             return;
 
         int tileSize = CurrentAlignmentGrid.TileSize > 0 ? CurrentAlignmentGrid.TileSize : AlignmentTileSize;

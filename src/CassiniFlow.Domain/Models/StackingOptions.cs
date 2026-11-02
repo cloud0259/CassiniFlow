@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using System.Xml.Serialization;
+
 namespace CassiniFlow.Domain.Models;
 
 /// <summary>
@@ -22,13 +25,17 @@ public sealed class StackingOptions
     public int ManualReferenceFrameIndex { get; set; } = 0;
 
     // Points d'alignement
-    public int AlignmentTileSize { get; set; } = 104;
+    public int AlignmentTileSize { get; set; } = 48;
     public int MinBrightnessThreshold { get; set; } = 15;
     public bool EnablePruning { get; set; } = true;
     public bool EnableMultiScaleGrid { get; set; } = true;
 
+    [JsonIgnore]
+    [XmlIgnore]
+    public AlignmentGrid? CustomAlignmentGrid { get; set; }
+
     // Paliers d'empilement
-    public List<double> StackPercentages { get; set; } = [10.0, 25.0];
+    public List<double> StackPercentages { get; set; } = [25.0];
     public List<int> StackFrameCounts { get; set; } = [200, 500];
 
     // Restauration & Rendu
@@ -57,6 +64,7 @@ public sealed class StackingOptions
             MinBrightnessThreshold = MinBrightnessThreshold,
             EnablePruning = EnablePruning,
             EnableMultiScaleGrid = EnableMultiScaleGrid,
+            CustomAlignmentGrid = CustomAlignmentGrid,
             StackPercentages = new List<double>(StackPercentages),
             StackFrameCounts = new List<int>(StackFrameCounts),
             Drizzle = Drizzle,

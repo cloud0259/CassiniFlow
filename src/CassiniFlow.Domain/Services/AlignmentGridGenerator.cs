@@ -8,6 +8,33 @@ namespace CassiniFlow.Domain.Services;
 /// </summary>
 public static class AlignmentGridGenerator
 {
+    /// <summary>
+    /// Calcule automatiquement la taille de tuile d'alignement (AP) optimale selon le diamètre
+    /// mesuré de l'objet céleste et sa classification (Planète, Lune/Soleil).
+    /// </summary>
+    public static int RecommendOptimalTileSize(
+        double? planetDiameterPx,
+        CelestialTargetType targetType = CelestialTargetType.Unknown,
+        int frameWidth = 0,
+        int frameHeight = 0)
+    {
+        if (targetType is CelestialTargetType.MoonOrSunSurface or CelestialTargetType.MoonOrSunFullDisc)
+        {
+            return (frameWidth >= 1920 || frameHeight >= 1920) ? 140 : 104;
+        }
+
+        if (planetDiameterPx is > 0)
+        {
+            double d = planetDiameterPx.Value;
+            if (d < 95.0) return 24;
+            if (d < 280.0) return 48;
+            if (d < 500.0) return 104;
+            return 140;
+        }
+
+        return 48;
+    }
+
     public static AlignmentGrid GenerateGrid(AstroFrame frame, StackingOptions options)
     {
         if (frame.Width <= 0 || frame.Height <= 0 || frame.Data.Length == 0)
@@ -175,4 +202,3 @@ public static class AlignmentGridGenerator
         return (mean, Math.Max(0, variance));
     }
 }
-

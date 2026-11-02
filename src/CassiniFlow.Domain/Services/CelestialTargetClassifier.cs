@@ -460,7 +460,7 @@ public static class CelestialTargetClassifier
     }
 
     /// <summary>
-    /// Analyse morphologique du disque d'une planète (centre, rayon, allongement).
+    /// Analyse morphologique du disque d'une planète (centre, rayon, allongement invariant par rotation).
     /// </summary>
     public static (double Cx, double Cy, double Radius, double AspectRatio, bool Found) AnalyzePlanetDisk(
         AstroFrame frame,
@@ -503,9 +503,11 @@ public static class CelestialTargetClassifier
 
         double pcx = (double)pSumX / pWeight;
         double pcy = (double)pSumY / pWeight;
-        double maxDiskR2 = (measuredDiameter * 0.75) * (measuredDiameter * 0.75);
+        double maxDiskR2 = (measuredDiameter * 0.85) * (measuredDiameter * 0.85);
 
         int pMinX = w, pMaxX = 0, pMinY = h, pMaxY = 0;
+        double m20 = 0.0, m02 = 0.0, m11 = 0.0, m00 = 0.0;
+
         unsafe
         {
             fixed (ushort* p = frame.Data)
@@ -529,6 +531,11 @@ public static class CelestialTargetClassifier
                             if (x > pMaxX) pMaxX = x;
                             if (y < pMinY) pMinY = y;
                             if (y > pMaxY) pMaxY = y;
+
+                            m00 += 1.0;
+                            m20 += dx * dx;
+                            m02 += dy2;
+                            m11 += dx * dy;
                         }
                     }
                 }
@@ -537,8 +544,19 @@ public static class CelestialTargetClassifier
 
         int boxW = Math.Max(1, pMaxX - pMinX + 1);
         int boxH = Math.Max(1, pMaxY - pMinY + 1);
-        double aspectRatio = (double)Math.Max(boxW, boxH) / Math.Min(boxW, boxH);
+        double boxAspectRatio = (double)Math.Max(boxW, boxH) / Math.Min(boxW, boxH);
 
+        double momentAspectRatio = 1.0;
+        if (m00 >= 12.0)
+        {
+            double diff = m20 - m02;
+            double disc = Math.Sqrt(diff * diff + 4.0 * m11 * m11);
+            double lambdaMax = (m20 + m02 + disc) * 0.5;
+            double lambdaMin = Math.Max(1e-6, (m20 + m02 - disc) * 0.5);
+            momentAspectRatio = Math.Sqrt(lambdaMax / lambdaMin);
+        }
+
+        double aspectRatio = Math.Max(boxAspectRatio, momentAspectRatio);
         return (pcx, pcy, measuredDiameter / 2.0, aspectRatio, true);
     }
 
