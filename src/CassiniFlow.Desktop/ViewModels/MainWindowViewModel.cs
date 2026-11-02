@@ -333,7 +333,41 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _selectedRotationIndex = 0;
     [ObservableProperty] private bool _flipHorizontal;
     [ObservableProperty] private bool _flipVertical;
-    [ObservableProperty] private bool _autoRotateAlign;
+        [ObservableProperty] private bool _autoRotateAlign;
+
+    // Dérotation de champ (Monture Dobson / Alt-Azimutale)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private bool _enableFieldDerotation;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _observerLatitudeDegrees = 49.62;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _targetAltitudeDegrees = 45.0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _targetAzimuthDegrees = 180.0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DerotationInfoText))]
+    private double _admissibleBlurPixels = 1.5;
+
+    public string DerotationInfoText
+    {
+        get
+        {
+            double rate = FieldDerotationEngine.ComputeFieldRotationRateDegPerMin(ObserverLatitudeDegrees, TargetAltitudeDegrees, TargetAzimuthDegrees);
+            double sensorRadius = (CropWidth > 0 ? CropWidth : 1936) / 2.0;
+            double maxT = FieldDerotationEngine.ComputeMaxExposureSeconds(ObserverLatitudeDegrees, TargetAltitudeDegrees, TargetAzimuthDegrees, sensorRadius, AdmissibleBlurPixels);
+            return Loc.Pick(
+                $"Taux de rotation : {rate:F3} °/min | Durée maxi sans dérotation : {maxT:F1} s",
+                $"Rotation rate: {rate:F3} °/min | Max exposure without derotation: {maxT:F1} s");
+        }
+    }
 
     // 4. Quality Options
     [ObservableProperty] private bool _enableQuality = false;
@@ -647,6 +681,16 @@ public partial class MainWindowViewModel : ObservableObject
         RequestPreviewUpdate(reloadFromDisk: false);
     }
 
+    partial void OnDarkSubtractEnabledChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnHotPixelThresholdChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnMinObjectSizePixelsChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableQualityChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnSelectedQualityAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnEnableFieldDerotationChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnObserverLatitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnTargetAltitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnTargetAzimuthDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
+
     public void SetAnchorOrCropTarget(int x, int y)
     {
         switch (SelectedStabilisationModeIndex)
@@ -957,6 +1001,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(DarkFilesTooltip));
         OnPropertyChanged(nameof(FlatFilesTooltip));
         OnPropertyChanged(nameof(FlatDarkFilesTooltip));
+        RequestPreviewUpdate(reloadFromDisk: false);
     }
 
     [RelayCommand]
@@ -1185,6 +1230,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isSection1Expanded = true;
     [ObservableProperty] private bool _isSection2Expanded;
     [ObservableProperty] private bool _isSection3Expanded;
+    [ObservableProperty] private bool _isSectionDerotationExpanded;
     [ObservableProperty] private bool _isSection4Expanded;
     [ObservableProperty] private bool _isSection5Expanded;
     [ObservableProperty] private bool _isSection6Expanded;
@@ -1204,6 +1250,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (sectionNumber != 1) IsSection1Expanded = false;
             if (sectionNumber != 2) IsSection2Expanded = false;
             if (sectionNumber != 3) IsSection3Expanded = false;
+            if (sectionNumber != 11) IsSectionDerotationExpanded = false;
             if (sectionNumber != 4) IsSection4Expanded = false;
             if (sectionNumber != 5) IsSection5Expanded = false;
             if (sectionNumber != 6) IsSection6Expanded = false;
@@ -1221,6 +1268,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnIsSection1ExpandedChanged(bool value) { if (value) CollapseOtherSections(1); }
     partial void OnIsSection2ExpandedChanged(bool value) { if (value) CollapseOtherSections(2); }
     partial void OnIsSection3ExpandedChanged(bool value) { if (value) CollapseOtherSections(3); }
+    partial void OnIsSectionDerotationExpandedChanged(bool value) { if (value) CollapseOtherSections(11); }
     partial void OnIsSection4ExpandedChanged(bool value) { if (value) CollapseOtherSections(4); }
     partial void OnIsSection5ExpandedChanged(bool value) { if (value) CollapseOtherSections(5); }
     partial void OnIsSection6ExpandedChanged(bool value) { if (value) CollapseOtherSections(6); }
@@ -1241,6 +1289,8 @@ public partial class MainWindowViewModel : ObservableObject
     public bool IsSection1Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSectionDerotationVisible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public string SectionDerotationBadgeText => "⟳";
     public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
     public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
     public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
@@ -1303,6 +1353,8 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSection1Visible));
         OnPropertyChanged(nameof(IsSection2Visible));
         OnPropertyChanged(nameof(IsSection3Visible));
+        OnPropertyChanged(nameof(IsSectionDerotationVisible));
+        OnPropertyChanged(nameof(SectionDerotationBadgeText));
         OnPropertyChanged(nameof(IsSection4Visible));
         OnPropertyChanged(nameof(IsSection5Visible));
         OnPropertyChanged(nameof(IsSection6Visible));
@@ -1325,6 +1377,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (!IsSection1Visible) IsSection1Expanded = false;
         if (!IsSection2Visible) IsSection2Expanded = false;
         if (!IsSection3Visible) IsSection3Expanded = false;
+        if (!IsSectionDerotationVisible) IsSectionDerotationExpanded = false;
         if (!IsSection4Visible) IsSection4Expanded = false;
         if (!IsSection5Visible) IsSection5Expanded = false;
         if (!IsSection6Visible) IsSection6Expanded = false;
@@ -1343,6 +1396,7 @@ public partial class MainWindowViewModel : ObservableObject
         return (IsSection1Visible && IsSection1Expanded) ||
                (IsSection2Visible && IsSection2Expanded) ||
                (IsSection3Visible && IsSection3Expanded) ||
+               (IsSectionDerotationVisible && IsSectionDerotationExpanded) ||
                (IsSection4Visible && IsSection4Expanded) ||
                (IsSection5Visible && IsSection5Expanded) ||
                (IsSection6Visible && IsSection6Expanded) ||
@@ -1837,6 +1891,7 @@ public partial class MainWindowViewModel : ObservableObject
         Options.FlatFrameCalibrate = FlatFiles.Count > 0;
         Options.FlatDarkFrameSubtract = FlatDarkFiles.Count > 0;
         Options.HotPixelThreshold = HotPixelThreshold;
+        Options.ReplaceHotPixels = DarkSubtractEnabled;
         Options.DebayerEnabled = DebayerEnabled;
         Options.DebayerPattern = (BayerPattern)Math.Clamp(SelectedBayerPatternIndex, 0, 3);
         Options.DebayerType = (DebayerAlgorithm)Math.Clamp(SelectedDebayerAlgoIndex, 0, 2);
@@ -1872,7 +1927,12 @@ public partial class MainWindowViewModel : ObservableObject
         Options.Rotation = (RotationAngle)Math.Clamp(SelectedRotationIndex, 0, 3);
         Options.FlipHorizontalX = FlipHorizontal;
         Options.FlipVerticalY = FlipVertical;
-        Options.AutoRotateAlign = AutoRotateAlign;
+                Options.AutoRotateAlign = AutoRotateAlign;
+        Options.EnableFieldDerotation = EnableFieldDerotation;
+        Options.ObserverLatitudeDegrees = ObserverLatitudeDegrees;
+        Options.TargetAltitudeDegrees = TargetAltitudeDegrees;
+        Options.TargetAzimuthDegrees = TargetAzimuthDegrees;
+        Options.AdmissibleBlurPixels = AdmissibleBlurPixels;
 
         Options.EnableQualityEstimation = EnableQuality;
         Options.QualityAlgorithm = (QualityAlgorithm)Math.Clamp(SelectedQualityAlgoIndex, 0, 3);

@@ -47,7 +47,8 @@
         "OutputOptions": "Output Options",
         "DoProcessing": "Execution",
         "AlignmentOptions": "Alignment Points",
-        "StackingOptions": "Stacking \u0026 Render"
+        "StackingOptions": "Stacking \u0026 Render",
+        "DerotationOptions": "Field Derotation"
     },
     "SourceFiles": {
         "Header": "Video files and image sequences to process:",
@@ -405,5 +406,15 @@
         "SharpenTip": "High-frequency sharpening using 5x5 unsharp mask",
         "Feathering": "Seam smoothing",
         "FeatheringTip": "Smooth seamless transitions between alignment zones"
+    },
+    "Derotation": {
+        "Enable": "Enable field derotation",
+        "EnableTip": "Compensates for apparent field rotation during capture on Alt-Az and Dobson mounts.",
+        "Latitude": "Observer latitude:",
+        "LatitudeTip": "Observer geographic latitude in decimal degrees (positive North, negative South).",
+        "Altitude": "Target altitude above horizon:",
+        "AltitudeTip": "Target altitude above the horizon in degrees (1° to 89°).",
+        "Azimuth": "Target azimuth:",
+        "AzimuthTip": "Target azimuth in degrees (South = 180°, North = 0° / 360°, East = 90°, West = 270°)."
     }
 }

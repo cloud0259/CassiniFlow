@@ -47,7 +47,8 @@
         "OutputOptions": "Options de sortie",
         "DoProcessing": "Exécution",
         "AlignmentOptions": "Points d\u0027alignement",
-        "StackingOptions": "Empilement \u0026 Rendu"
+        "StackingOptions": "Empilement \u0026 Rendu",
+        "DerotationOptions": "Dérotation de champ"
     },
     "SourceFiles": {
         "Header": "Liste des fichiers vidéos et séquences d\u0027images à traiter :",
@@ -405,5 +406,15 @@
         "SharpenTip": "Accentuation haute fréquence par masque flou 5x5",
         "Feathering": "Lissage des coutures",
         "FeatheringTip": "Transition fluide sans jointures visibles entre zones d\u0027alignement"
+    },
+    "Derotation": {
+        "Enable": "Activer la dérotation de champ",
+        "EnableTip": "Compense la rotation de champ apparente pendant la capture pour les montures azimutales et Dobson.",
+        "Latitude": "Latitude du lieu :",
+        "LatitudeTip": "Latitude géographique du lieu d'observation en degrés décimaux (positive au Nord, négative au Sud).",
+        "Altitude": "Hauteur sur l'horizon :",
+        "AltitudeTip": "Hauteur angulaire de la cible au-dessus de l'horizon en degrés (1° à 89°).",
+        "Azimuth": "Azimut de la cible :",
+        "AzimuthTip": "Azimut de la cible en degrés (Sud = 180°, Nord = 0° / 360°, Est = 90°, Ouest = 270°)."
     }
 }
