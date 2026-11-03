@@ -12,8 +12,8 @@ public class TutorialTests
     [Fact]
     public void Tutorial_Workflow_NavigatesThroughAllStepsAndCloses()
     {
-        Loc.SetLanguage(AppLanguage.French);
-        var vm = new MainWindowViewModel();
+        Loc.SetLanguage(AppLanguage.French, save: false);
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // 1. Start tutorial -> Step 1 (Source files)
         vm.StartTutorial();
@@ -72,21 +72,21 @@ public class TutorialTests
         Assert.Equal(4, vm.TutorialStepIndex);
         vm.NextTutorialStep(); // Finish
         Assert.False(vm.IsTutorialActive);
-        Assert.True(UserSettingsService.Current.HasSeenTutorial);
+        Assert.True(vm.HasSeenTutorial);
     }
 
     [Fact]
     public void Tutorial_LanguageSwitch_UpdatesTexts()
     {
-        Loc.SetLanguage(AppLanguage.French);
-        var vm = new MainWindowViewModel();
+        Loc.SetLanguage(AppLanguage.French, save: false);
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.StartTutorial();
 
         string frTitle = vm.TutorialStepTitle;
         Assert.Contains("Importation", frTitle);
         Assert.Contains("Volet Fichiers Sources", vm.TutorialTargetBadge);
 
-        Loc.SetLanguage(AppLanguage.English);
+        Loc.SetLanguage(AppLanguage.English, save: false);
         vm.RefreshLocalizedTexts();
 
         string enTitle = vm.TutorialStepTitle;
@@ -95,6 +95,6 @@ public class TutorialTests
         Assert.NotEqual(frTitle, enTitle);
 
         // Reset to French for other tests
-        Loc.SetLanguage(AppLanguage.French);
+        Loc.SetLanguage(AppLanguage.French, save: false);
     }
 }

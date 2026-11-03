@@ -82,11 +82,11 @@ public partial class SourceFilesView : UserControl
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Loc.Pick("Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)", "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)"),
+            Title = Loc.Get("Dialogs.SelectSourceFilesTitle"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(Loc.Pick("Vidéos & Séquences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)", "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)"))
+                new FilePickerFileType(Loc.Get("Dialogs.FilterVideosAndImages"))
                 {
                     Patterns = ["*.avi", "*.mp4", "*.mov", "*.mkv", "*.webm", "*.wmv", "*.ser", "*.fit", "*.fits", "*.bmp", "*.png", "*.tif", "*.tiff", "*.jpg", "*.jpeg", "*.dng"]
                 },
@@ -135,21 +135,21 @@ public partial class SourceFilesView : UserControl
     private async void OnAddDarkFilesClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
-        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Dark (SER, FITS, TIFF, PNG)", "Select Dark frames (SER, FITS, TIFF, PNG)"));
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectDarkFiles"));
         if (paths.Count > 0) vm.AddDarkFiles(paths);
     }
 
     private async void OnAddFlatFilesClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
-        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Flat (SER, FITS, TIFF, PNG)", "Select Flat frames (SER, FITS, TIFF, PNG)"));
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatFiles"));
         if (paths.Count > 0) vm.AddFlatFiles(paths);
     }
 
     private async void OnAddFlatDarkFilesClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
-        var paths = await PickCalibrationFilesAsync(Loc.Pick("Sélectionner des trames Flat-Dark (SER, FITS, TIFF, PNG)", "Select Flat-Dark frames (SER, FITS, TIFF, PNG)"));
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatDarkFiles"));
         if (paths.Count > 0) vm.AddFlatDarkFiles(paths);
     }
 

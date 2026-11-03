@@ -10,8 +10,6 @@ namespace CassiniFlow.Desktop.Converters;
 /// </summary>
 public sealed class FileSizeConverter : IValueConverter
 {
-    public static readonly FileSizeConverter Instance = new();
-
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is string path && File.Exists(path))
@@ -20,9 +18,9 @@ public sealed class FileSizeConverter : IValueConverter
             {
                 var fi = new FileInfo(path);
                 long bytes = fi.Length;
-                if (bytes < 1024) return $"{bytes} B";
-                if (bytes < 1024 * 1024) return $"{(bytes / 1024.0).ToString("F1", CultureInfo.InvariantCulture)} KB";
-                return $"{(bytes / (1024.0 * 1024.0)).ToString("F1", CultureInfo.InvariantCulture)} MB";
+                if (bytes < 1024) return Localization.Loc.Format("UI.FileSizeBytes", bytes);
+                if (bytes < 1024 * 1024) return Localization.Loc.Format("UI.FileSizeKb", bytes / 1024.0);
+                return Localization.Loc.Format("UI.FileSizeMb", bytes / (1024.0 * 1024.0));
             }
             catch
             {

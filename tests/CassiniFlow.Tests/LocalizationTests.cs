@@ -25,7 +25,7 @@ public class LocalizationTests
     [Fact]
     public void LocalizationJsonFiles_ExistAndHaveIdenticalKeys()
     {
-        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CassiniFlow.Desktop", "Localization", "Languages"));
+        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CassiniFlow.Domain", "Localization", "Languages"));
         var frPath = Path.Combine(basePath, "fr.json");
         var enPath = Path.Combine(basePath, "en.json");
 
@@ -80,6 +80,30 @@ public class LocalizationTests
         Assert.Contains("42 px", formattedEn);
 
         Loc.SetLanguage(AppLanguage.French, save: false);
+    }
+
+    [Fact]
+    public void Loc_Format_UsesLanguageSpecificCulture_IndependentOfSystemCulture()
+    {
+        var prevCulture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Simulate an en-US environment (like GitHub Actions runners)
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+
+            Loc.SetLanguage(AppLanguage.French, save: false);
+            var frSize = Loc.Format("UI.FileSizeKb", 2.0);
+            Assert.Equal("2,0 Ko", frSize);
+
+            Loc.SetLanguage(AppLanguage.English, save: false);
+            var enSize = Loc.Format("UI.FileSizeKb", 2.0);
+            Assert.Equal("2.0 KB", enSize);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = prevCulture;
+            Loc.SetLanguage(AppLanguage.French, save: false);
+        }
     }
 
     [Fact]
@@ -146,7 +170,7 @@ public class LocalizationTests
     [Fact]
     public void Loc_AboutAndMetadata_HaveCompleteTranslationsInFrenchAndEnglish()
     {
-        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CassiniFlow.Desktop", "Localization", "Languages"));
+        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CassiniFlow.Domain", "Localization", "Languages"));
         using var frDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(basePath, "fr.json")));
         using var enDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(basePath, "en.json")));
 
@@ -184,5 +208,24 @@ public class LocalizationTests
 
             Loc.SetLanguage(AppLanguage.French, save: false);
         }
+    }
+
+    [Fact]
+    public void AstroLocalizationService_CanBeInjectedAndOperateIndependently()
+    {
+        CassiniFlow.Domain.Ports.Inbound.IAstroLocalization service1 = new CassiniFlow.Domain.Localization.AstroLocalizationService();
+        CassiniFlow.Domain.Ports.Inbound.IAstroLocalization service2 = new CassiniFlow.Domain.Localization.AstroLocalizationService();
+
+        service1.SetLanguage(CassiniFlow.Domain.Localization.DomainLanguage.French);
+        service2.SetLanguage(CassiniFlow.Domain.Localization.DomainLanguage.English);
+
+        Assert.False(service1.IsEnglish);
+        Assert.True(service2.IsEnglish);
+
+        Assert.Equal("Quitter", service1.Get("Menu.Exit"));
+        Assert.Equal("Exit", service2.Get("Menu.Exit"));
+
+        var vm = TestFactory.CreateMainWindowViewModel(localization: service2);
+        Assert.NotNull(vm);
     }
 }

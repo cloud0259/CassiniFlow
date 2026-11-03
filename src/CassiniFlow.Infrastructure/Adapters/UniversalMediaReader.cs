@@ -1,4 +1,5 @@
 using System.Text;
+using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Codecs;
@@ -152,7 +153,7 @@ public static class UniversalMediaReader
             string fourcc = string.IsNullOrWhiteSpace(cap.FourCC) ? ext.TrimStart('.').ToUpperInvariant() : cap.FourCC.Trim();
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Fichier Vidéo : {fi.Name}");
+            sb.AppendLine($"--- Fichier Vidéo : {fi.Name} ---");
             sb.AppendLine(new string('=', 56));
             sb.AppendLine($"Chemin      : {filePath}");
             sb.AppendLine($"Taille      : {fi.Length:N0} octets ({fi.Length / (1024.0 * 1024.0):F2} Mo)");
@@ -200,11 +201,11 @@ public static class UniversalMediaReader
                 h,
                 1.0,
                 fi.Length,
-                $"Fichier Image : {fi.Name} ({w}×{h}, {depth}-bit, Canaux={mat.Channels()})",
+                $"Image '{fi.Name}' : {w}x{h}, {depth}-bit, {mat.Channels()} canaux",
                 AstroMetadataExtractor.Extract(filePath));
         }
 
-        throw new NotSupportedException($"Format de fichier non supporté : {ext}");
+        throw new NotSupportedException($"Format de fichier non supporté '{ext}'.");
     }
 
     /// <summary>
@@ -334,7 +335,7 @@ public static class UniversalMediaReader
                     {
                         return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim);
                     }
-                    throw new InvalidDataException($"Impossible de décoder la frame #{target + 1}.");
+                    throw new InvalidDataException($"Impossible de décoder la trame {target + 1}.");
                 }
 
                 int origW = _reusableReadMat.Width;
@@ -353,7 +354,7 @@ public static class UniversalMediaReader
                 return new UniversalPreviewFrame(MatToAstroFrame(_reusableReadMat, target), origW, origH, 1.0);
             }
         }
-        throw new NotSupportedException($"Format non supporté : {ext}");
+        throw new NotSupportedException($"Format de fichier non supporté '{ext}'.");
     }
 
     public static AstroFrame ReadSingleFrame(string filePath, int frameIndex, int serBitDepthOverride = 0)
@@ -449,13 +450,13 @@ public static class UniversalMediaReader
                     {
                         return FfmpegCliBackend.ReadPreviewFrame(filePath, frameIndex, maxPreviewDim: 4096).Frame;
                     }
-                    throw new InvalidDataException($"Impossible de décoder la frame #{target + 1}.");
+                    throw new InvalidDataException($"Impossible de décoder la trame {target + 1}.");
                 }
 
                 return MatToAstroFrame(_reusableReadMat, target);
             }
         }
-        throw new NotSupportedException($"Format non supporté : {ext}");
+        throw new NotSupportedException($"Format de fichier non supporté '{ext}'.");
     }
 
     /// <summary>
@@ -547,7 +548,13 @@ public static class UniversalMediaReader
                 }
             }
 
-            if (lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
+            bool clippedByLocalWindow =
+                (rx0 > 0 && lMinX <= rx0 + localStep) ||
+                (rx1 < w && lMaxX >= rx1 - localStep * 2) ||
+                (ry0 > 0 && lMinY <= ry0 + localStep) ||
+                (ry1 < h && lMaxY >= ry1 - localStep * 2);
+
+            if (!clippedByLocalWindow && lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
             {
                 int lbaryX = (int)(lSumX / lWeight);
                 int lbaryY = (int)(lSumY / lWeight);
@@ -1185,7 +1192,7 @@ public static class UniversalMediaReader
             }
             yield break;
         }
-        throw new NotSupportedException($"Format non supporté : {ext}");
+        throw new NotSupportedException($"Format de fichier non supporté '{ext}'.");
     }
 
     public static void WriteVideoFile(

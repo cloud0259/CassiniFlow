@@ -97,7 +97,7 @@ public class PlanetDiskMeasurementTests
     [Fact]
     public void MainWindowViewModel_MeasuringState_UpdatesGlobalStatusText()
     {
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         Assert.False(vm.IsMeasuringPlanetSizes);
         Assert.True(vm.CanAddFiles);
 
@@ -114,7 +114,7 @@ public class PlanetDiskMeasurementTests
     [Fact]
     public async Task MainWindowViewModel_AnalyzePlanetSizes_IdentifiesObjectAndLogs()
     {
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
         {
             FileName = "mars_test.ser",
@@ -166,7 +166,7 @@ public class PlanetDiskMeasurementTests
     [Fact]
     public async Task MainWindowViewModel_AnalyzePlanetSizes_JupiterVideo_IdentifiesJupiter()
     {
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
         {
             FileName = "jupiter_multi.ser",

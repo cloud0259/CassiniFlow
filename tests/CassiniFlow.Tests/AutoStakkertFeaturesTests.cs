@@ -78,7 +78,7 @@ public class AutoStakkertFeaturesTests
     public void MainWindowViewModel_Card1TitleAndWorkflowFlags_AdaptToStackingOnly()
     {
         Loc.SetLanguage(AppLanguage.French, save: false);
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // 1. Mode StackingOnly
         vm.SetWorkflowMode("stackingonly");
@@ -115,7 +115,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void MainWindowViewModel_AutoStakkertProperties_TwoWayBindingAndCommit()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // Stabilisation
         vm.IsStabilisationSurface = true;
@@ -181,7 +181,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void ManualPoints_ArePreserved_WhenPreviewCroppingIsToggled()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.EnableCropping = true;
         vm.CropWidth = 320;
         vm.CropHeight = 320;
@@ -217,7 +217,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void AlignmentGrid_IsRecalculated_WhenCropSizeChanges()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.EnableCropping = true;
         vm.CropWidth = 200;
         vm.CropHeight = 200;

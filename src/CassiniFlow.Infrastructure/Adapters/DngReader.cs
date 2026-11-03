@@ -63,47 +63,47 @@ public static class DngReader
                     int depth = parsed.RawSensorBits > 0 ? parsed.RawSensorBits : (decoded.ElemSize1() * 8);
 
                     var sb = new StringBuilder();
-                    sb.AppendLine("Format : DNG (Digital Negative - Image Brute)");
+                    sb.AppendLine("Format : DNG (Digital Negative - Raw Image)");
                     if (!string.IsNullOrWhiteSpace(meta.Camera))
                     {
-                        sb.AppendLine($"Appareil : {meta.Camera}");
+                        sb.AppendLine($"Camera : {meta.Camera}");
                     }
                     else if (!string.IsNullOrWhiteSpace(parsed.CameraMake) || !string.IsNullOrWhiteSpace(parsed.CameraModel))
                     {
-                        sb.AppendLine($"Appareil : {parsed.CameraMake} {parsed.CameraModel}".Trim());
+                        sb.AppendLine($"Camera : {parsed.CameraMake} {parsed.CameraModel}".Trim());
                     }
 
                     if (!string.IsNullOrWhiteSpace(meta.EffectiveShutterSpeedText) && meta.EffectiveShutterSpeedText != "—")
                     {
-                        sb.AppendLine($"Temps d'exposition : {meta.EffectiveShutterSpeedText} ({meta.EffectiveExposureText})");
+                        sb.AppendLine($"Exposure Time : {meta.EffectiveShutterSpeedText} ({meta.EffectiveExposureText})");
                     }
                     if (!string.IsNullOrWhiteSpace(meta.IsoOrGainText) && meta.IsoOrGainText != "—")
                     {
-                        sb.AppendLine($"Sensibilité : {meta.IsoOrGainText}");
+                        sb.AppendLine($"Sensitivity : {meta.IsoOrGainText}");
                     }
                     if (!string.IsNullOrWhiteSpace(meta.Telescope))
                     {
-                        sb.AppendLine($"Optique : {meta.Telescope}");
+                        sb.AppendLine($"Optics : {meta.Telescope}");
                     }
                     if (meta.TimestampUtc.HasValue)
                     {
-                        sb.AppendLine($"Date de prise de vue : {meta.TimestampUtc.Value:yyyy-MM-dd HH:mm:ss} UTC");
+                        sb.AppendLine($"Capture Date (UTC) : {meta.TimestampUtc.Value:yyyy-MM-dd HH:mm:ss} UTC");
                     }
 
                     if (!string.IsNullOrWhiteSpace(parsed.Software))
                     {
-                        sb.AppendLine($"Logiciel : {parsed.Software}");
+                        sb.AppendLine($"Software : {parsed.Software}");
                     }
-                    sb.AppendLine($"Dimensions décodées : {w} x {h}");
+                    sb.AppendLine($"Decoded Dimensions : {w} x {h}");
                     if (parsed.RawSensorWidth > 0 && parsed.RawSensorHeight > 0)
                     {
-                        sb.AppendLine($"Capteur RAW d'origine : {parsed.RawSensorWidth} x {parsed.RawSensorHeight} ({parsed.RawSensorBits}-bit)");
+                        sb.AppendLine($"Original RAW Sensor : {parsed.RawSensorWidth} x {parsed.RawSensorHeight} ({parsed.RawSensorBits}-bit)");
                     }
                     if (!string.IsNullOrWhiteSpace(parsed.CfaPattern))
                     {
-                        sb.AppendLine($"Matrice Bayer CFA : {parsed.CfaPattern}");
+                        sb.AppendLine($"Bayer CFA Pattern : {parsed.CfaPattern}");
                     }
-                    sb.AppendLine($"Taille du fichier : {fi.Length:N0} octets");
+                    sb.AppendLine($"File Size : {fi.Length:N0} bytes");
 
                     string badge = parsed.RawSensorBits > 0 ? $"DNG {parsed.RawSensorBits}-bit" : $"DNG {depth}-bit";
 

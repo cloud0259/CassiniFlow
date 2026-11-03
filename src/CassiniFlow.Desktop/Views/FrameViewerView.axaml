@@ -41,7 +41,7 @@
                 </Grid>
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="Frame :" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Text="{loc:Tr UI.FrameLabel}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock Text="{Binding CurrentFrameIndex}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
                         <TextBlock Text="/" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"/>
                         <TextBlock Text="{Binding MaxFrameCount}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>

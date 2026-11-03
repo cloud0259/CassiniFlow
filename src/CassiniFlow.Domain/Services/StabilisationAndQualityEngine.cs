@@ -153,15 +153,15 @@ public static class StabilisationAndQualityEngine
         int baryX = totalWeight > 0 ? (int)(sumX / totalWeight) : w / 2;
         int baryY = totalWeight > 0 ? (int)(sumY / totalWeight) : h / 2;
 
-        if (!checkObject)
-        {
-            return new DetectionResult(true, null, baryX, baryY, detectedPixels, overexposedCount, threshold8);
-        }
-
         int minArea = (int)(Math.PI * (minObjectSizePixels * 0.5) * (minObjectSizePixels * 0.5));
-        if (detectedPixels < Math.Max(4, minArea / 2))
+        if (checkObject && detectedPixels < Math.Max(4, minArea / 2))
         {
             return new DetectionResult(false, "No planet/object detected above threshold", w / 2, h / 2, detectedPixels, overexposedCount, threshold8);
+        }
+
+        if (detectedPixels == 0)
+        {
+            return new DetectionResult(true, null, baryX, baryY, detectedPixels, overexposedCount, threshold8);
         }
 
         int estRadius = Math.Max(minObjectSizePixels / 2, (int)Math.Sqrt(detectedPixels / Math.PI));
@@ -190,7 +190,7 @@ public static class StabilisationAndQualityEngine
 
         // Only reject border-clipped objects if explicitly enabled and the bright area does not span the whole scene
         spansWholeScene = (finalMaxX - finalMinX) > (w * 3 / 4) || (finalMaxY - finalMinY) > (h * 3 / 4);
-        if (rejectClippedObjects && !spansWholeScene)
+        if (checkObject && rejectClippedObjects && !spansWholeScene)
         {
             const int margin = 2;
             bool clippedLeft = finalMinX <= margin && shadowEdge is not (LunarShadowEdge.Left or LunarShadowEdge.TopLeft or LunarShadowEdge.BottomLeft);

@@ -116,7 +116,7 @@ public class CalibrationFrameTests
     public void MainWindowViewModel_CalibrationFiles_AreNotAddedToSourceFilesPreview()
     {
         // Arrange
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         string tempDark = Path.GetTempFileName();
         string tempFlat = Path.GetTempFileName();
@@ -174,7 +174,7 @@ public class CalibrationFrameTests
     [Fact]
     public void MainWindowViewModel_RemoveIndividualCalibrationFile_UpdatesStateCorrectly()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         string tempDark1 = Path.GetTempFileName();
         string tempDark2 = Path.GetTempFileName();
         string tempFlat = Path.GetTempFileName();
@@ -224,7 +224,7 @@ public class CalibrationFrameTests
     [Fact]
     public void MainWindowViewModel_SelectedSourceFileTabIndex_DefaultsToZeroAndCanBeSet()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         Assert.Equal(0, vm.SelectedSourceFileTabIndex);
 
         vm.SelectedSourceFileTabIndex = 1;
@@ -240,8 +240,8 @@ public class CalibrationFrameTests
     [Fact]
     public void Converters_ExtractFileNameAndFormatSizeCorrectly()
     {
-        var nameConverter = CassiniFlow.Desktop.Converters.FileNameConverter.Instance;
-        var sizeConverter = CassiniFlow.Desktop.Converters.FileSizeConverter.Instance;
+        var nameConverter = new CassiniFlow.Desktop.Converters.FileNameConverter();
+        var sizeConverter = new CassiniFlow.Desktop.Converters.FileSizeConverter();
 
         string temp = Path.GetTempFileName();
         try
@@ -251,8 +251,13 @@ public class CalibrationFrameTests
             var fileName = nameConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
             Assert.Equal(Path.GetFileName(temp), fileName);
 
-            var sizeText = sizeConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
-            Assert.Equal("2.0 KB", sizeText);
+            CassiniFlow.Desktop.Localization.Loc.SetLanguage(CassiniFlow.Desktop.Localization.AppLanguage.English, save: false);
+            var sizeTextEn = sizeConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal("2.0 KB", sizeTextEn);
+
+            CassiniFlow.Desktop.Localization.Loc.SetLanguage(CassiniFlow.Desktop.Localization.AppLanguage.French, save: false);
+            var sizeTextFr = sizeConverter.Convert(temp, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal("2,0 Ko", sizeTextFr);
         }
         finally
         {

@@ -55,12 +55,12 @@
         <!-- Traitements d'amélioration astrophysique -->
         <Border Classes="groupbox" Padding="10,8">
             <StackPanel Spacing="8">
-                <TextBlock Text="Amélioration &amp; Post-traitement" Classes="grouptitle"/>
+                <TextBlock Text="{loc:Tr Stacking.EnhancementTitle}" Classes="grouptitle"/>
 
                 <!-- Normalisation de la brillance -->
                 <CheckBox Content="{loc:Tr Stacking.Normalize}" IsChecked="{Binding NormalizeBrightness}" ToolTip.Tip="{loc:Tr Stacking.NormalizeTip}" FontSize="12"/>
                 <Grid ColumnDefinitions="*,Auto" Margin="20,0,0,0" IsEnabled="{Binding NormalizeBrightness}">
-                    <TextBlock Grid.Column="0" Text="Cible normalisation :" Classes="label" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.NormalizeTarget}" Classes="label" VerticalAlignment="Center"/>
                     <controls:NumberStepper Grid.Column="1" Value="{Binding NormalizeTargetPercent}" Minimum="10" Maximum="100" FormatString="{}{0} %" Width="100"/>
                 </Grid>
 
@@ -70,7 +70,7 @@
                 <!-- Accentuation du bruit et des détails haute fréquence -->
                 <CheckBox Content="{loc:Tr Stacking.Sharpen}" IsChecked="{Binding SharpeningEnabled}" ToolTip.Tip="{loc:Tr Stacking.SharpenTip}" FontSize="12"/>
                 <Grid ColumnDefinitions="*,Auto" Margin="20,0,0,0" IsEnabled="{Binding SharpeningEnabled}">
-                    <TextBlock Grid.Column="0" Text="Mélange accentué :" Classes="label" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.SharpenBlend}" Classes="label" VerticalAlignment="Center"/>
                     <controls:NumberStepper Grid.Column="1" Value="{Binding SharpeningBlendPercent}" Minimum="1" Maximum="100" FormatString="{}{0} %" Width="100"/>
                 </Grid>
 

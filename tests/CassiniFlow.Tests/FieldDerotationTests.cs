@@ -110,7 +110,7 @@ public class FieldDerotationTests
     [Fact]
     public void MainWindowViewModel_DerotationProperties_UpdateInfoText()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.ObserverLatitudeDegrees = 49.62;
         vm.TargetAltitudeDegrees = 20.0;
         vm.TargetAzimuthDegrees = 160.0;
@@ -125,7 +125,7 @@ public class FieldDerotationTests
     [Fact]
     public void Derotation_Accordion_MutualExclusionAndVisibility()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // Visible par défaut (DirectStreamAllInOne)
         Assert.True(vm.IsSectionDerotationVisible);
@@ -160,7 +160,7 @@ public class FieldDerotationTests
     public void Derotation_Translations_NoMojibakeAndNoUselessParentheses()
     {
         // Test Français
-        Loc.SetLanguage(AppLanguage.French);
+        Loc.SetLanguage(AppLanguage.French, save: false);
         string frEnable = Loc.Get("Derotation.Enable");
         string frLat = Loc.Get("Derotation.Latitude");
         string frAlt = Loc.Get("Derotation.Altitude");
@@ -181,7 +181,7 @@ public class FieldDerotationTests
         Assert.NotEmpty(Loc.Get("Derotation.AzimuthTip"));
 
         // Test Anglais
-        Loc.SetLanguage(AppLanguage.English);
+        Loc.SetLanguage(AppLanguage.English, save: false);
         string enEnable = Loc.Get("Derotation.Enable");
         string enLat = Loc.Get("Derotation.Latitude");
         string enAlt = Loc.Get("Derotation.Altitude");
@@ -200,5 +200,8 @@ public class FieldDerotationTests
         Assert.NotEmpty(Loc.Get("Derotation.LatitudeTip"));
         Assert.NotEmpty(Loc.Get("Derotation.AltitudeTip"));
         Assert.NotEmpty(Loc.Get("Derotation.AzimuthTip"));
+
+        // Rétablir la langue sans écraser les réglages utilisateur
+        Loc.SetLanguage(AppLanguage.French, save: false);
     }
 }

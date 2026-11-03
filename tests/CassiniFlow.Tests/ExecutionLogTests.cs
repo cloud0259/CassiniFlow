@@ -91,7 +91,8 @@ public class ExecutionLogTests
             };
 
             // Act
-            var summary = await PipelineRunner.ExecuteAsync(new[] { frame }, options, tempDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteAsync(new[] { frame }, options, tempDir);
 
             // Assert
             Assert.True(summary.Success);

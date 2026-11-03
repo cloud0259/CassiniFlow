@@ -9,7 +9,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_EmptyList_ReturnsFalse()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         Assert.Empty(vm.SourceFiles);
         Assert.False(vm.AreAllFilesChecked);
     }
@@ -17,7 +17,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_AllChecked_ReturnsTrue()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = true };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = true };
         vm.SourceFiles.Add(f1);
@@ -29,7 +29,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_NoneChecked_ReturnsFalse()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = false };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = false };
         vm.SourceFiles.Add(f1);
@@ -41,7 +41,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_PartiallyChecked_ReturnsNullIndeterminate()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = true };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = false };
         vm.SourceFiles.Add(f1);
@@ -53,7 +53,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_DynamicItemIsCheckedChanged_UpdatesGlobalState()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = true };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = true };
         vm.SourceFiles.Add(f1);
@@ -77,7 +77,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_SetterTrue_ChecksAllFiles()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = false };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = false };
         vm.SourceFiles.Add(f1);
@@ -94,7 +94,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void AreAllFilesChecked_SetterFalse_UnchecksAllFiles()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = true };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = true };
         vm.SourceFiles.Add(f1);
@@ -111,7 +111,7 @@ public class CheckboxSelectionTests
     [Fact]
     public void ToggleCheckAllFiles_TogglesBetweenAllCheckedAndUnchecked()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         var f1 = new SourceFileItem { FileName = "file1.ser", IsChecked = false };
         var f2 = new SourceFileItem { FileName = "file2.ser", IsChecked = false };
         vm.SourceFiles.Add(f1);

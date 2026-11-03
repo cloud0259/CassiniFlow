@@ -5,24 +5,23 @@ using CassiniFlow.Desktop.Services;
 
 namespace CassiniFlow.Desktop.Theme;
 
-public enum AppTheme
+public class ThemeService : IThemeService
 {
-    DeepSpaceDark,
-    CleanLabLight,
-    NightVision
-}
-
-public static class ThemeManager
-{
-    public static AppTheme CurrentTheme { get; private set; } = AppTheme.DeepSpaceDark;
-    public static event Action? ThemeChanged;
-
+    private readonly IUserSettingsService _userSettings;
     public static readonly ThemeVariant NightVisionVariant = new("NightVision", ThemeVariant.Dark);
 
-    public static void Initialize()
+    public AppTheme CurrentTheme { get; private set; } = AppTheme.DeepSpaceDark;
+    public event Action? ThemeChanged;
+
+    public ThemeService(IUserSettingsService userSettings)
     {
-        UserSettingsService.Load();
-        var theme = UserSettingsService.Current.Theme?.ToLowerInvariant() switch
+        _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
+    }
+
+    public void Initialize()
+    {
+        _userSettings.Load();
+        var theme = _userSettings.Current.Theme?.ToLowerInvariant() switch
         {
             "light" => AppTheme.CleanLabLight,
             "night_vision" or "nightvision" or "red" => AppTheme.NightVision,
@@ -31,7 +30,7 @@ public static class ThemeManager
         ApplyTheme(theme, save: false);
     }
 
-    public static void ApplyTheme(AppTheme theme, bool save = true)
+    public void ApplyTheme(AppTheme theme, bool save = true)
     {
         var targetVariant = theme switch
         {
@@ -64,7 +63,7 @@ public static class ThemeManager
         ThemeChanged?.Invoke();
     }
 
-    public static void ToggleNextTheme()
+    public void ToggleNextTheme()
     {
         var next = CurrentTheme switch
         {
@@ -75,7 +74,7 @@ public static class ThemeManager
         ApplyTheme(next, save: true);
     }
 
-    private static void SaveTheme(AppTheme theme)
+    private void SaveTheme(AppTheme theme)
     {
         string themeStr = theme switch
         {
@@ -83,6 +82,7 @@ public static class ThemeManager
             AppTheme.NightVision => "night_vision",
             _ => "dark"
         };
-        UserSettingsService.UpdateTheme(themeStr);
+        _userSettings.UpdateTheme(themeStr);
     }
 }
+

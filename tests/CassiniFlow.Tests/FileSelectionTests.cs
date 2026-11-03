@@ -16,7 +16,7 @@ public class FileSelectionTests
     [Fact]
     public void MainWindowViewModel_AreAllFilesChecked_ReflectsItemCheckedState()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         var item1 = new SourceFileItem { FileName = "item1.ser", FullPath = "c:\\item1.ser", Frames = 100 };
         var item2 = new SourceFileItem { FileName = "item2.ser", FullPath = "c:\\item2.ser", Frames = 200 };
@@ -49,7 +49,7 @@ public class FileSelectionTests
     [Fact]
     public void UpdateAvailableFrames_ConsidersOnlyCheckedFiles()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.IsJoinMode = true;
 
         var item1 = new SourceFileItem { FileName = "item1.ser", FullPath = "c:\\item1.ser", Frames = 100 };
@@ -69,7 +69,7 @@ public class FileSelectionTests
     [Fact]
     public async Task RunProcessingAsync_AbortsWhenNoFilesChecked()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         var item1 = new SourceFileItem { FileName = "item1.ser", FullPath = "c:\\item1.ser", Frames = 100, IsChecked = false };
         var item2 = new SourceFileItem { FileName = "item2.ser", FullPath = "c:\\item2.ser", Frames = 200, IsChecked = false };

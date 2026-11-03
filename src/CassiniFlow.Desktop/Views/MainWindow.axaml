@@ -205,7 +205,7 @@
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Text="{loc:Tr SourceFiles.PresetsTitle}" Classes="label" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                             <Button Grid.Column="1" Command="{Binding AutoDetectPresetCommand}" Classes="action" ToolTip.Tip="{loc:Tr SourceFiles.AutoDetectPresetTooltip}" Padding="6,2" FontSize="11" VerticalAlignment="Center">
-                                                <TextBlock Text="⚡ Auto"/>
+                                                <TextBlock Text="{loc:Tr UI.AutoPresetButton}"/>
                                             </Button>
                                         </Grid>
                                         <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch" FontSize="12">
