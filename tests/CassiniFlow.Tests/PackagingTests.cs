@@ -94,7 +94,8 @@ public class PackagingTests
         Assert.True(File.Exists(propsPath), "Directory.Build.props doit exister à la racine du dépôt.");
         string content = File.ReadAllText(propsPath);
         Assert.Contains("<Version>", content);
-        Assert.Contains("1.1.0", content);
+        var ver = typeof(CassiniFlow.Domain.Localization.AstroLocalizationService).Assembly.GetName().Version;
+        Assert.Contains($"{ver?.Major}.{ver?.Minor}.{ver?.Build}", content);
     }
 
     [Fact]
@@ -102,7 +103,8 @@ public class PackagingTests
     {
         string versionText = CassiniFlow.Desktop.Localization.Loc.Get("About.Version");
         Assert.StartsWith("Version ", versionText);
-        Assert.Contains("1.1.0", versionText);
+        var ver = typeof(CassiniFlow.Domain.Localization.AstroLocalizationService).Assembly.GetName().Version;
+        Assert.Contains($"{ver?.Major}.{ver?.Minor}.{ver?.Build}", versionText);
     }
 }
 

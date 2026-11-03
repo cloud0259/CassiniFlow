@@ -127,7 +127,7 @@ public sealed class GitHubReleaseUpdateChecker : IUpdateCheckerService, IDisposa
 
     private static string ResolveAssemblyVersion()
     {
-        var asm = Assembly.GetEntryAssembly() ?? typeof(GitHubReleaseUpdateChecker).Assembly;
+        var asm = typeof(GitHubReleaseUpdateChecker).Assembly;
         var infoVer = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         if (!string.IsNullOrWhiteSpace(infoVer))
         {

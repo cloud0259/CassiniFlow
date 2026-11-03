@@ -83,7 +83,15 @@ public class AstroLocalizationService : IAstroLocalization
     {
         if (string.Equals(key, "About.Version", StringComparison.OrdinalIgnoreCase))
         {
-            var ver = typeof(AstroLocalizationService).Assembly.GetName().Version;
+            var asm = typeof(AstroLocalizationService).Assembly;
+            var infoVer = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(infoVer))
+            {
+                int plusIdx = infoVer.IndexOf('+');
+                if (plusIdx > 0) infoVer = infoVer[..plusIdx];
+                return $"Version {infoVer.TrimStart('v', 'V')}";
+            }
+            var ver = asm.GetName().Version;
             return $"Version {ver?.Major ?? 1}.{ver?.Minor ?? 1}.{ver?.Build ?? 0}";
         }
 
