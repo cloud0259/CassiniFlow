@@ -2,12 +2,18 @@
 # CassiniFlow Debian Package (.deb) Builder
 set -e
 
-VERSION="${1:-1.1.0}"
-# Clean leading 'v' if present (e.g. v1.0.0 -> 1.0.0)
-VERSION="${VERSION#v}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Si aucune version n'est spécifiée, extraction automatique depuis Directory.Build.props (source unique)
+if [ -n "$1" ]; then
+    VERSION="$1"
+else
+    VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" "$ROOT_DIR/Directory.Build.props" 2>/dev/null || echo "1.1.0")
+fi
+# Clean leading 'v' if present (e.g. v1.1.0 -> 1.1.0)
+VERSION="${VERSION#v}"
+
 BUILD_DIR="$ROOT_DIR/staging/deb-build"
 DEB_PACKAGE_DIR="$BUILD_DIR/cassiniflow_${VERSION}_amd64"
 OUTPUT_DIR="$ROOT_DIR/release-artifacts"

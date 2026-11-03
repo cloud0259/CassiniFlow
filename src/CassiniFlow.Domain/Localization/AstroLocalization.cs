@@ -81,6 +81,12 @@ public class AstroLocalizationService : IAstroLocalization
 
     public string Get(string key)
     {
+        if (string.Equals(key, "About.Version", StringComparison.OrdinalIgnoreCase))
+        {
+            var ver = typeof(AstroLocalizationService).Assembly.GetName().Version;
+            return $"Version {ver?.Major ?? 1}.{ver?.Minor ?? 1}.{ver?.Build ?? 0}";
+        }
+
         var isEng = _current == DomainLanguage.English;
         var dict = isEng ? SharedEnStrings : SharedFrStrings;
         if (dict.TryGetValue(key, out var val)) return val;

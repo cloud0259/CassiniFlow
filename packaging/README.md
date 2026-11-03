@@ -22,6 +22,10 @@ Ce répertoire contient l'outillage complet de packaging pour générer les dist
 
 ### Compilation locale
 ```powershell
+# Détecte automatiquement la version depuis Directory.Build.props
+.\packaging\windows\build-installer.ps1
+
+# Ou avec version explicite :
 .\packaging\windows\build-installer.ps1 -Version "1.1.0"
 ```
 
@@ -48,6 +52,10 @@ sudo dpkg -i cassiniflow-linux-x64.deb || sudo apt-get install -f
 ```
 - **Compilation locale** :
 ```bash
+# Détecte automatiquement la version depuis Directory.Build.props
+./packaging/linux/build-deb.sh
+
+# Ou avec version explicite :
 ./packaging/linux/build-deb.sh "1.1.0"
 ```
 

@@ -1,12 +1,22 @@
 # build-installer.ps1
 # Script de compilation locale ou CI pour l'installateur Windows Inno Setup
 param(
-    [string]$Version = "1.1.0",
+    [string]$Version,
     [string]$Configuration = "Release"
 )
 
 $ErrorActionPreference = "Stop"
 $rootDir = (Resolve-Path "$PSScriptRoot\..\..").Path
+
+# Si aucune version n'est spécifiée, extraction automatique depuis Directory.Build.props (source unique)
+if (-not $Version) {
+    $propsPath = "$rootDir\Directory.Build.props"
+    if (Test-Path $propsPath) {
+        [xml]$props = Get-Content $propsPath
+        $Version = $props.Project.PropertyGroup.Version
+    }
+    if (-not $Version) { $Version = "1.1.0" }
+}
 
 Write-Host "=== Compilation de CassiniFlow (Version $Version - $Configuration) ===" -ForegroundColor Cyan
 

@@ -84,5 +84,25 @@ public class PackagingTests
         Assert.Contains("dpkg-deb --build", debContent);
         Assert.Contains("cassiniflow", debContent);
     }
+
+    [Fact]
+    public void DirectoryBuildProps_DefinesSingleSourceOfTruthVersion()
+    {
+        string root = FindRepositoryRoot();
+        string propsPath = Path.Combine(root, "Directory.Build.props");
+
+        Assert.True(File.Exists(propsPath), "Directory.Build.props doit exister à la racine du dépôt.");
+        string content = File.ReadAllText(propsPath);
+        Assert.Contains("<Version>", content);
+        Assert.Contains("1.1.0", content);
+    }
+
+    [Fact]
+    public void Loc_AboutVersion_ResolvesDynamicallyFromAssembly()
+    {
+        string versionText = CassiniFlow.Desktop.Localization.Loc.Get("About.Version");
+        Assert.StartsWith("Version ", versionText);
+        Assert.Contains("1.1.0", versionText);
+    }
 }
 
