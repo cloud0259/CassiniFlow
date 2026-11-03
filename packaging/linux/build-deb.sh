@@ -14,13 +14,15 @@ fi
 # Clean leading 'v' if present (e.g. v1.1.0 -> 1.1.0)
 VERSION="${VERSION#v}"
 
-BUILD_DIR="$ROOT_DIR/staging/deb-build"
+# Utilise un répertoire temporaire Linux natif (/tmp) pour garantir la conformité
+# des permissions POSIX (0755) même lors d'une exécution dans WSL sur un montage Windows (/mnt/c, /mnt/e).
+BUILD_DIR=$(mktemp -d /tmp/cassiniflow-deb-build.XXXXXX)
+trap 'rm -rf "$BUILD_DIR"' EXIT
 DEB_PACKAGE_DIR="$BUILD_DIR/cassiniflow_${VERSION}_amd64"
 OUTPUT_DIR="$ROOT_DIR/release-artifacts"
 
 echo "=== Génération du paquet Debian CassiniFlow v$VERSION ==="
 
-rm -rf "$BUILD_DIR"
 mkdir -p "$DEB_PACKAGE_DIR/DEBIAN"
 mkdir -p "$DEB_PACKAGE_DIR/opt/cassiniflow"
 mkdir -p "$DEB_PACKAGE_DIR/opt/cassiniflow/cli"
@@ -84,7 +86,7 @@ Priority: optional
 Architecture: amd64
 Installed-Size: $INSTALLED_SIZE
 Maintainer: CassiniFlow Team <https://github.com/cloud0259/CassiniFlow>
-Depends: libgl1, libglib2.0-0, libgomp1, ffmpeg
+Depends: libgl1, libglib2.0-0 | libglib2.0-0t64, libgdiplus, libgomp1, libatomic1, ffmpeg
 Description: Planetary & Astro Imaging PreProcessor
  CassiniFlow is a high-performance astronomical preprocessing and stacking
  software for planetary, lunar and solar imaging (lucky imaging).
@@ -92,7 +94,19 @@ Description: Planetary & Astro Imaging PreProcessor
  SER/FITS native codecs, and celestial target auto-detection.
 EOF
 
-# 5. Compilation du paquet .deb avec dpkg-deb
+# 5. Normalisation des permissions conformes Debian
+find "$DEB_PACKAGE_DIR" -type d -exec chmod 0755 {} +
+find "$DEB_PACKAGE_DIR" -type f -exec chmod 0644 {} +
+chmod 0755 "$DEB_PACKAGE_DIR/opt/cassiniflow/CassiniFlow.Desktop"
+if [ -f "$DEB_PACKAGE_DIR/opt/cassiniflow/cli/CassiniFlow.Cli" ]; then
+    chmod 0755 "$DEB_PACKAGE_DIR/opt/cassiniflow/cli/CassiniFlow.Cli"
+fi
+chmod 0755 "$DEB_PACKAGE_DIR/usr/local/bin/cassiniflow"
+chmod 0755 "$DEB_PACKAGE_DIR/usr/local/bin/cassiniflow-cli"
+chmod 0755 "$DEB_PACKAGE_DIR/DEBIAN"
+chmod 0644 "$DEB_PACKAGE_DIR/DEBIAN/control"
+
+# 6. Compilation du paquet .deb avec dpkg-deb
 echo "Construction du paquet avec dpkg-deb..."
 dpkg-deb --build --root-owner-group "$DEB_PACKAGE_DIR" "$OUTPUT_DIR/cassiniflow_${VERSION}_amd64.deb"
 # Symlink or copy to generic name
