@@ -32,7 +32,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
 
       - name: Calculate Version & Tag
         id: calc
@@ -50,14 +49,14 @@ jobs:
           else
             # 2. Détection de version lors de la fusion d'une PR sur main
             PR_TITLE="${{ github.event.pull_request.title }}"
-            if echo "$PR_TITLE" | grep -oPE 'v?[0-9]+\.[0-9]+\.[0-9]+' >/dev/null; then
-              VERSION=$(echo "$PR_TITLE" | grep -oPE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if echo "$PR_TITLE" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' >/dev/null; then
+              VERSION=$(echo "$PR_TITLE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             else
-              CUR_VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" Directory.Build.props 2>/dev/null || echo "1.1.0")
+              CUR_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props 2>/dev/null || echo "1.1.1")
               IFS='.' read -r MAJOR MINOR PATCH <<< "$CUR_VERSION"
               MAJOR=${MAJOR:-1}
               MINOR=${MINOR:-1}
-              PATCH=${PATCH:-0}
+              PATCH=${PATCH:-1}
 
               LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
               if [ -n "$LAST_TAG" ]; then
@@ -79,19 +78,6 @@ jobs:
               VERSION="$MAJOR.$MINOR.$PATCH"
             fi
             TAG="v$VERSION"
-
-            chmod +x packaging/bump-version.sh
-            ./packaging/bump-version.sh "$VERSION"
-
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add Directory.Build.props
-            if ! git diff --cached --quiet; then
-              git commit -m "chore(release): $TAG [skip ci]"
-              git push origin main
-            fi
-            git tag "$TAG"
-            git push origin "$TAG"
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -126,7 +112,14 @@ jobs:
         run: dotnet restore CassiniFlow.slnx
 
       - name: Build solution (Release)
-        run: dotnet build CassiniFlow.slnx -c Release --no-restore
+        run: >
+          dotnet build CassiniFlow.slnx
+          -c Release
+          --no-restore
+          -p:Version=${{ needs.prepare-release.outputs.version }}
+          -p:AssemblyVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:FileVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:InformationalVersion=${{ needs.prepare-release.outputs.version }}
 
       - name: Run unit tests
         run: dotnet test CassiniFlow.slnx -c Release --no-build --verbosity normal
@@ -160,6 +153,10 @@ jobs:
           -c Release
           -r ${{ matrix.target.rid }}
           --self-contained true
+          -p:Version=${{ needs.prepare-release.outputs.version }}
+          -p:AssemblyVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:FileVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:InformationalVersion=${{ needs.prepare-release.outputs.version }}
           -o staging/${{ matrix.target.name }}/Desktop
 
       - name: Publish CLI (Self-Contained)
@@ -168,6 +165,10 @@ jobs:
           -c Release
           -r ${{ matrix.target.rid }}
           --self-contained true
+          -p:Version=${{ needs.prepare-release.outputs.version }}
+          -p:AssemblyVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:FileVersion=${{ needs.prepare-release.outputs.version }}.0
+          -p:InformationalVersion=${{ needs.prepare-release.outputs.version }}
           -o staging/${{ matrix.target.name }}/Cli
 
       - name: Copy Documentation
@@ -239,6 +240,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: CassiniFlow ${{ needs.prepare-release.outputs.tag }}
           draft: false
           prerelease: false

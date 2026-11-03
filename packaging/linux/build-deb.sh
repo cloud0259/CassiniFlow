@@ -40,6 +40,10 @@ else
     echo "Publication autonome requise avant la création du .deb..."
     dotnet publish "$ROOT_DIR/src/CassiniFlow.Desktop/CassiniFlow.Desktop.csproj" \
         -c Release -r linux-x64 --self-contained true \
+        -p:Version="$VERSION" \
+        -p:AssemblyVersion="$VERSION.0" \
+        -p:FileVersion="$VERSION.0" \
+        -p:InformationalVersion="$VERSION" \
         -o "$DEB_PACKAGE_DIR/opt/cassiniflow"
 fi
 
@@ -50,6 +54,10 @@ elif [ -d "$ROOT_DIR/staging/CassiniFlow-linux-x64/Cli" ]; then
 else
     dotnet publish "$ROOT_DIR/src/CassiniFlow.Cli/CassiniFlow.Cli.csproj" \
         -c Release -r linux-x64 --self-contained true \
+        -p:Version="$VERSION" \
+        -p:AssemblyVersion="$VERSION.0" \
+        -p:FileVersion="$VERSION.0" \
+        -p:InformationalVersion="$VERSION" \
         -o "$DEB_PACKAGE_DIR/opt/cassiniflow/cli"
 fi
 
