@@ -371,7 +371,9 @@
     "UnsupportedFileFormat": "Format de fichier non supporté : {0}",
     "FfmpegStartFailed": "Impossible de démarrer ffmpeg. Installez ffmpeg ('sudo apt install ffmpeg').",
     "VideoFileHeader": "Fichier Vidéo : {0}",
-    "ImageFileHeader": "Fichier Image : {0} ({1}×{2}, {3}-bit, Canaux={4})"
+    "ImageFileHeader": "Fichier Image : {0} ({1}×{2}, {3}-bit, Canaux={4})",
+    "UpdateAvailableBanner": "Une nouvelle version de CassiniFlow est disponible ({0}) !",
+    "DownloadUpdateBtn": "Télécharger"
   },
   "Settings": {
     "WindowTitle": "Préférences — CassiniFlow",
@@ -466,7 +468,14 @@
     "Formats": "Formats pris en charge : SER, FITS, AVI, MP4, TIFF, PNG, BMP.",
     "Close": "Fermer",
     "Subtitle": "Planetary & Astro Imaging PreProcessor",
-    "Version": "Version 1.1.0"
+    "Version": "Version 1.1.0",
+    "CheckUpdates": "Vérifier les mises à jour",
+    "CheckingUpdates": "Vérification en cours...",
+    "UpdateAvailable": "Mise à jour v{0} disponible !",
+    "AppIsUpToDate": "CassiniFlow est à jour.",
+    "CheckUpdateError": "Impossible de vérifier les mises à jour.",
+    "DownloadUpdate": "Télécharger",
+    "CheckOnStartup": "Vérifier au démarrage"
   },
   "Metadata": {
     "Title": "ℹ️ Métadonnées",

@@ -91,13 +91,41 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IRunPipelineUseCase _pipelineRunner;
     private readonly ICelestialTargetClassifier _celestialClassifier;
 
+    [ObservableProperty] private bool _isUpdateBannerVisible;
+    [ObservableProperty] private string _updateBannerText = string.Empty;
+    [ObservableProperty] private string _updateBannerUrl = string.Empty;
+
+    [RelayCommand]
+    public void OpenUpdateUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(UpdateBannerUrl))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(UpdateBannerUrl) { UseShellExecute = true });
+            }
+            catch
+            {
+                // Fallback silencieux
+            }
+        }
+        IsUpdateBannerVisible = false;
+    }
+
+    [RelayCommand]
+    public void DismissUpdateBanner()
+    {
+        IsUpdateBannerVisible = false;
+    }
+
     public MainWindowViewModel(
         IAstroLocalization localization,
         IUserSettingsService userSettings,
         IThemeService themeService,
         IRunPipelineUseCase pipelineRunner,
         ICelestialTargetClassifier celestialClassifier,
-        TutorialViewModel tutorialVM)
+        TutorialViewModel tutorialVM,
+        IUpdateCheckerService? updateChecker = null)
     {
         _loc = localization ?? throw new ArgumentNullException(nameof(localization));
         _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
@@ -215,6 +243,33 @@ public partial class MainWindowViewModel : ObservableObject
         };
 
         UpdateCpuStatus();
+
+        if (_userSettings.Current.CheckUpdatesOnStartup && updateChecker != null)
+        {
+            _ = CheckForUpdatesSilentlyAsync(updateChecker);
+        }
+    }
+
+    private async Task CheckForUpdatesSilentlyAsync(IUpdateCheckerService updateChecker)
+    {
+        try
+        {
+            await Task.Delay(2000).ConfigureAwait(false);
+            var info = await updateChecker.CheckForUpdateAsync().ConfigureAwait(false);
+            if (info.IsUpdateAvailable)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateBannerText = _loc.Format("Messages.UpdateAvailableBanner", info.LatestVersion);
+                    UpdateBannerUrl = info.HtmlUrl;
+                    IsUpdateBannerVisible = true;
+                });
+            }
+        }
+        catch
+        {
+            // Échec silencieux
+        }
     }
 
     partial void OnMaxCpuUsagePercentChanged(int value)

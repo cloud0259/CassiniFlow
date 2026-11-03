@@ -34,7 +34,8 @@ public static class TestFactory
         IThemeService? themeService = null,
         IRunPipelineUseCase? pipelineRunner = null,
         ICelestialTargetClassifier? celestialClassifier = null,
-        TutorialViewModel? tutorialVM = null)
+        TutorialViewModel? tutorialVM = null,
+        IUpdateCheckerService? updateChecker = null)
     {
         var loc = localization ?? Loc.Localization;
         var settings = userSettings ?? new InMemoryUserSettingsService();
@@ -51,7 +52,8 @@ public static class TestFactory
             theme,
             runner,
             classifier,
-            tutorial);
+            tutorial,
+            updateChecker);
     }
 }
 
