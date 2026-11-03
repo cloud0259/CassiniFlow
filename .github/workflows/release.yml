@@ -1,6 +1,10 @@
 name: Release & Packaging Pipeline
 
 on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
   push:
     tags:
       - "v*"
@@ -13,10 +17,90 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
+  prepare-release:
+    name: Prepare Version & Tag
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc.outputs.version }}
+      tag: ${{ steps.calc.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Calculate Version & Tag
+        id: calc
+        shell: bash
+        run: |
+          set -e
+
+          # 1. Priorité tag explicite via push de tag ou workflow_dispatch
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+            VERSION="${TAG#v}"
+          elif [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+          else
+            # 2. Détection de version lors de la fusion d'une PR sur main
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            if echo "$PR_TITLE" | grep -oPE 'v?[0-9]+\.[0-9]+\.[0-9]+' >/dev/null; then
+              VERSION=$(echo "$PR_TITLE" | grep -oPE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            else
+              CUR_VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" Directory.Build.props 2>/dev/null || echo "1.1.0")
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CUR_VERSION"
+              MAJOR=${MAJOR:-1}
+              MINOR=${MINOR:-1}
+              PATCH=${PATCH:-0}
+
+              LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+              if [ -n "$LAST_TAG" ]; then
+                COMMITS_LOG=$(git log "$LAST_TAG..HEAD" --oneline 2>/dev/null || echo "")
+              else
+                COMMITS_LOG=$(git log -n 50 --oneline 2>/dev/null || echo "")
+              fi
+
+              if echo "$COMMITS_LOG" | grep -iE "(BREAKING CHANGE|!:)"; then
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+              elif echo "$COMMITS_LOG" | grep -iE "^[a-f0-9]+ feat"; then
+                MINOR=$((MINOR + 1))
+                PATCH=0
+              else
+                PATCH=$((PATCH + 1))
+              fi
+              VERSION="$MAJOR.$MINOR.$PATCH"
+            fi
+            TAG="v$VERSION"
+
+            chmod +x packaging/bump-version.sh
+            ./packaging/bump-version.sh "$VERSION"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add Directory.Build.props
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(release): $TAG [skip ci]"
+              git push origin main
+            fi
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release retenue : $VERSION ($TAG)"
+
   build-and-test:
     name: Build & Test (${{ matrix.os }})
+    needs: prepare-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -31,7 +115,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0t64 || sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libgtk-3-0
+          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libatomic1 libgtk-3-0t64 || sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 libgomp1 libatomic1 libgtk-3-0
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
@@ -49,7 +133,7 @@ jobs:
 
   package-binaries:
     name: Package Binaries (${{ matrix.target.name }})
-    needs: build-and-test
+    needs: [prepare-release, build-and-test]
     runs-on: ${{ matrix.target.os }}
     strategy:
       matrix:
@@ -64,21 +148,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Determine Version
-        id: version
-        shell: bash
-        run: |
-          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            V="${{ github.event.inputs.tag_name }}"
-          elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
-            V="${GITHUB_REF#refs/tags/}"
-          else
-            V=$(grep -oPm1 "(?<=<Version>)[^<]+" Directory.Build.props 2>/dev/null || echo "1.1.0")
-          fi
-          V_CLEAN="${V#v}"
-          echo "version=$V_CLEAN" >> "$GITHUB_OUTPUT"
-          echo "Building package version: $V_CLEAN"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
@@ -113,7 +182,6 @@ jobs:
         if: matrix.target.name == 'win-x64'
         shell: pwsh
         run: |
-          # Copy icon to staging assets
           New-Item -ItemType Directory -Path "staging/win-x64/Desktop/Assets" -Force | Out-Null
           Copy-Item "src/CassiniFlow.Desktop/Assets/cassiniflow.ico" -Destination "staging/win-x64/Desktop/Assets/cassiniflow.ico" -Force
 
@@ -124,14 +192,13 @@ jobs:
           choco install innosetup --no-progress -y
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "iscc" }
-          & $iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" packaging/windows/CassiniFlow.iss
+          & $iscc "/DMyAppVersion=${{ needs.prepare-release.outputs.version }}" packaging/windows/CassiniFlow.iss
 
       # Linux Specific: Portable TAR.GZ + Debian (.deb) Package
       - name: Build Linux Packages (Portable & Installer)
         if: matrix.target.name == 'linux-x64'
         shell: bash
         run: |
-          # Prepare Portable Linux Staging
           cp packaging/linux/install.sh staging/linux-x64/
           cp packaging/linux/uninstall.sh staging/linux-x64/
           cp packaging/linux/cassiniflow.desktop staging/linux-x64/
@@ -143,7 +210,7 @@ jobs:
           
           # 2. Debian Package (.deb)
           chmod +x packaging/linux/build-deb.sh
-          ./packaging/linux/build-deb.sh "${{ steps.version.outputs.version }}"
+          ./packaging/linux/build-deb.sh "${{ needs.prepare-release.outputs.version }}"
 
       - name: Upload Packaged Artifacts
         uses: actions/upload-artifact@v4
@@ -153,7 +220,7 @@ jobs:
 
   publish-github-release:
     name: Publish GitHub Release
-    needs: package-binaries
+    needs: [prepare-release, package-binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -168,25 +235,11 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
-      - name: Determine Release Tag
-        id: release_info
-        shell: bash
-        run: |
-          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            TAG="${{ github.event.inputs.tag_name }}"
-          elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-          else
-            TAG="v$(date +'%Y.%m.%d-%H%M')"
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Using release tag: $TAG"
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release_info.outputs.tag }}
-          name: CassiniFlow ${{ steps.release_info.outputs.tag }}
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          name: CassiniFlow ${{ needs.prepare-release.outputs.tag }}
           draft: false
           prerelease: false
           generate_release_notes: true

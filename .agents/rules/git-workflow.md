@@ -15,9 +15,11 @@ Les messages de commit doivent suivre le standard Conventional Commits :
 - `test:` : Ajout ou modification de tests unitaires.
 - `chore:` : Tâches d'infrastructure de projet (ex: configuration Git, mise à jour des packages).
 
-## 3. Branches
-- Branche principale : `main`.
-- Branches de fonctionnalités / corrections / refactorings : `feat/...`, `fix/...`, `refactor/...`.
+## 3. Branches & Stratégie de Release
+- **`main`** : Branche de production officielle. Tout commit sur `main` correspond à une version stable et publique étiquetée (`v*`).
+- **`develop`** : Branche d'intégration quotidienne. Toutes les PRs de développement y sont fusionnées.
+- Branches de travail : `feat/...`, `fix/...`, `refactor/...`, qui ciblent systématiquement **`develop`**.
+- **Publication d'une release** : s'effectue via une PR **`develop` ➔ `main`** lorsque le jalon (milestone) de la version est atteint. La fusion sur `main` déclenche le tag, le changelog et la création des installateurs (.exe, .deb, archives portables).
 
 ## 4. Pull Requests & Validation
 - **Ne JAMAIS valider ou fusionner (merge) une Pull Request sans autorisation explicite préalable de l'utilisateur.**

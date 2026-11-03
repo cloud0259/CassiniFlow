@@ -14,7 +14,7 @@
         Icon="/Assets/cassiniflow.ico"
         DragDrop.AllowDrop="True">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
 
         <!-- BARRE DE MENU ET D'ACTIONS (STYLE CassiniFlow CLASSIQUE MODERNISÉ) -->
         <Border Grid.Row="0" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
@@ -112,8 +112,19 @@
             </Grid>
         </Border>
 
+        <!-- BANNIÈRE DE MISE À JOUR DISPONIBLE (DISCRÈTE ET FERMABLE) -->
+        <Border Grid.Row="1" Background="{DynamicResource AppAccent}" IsVisible="{Binding IsUpdateBannerVisible}" Padding="14,6" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                    <Button Content="{loc:Tr Messages.DownloadUpdateBtn}" Command="{Binding OpenUpdateUrlCommand}" Background="White" Foreground="{DynamicResource AppAccent}" FontWeight="Bold" FontSize="11" Padding="12,4" CornerRadius="4"/>
+                    <Button Content="✕" Command="{Binding DismissUpdateBannerCommand}" Background="Transparent" Foreground="White" FontSize="12" Padding="6,2"/>
+                </StackPanel>
+                <TextBlock Text="{Binding UpdateBannerText}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
         <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX CONTINUS ET SANS ESPACES VIDES -->
-        <Grid Grid.Row="1" ColumnDefinitions="26*,Auto,48*,Auto,26*">
+        <Grid Grid.Row="2" ColumnDefinitions="26*,Auto,48*,Auto,26*">
 
             <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
             <Border Grid.Column="0" MinWidth="250" MaxWidth="480" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="4" IsEnabled="{Binding !IsProcessing}">
@@ -394,7 +405,7 @@
         </Grid>
 
         <!-- BARRE D'ÉTAT INFÉRIEURE (STYLE CassiniFlow) -->
-        <Border Grid.Row="2" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
+        <Border Grid.Row="3" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="10,3">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding ViewerStatusText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding GlobalStatusText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="16,0,12,0" VerticalAlignment="Center"/>

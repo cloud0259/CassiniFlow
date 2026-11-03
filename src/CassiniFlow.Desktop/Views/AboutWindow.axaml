@@ -32,6 +32,18 @@
                 </StackPanel>
             </Border>
 
+            <!-- Card de Vérification des mises à jour -->
+            <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Button x:Name="BtnCheckUpdates" Content="{loc:Tr About.CheckUpdates}" Click="OnCheckUpdatesClick" Padding="14,5" FontSize="11" CornerRadius="5"/>
+                        <Button x:Name="BtnDownloadUpdate" Content="{loc:Tr About.DownloadUpdate}" Click="OnDownloadUpdateClick" IsVisible="False" Padding="14,5" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" CornerRadius="5"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtUpdateStatus" Text="" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" HorizontalAlignment="Center" TextAlignment="Center" IsVisible="False"/>
+                    <CheckBox x:Name="ChkAutoUpdate" Content="{loc:Tr About.CheckOnStartup}" IsChecked="True" Checked="OnAutoUpdateCheckChanged" Unchecked="OnAutoUpdateCheckChanged" FontSize="11" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
             <!-- Bouton Fermer -->
             <Button Content="{loc:Tr About.Close}" Click="OnCloseClick" HorizontalAlignment="Center" Padding="28,7" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="12" CornerRadius="6" Margin="0,4,0,0"/>
 
