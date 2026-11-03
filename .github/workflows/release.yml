@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Nom de la version / Tag (ex: v1.0.0)"
+        description: "Nom de la version / Tag (ex: v1.1.0)"
         required: false
         default: ""
 
@@ -74,7 +74,7 @@ jobs:
           elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
             V="${GITHUB_REF#refs/tags/}"
           else
-            V="1.0.0"
+            V="1.1.0"
           fi
           V_CLEAN="${V#v}"
           echo "version=$V_CLEAN" >> "$GITHUB_OUTPUT"

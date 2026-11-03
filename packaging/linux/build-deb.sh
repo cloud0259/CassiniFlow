@@ -2,7 +2,7 @@
 # CassiniFlow Debian Package (.deb) Builder
 set -e
 
-VERSION="${1:-1.0.0}"
+VERSION="${1:-1.1.0}"
 # Clean leading 'v' if present (e.g. v1.0.0 -> 1.0.0)
 VERSION="${VERSION#v}"
 

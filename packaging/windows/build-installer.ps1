@@ -1,7 +1,7 @@
 # build-installer.ps1
 # Script de compilation locale ou CI pour l'installateur Windows Inno Setup
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.1.0",
     [string]$Configuration = "Release"
 )
 
