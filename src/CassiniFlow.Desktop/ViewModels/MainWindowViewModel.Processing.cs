@@ -244,7 +244,8 @@ public partial class MainWindowViewModel
         catch (Exception ex)
         {
             ProcessingStageText = Loc.Get("Messages.Error");
-            AppendStatusLog(Loc.Format("Messages.ProcessingErrorAt", DateTime.Now, ex.Message));
+            string errorDetails = FormatExceptionDetails(ex);
+            AppendStatusLog(Loc.Format("Messages.ProcessingErrorAt", DateTime.Now, errorDetails));
         }
         finally
         {
@@ -304,6 +305,37 @@ public partial class MainWindowViewModel
     {
         _processingLogLines.Add(message);
         ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
+    }
+
+    private static string FormatExceptionDetails(Exception ex)
+    {
+        var messages = new List<string>();
+        if (ex is AggregateException ae)
+        {
+            foreach (var inner in ae.Flatten().InnerExceptions)
+            {
+                string msg = inner.Message;
+                if (inner.InnerException != null && !string.IsNullOrWhiteSpace(inner.InnerException.Message))
+                {
+                    msg += $" ({inner.InnerException.Message})";
+                }
+                if (!messages.Contains(msg))
+                {
+                    messages.Add(msg);
+                }
+            }
+        }
+        else
+        {
+            string msg = ex.Message;
+            if (ex.InnerException != null && !string.IsNullOrWhiteSpace(ex.InnerException.Message))
+            {
+                msg += $" ({ex.InnerException.Message})";
+            }
+            messages.Add(msg);
+        }
+
+        return messages.Count > 0 ? string.Join(" | ", messages) : ex.ToString();
     }
 
     [RelayCommand]

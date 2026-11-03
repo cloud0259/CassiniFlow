@@ -228,4 +228,21 @@ public class LocalizationTests
         var vm = TestFactory.CreateMainWindowViewModel(localization: service2);
         Assert.NotNull(vm);
     }
+
+    [Fact]
+    public void ProcessingErrorAt_FormatsTimestampAndErrorMessageInBothLanguages()
+    {
+        var testTime = new DateTime(2026, 11, 3, 18, 35, 59);
+        const string testError = "LibOpenCvExtern not found";
+
+        Loc.SetLanguage(AppLanguage.French, save: false);
+        var frMsg = Loc.Format("Messages.ProcessingErrorAt", testTime, testError);
+        Assert.Equal("[18:35:59] Erreur : LibOpenCvExtern not found", frMsg);
+
+        Loc.SetLanguage(AppLanguage.English, save: false);
+        var enMsg = Loc.Format("Messages.ProcessingErrorAt", testTime, testError);
+        Assert.Equal("[18:35:59] Error: LibOpenCvExtern not found", enMsg);
+
+        Loc.SetLanguage(AppLanguage.French, save: false);
+    }
 }
