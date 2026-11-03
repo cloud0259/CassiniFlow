@@ -548,7 +548,13 @@ public static class UniversalMediaReader
                 }
             }
 
-            if (lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
+            bool clippedByLocalWindow =
+                (rx0 > 0 && lMinX <= rx0 + localStep) ||
+                (rx1 < w && lMaxX >= rx1 - localStep * 2) ||
+                (ry0 > 0 && lMinY <= ry0 + localStep) ||
+                (ry1 < h && lMaxY >= ry1 - localStep * 2);
+
+            if (!clippedByLocalWindow && lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
             {
                 int lbaryX = (int)(lSumX / lWeight);
                 int lbaryY = (int)(lSumY / lWeight);

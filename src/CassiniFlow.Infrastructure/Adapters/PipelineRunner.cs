@@ -109,19 +109,28 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.MaxOverexposedPixels,
             rejectClippedObjects: false);
 
-        if (applyCropToOutput || !options.EnableCropping)
+        bool centrePlanet = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        if (applyCropToOutput || (!options.EnableCropping && !centrePlanet))
         {
-            if (applyCropToOutput && options.EnableCropping)
+            if (applyCropToOutput && (options.EnableCropping || centrePlanet))
             {
-                int scaledCropW = Math.Max(16, (int)Math.Round(options.CropWidth * previewScale));
-                int scaledCropH = Math.Max(16, (int)Math.Round(options.CropHeight * previewScale));
-                int scaledOffX = (int)Math.Round(options.CropOffsetX * previewScale);
-                int scaledOffY = (int)Math.Round(options.CropOffsetY * previewScale);
+                int scaledCropW = options.EnableCropping
+                    ? Math.Max(16, (int)Math.Round(options.CropWidth * previewScale))
+                    : work.Width;
+                int scaledCropH = options.EnableCropping
+                    ? Math.Max(16, (int)Math.Round(options.CropHeight * previewScale))
+                    : work.Height;
+                int scaledOffX = options.EnableCropping
+                    ? (int)Math.Round(options.CropOffsetX * previewScale)
+                    : 0;
+                int scaledOffY = options.EnableCropping
+                    ? (int)Math.Round(options.CropOffsetY * previewScale)
+                    : 0;
 
-                int targetX = (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary)
+                int targetX = centrePlanet
                     ? detection.CentroidX
                     : work.Width / 2;
-                int targetY = (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary)
+                int targetY = centrePlanet
                     ? detection.CentroidY
                     : work.Height / 2;
 
@@ -1116,12 +1125,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 Interlocked.Increment(ref acceptedBeforeLimit);
                 int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
+                int offX = options.EnableCropping ? options.CropOffsetX : 0;
+                int offY = options.EnableCropping ? options.CropOffsetY : 0;
 
                 double score = options.EnableQualityEstimation
                     ? UniversalMediaReader.ComputeQualityOnMatRoiFast(
                         rawMat,
-                        targetX - options.CropOffsetX,
-                        targetY - options.CropOffsetY,
+                        targetX - offX,
+                        targetY - offY,
                         roiW,
                         roiH,
                         options.QualityAlgorithm,
@@ -1139,19 +1150,22 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (shouldExtract)
                 {
                     int globalIdx = globalFrameBase + (idx - startIdx);
-                    AstroFrame work = options.EnableCropping
+                    AstroFrame work = (options.EnableCropping || centrePlanet)
                         ? UniversalMediaReader.ExtractCroppedAstroFrameFromMat(
                             rawMat,
                             globalIdx,
                             targetX,
                             targetY,
-                            options.CropWidth,
-                            options.CropHeight,
-                            options.CropOffsetX,
-                            options.CropOffsetY,
-                            reusableDst: spareFrame)
+                            options.EnableCropping ? options.CropWidth : rawMat.Width,
+                            options.EnableCropping ? options.CropHeight : rawMat.Height,
+                            offX,
+                            offY,
+                            reusableDst: spareFrame,
+                            protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern)
                         : UniversalMediaReader.MatToAstroFrame(rawMat, globalIdx);
 
+                    work.DetectedCentroidX = det.CentroidX;
+                    work.DetectedCentroidY = det.CentroidY;
                     work.QualityScore = score;
                     work.TimestampUtc = startUtc.AddSeconds(idx / fps);
 
@@ -1213,19 +1227,21 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 {
                     int targetX = centrePlanet ? cx : ser.Header.ImageWidth / 2;
                     int targetY = centrePlanet ? cy : ser.Header.ImageHeight / 2;
-                    AstroFrame work = options.EnableCropping
+                    AstroFrame work = (options.EnableCropping || centrePlanet)
                         ? ser.ReadFrameCropped(
                             idx,
                             targetX,
                             targetY,
-                            options.CropWidth,
-                            options.CropHeight,
-                            options.CropOffsetX,
-                            options.CropOffsetY,
+                            options.EnableCropping ? options.CropWidth : ser.Header.ImageWidth,
+                            options.EnableCropping ? options.CropHeight : ser.Header.ImageHeight,
+                            options.EnableCropping ? options.CropOffsetX : 0,
+                            options.EnableCropping ? options.CropOffsetY : 0,
                             options.SerBitDepthOverride)
                         : ser.ReadFrame(idx, options.SerBitDepthOverride);
 
                     work.FrameIndex = globalFrameBase + (idx - startIdx);
+                    work.DetectedCentroidX = cx;
+                    work.DetectedCentroidY = cy;
                     if (options.DebayerEnabled && !options.ProtectBayerPattern && work.Channels == 1)
                     {
                         work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
@@ -1279,7 +1295,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             }
 
             Interlocked.Increment(ref acceptedBeforeLimit);
-            if (options.EnableCropping)
+            work.DetectedCentroidX = det.CentroidX;
+            work.DetectedCentroidY = det.CentroidY;
+            if (options.EnableCropping || centrePlanet)
             {
                 int targetX = centrePlanet ? det.CentroidX : work.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : work.Height / 2;
@@ -1287,11 +1305,11 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     work,
                     targetX,
                     targetY,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
-                    protectBayerEvenSteps: work.IsBayerRaw || options.DebayerEnabled);
+                    options.EnableCropping ? options.CropWidth : work.Width,
+                    options.EnableCropping ? options.CropHeight : work.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
+                    protectBayerEvenSteps: work.IsBayerRaw || options.DebayerEnabled || options.ProtectBayerPattern);
             }
 
             if (options.DebayerEnabled && !options.ProtectBayerPattern)
@@ -1425,12 +1443,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
                 int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
+                int offX = options.EnableCropping ? options.CropOffsetX : 0;
+                int offY = options.EnableCropping ? options.CropOffsetY : 0;
 
                 double score = options.EnableQualityEstimation
                     ? UniversalMediaReader.ComputeQualityOnMatRoiFast(
                         rawMat,
-                        targetX - options.CropOffsetX,
-                        targetY - options.CropOffsetY,
+                        targetX - offX,
+                        targetY - offY,
                         roiW,
                         roiH,
                         options.QualityAlgorithm,
@@ -1543,7 +1563,6 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             using var rawMat = new Mat();
             int idx = startIdx;
             int hintX = -1, hintY = -1, cachedThresh = -1;
-            AstroFrame? reusableCrop = null;
 
             while (idx <= endIdx && cap.Read(rawMat) && !rawMat.Empty())
             {
@@ -1568,7 +1587,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 }
 
                 AstroFrame work;
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                     int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
@@ -1577,12 +1596,12 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                         idx,
                         targetX,
                         targetY,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
-                        reusableDst: reusableCrop);
-                    reusableCrop = work;
+                        options.EnableCropping ? options.CropWidth : rawMat.Width,
+                        options.EnableCropping ? options.CropHeight : rawMat.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
+                        reusableDst: null,
+                        protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern);
                 }
                 else
                 {
@@ -1631,7 +1650,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 continue;
             }
 
-            if (options.EnableCropping)
+            if (options.EnableCropping || centrePlanet)
             {
                 int targetX = centrePlanet ? det.CentroidX : work.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : work.Height / 2;
@@ -1639,10 +1658,10 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     work,
                     targetX,
                     targetY,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
+                    options.EnableCropping ? options.CropWidth : work.Width,
+                    options.EnableCropping ? options.CropHeight : work.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
                     options.ProtectBayerPattern);
             }
 
@@ -1674,16 +1693,16 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (!wantedByFrame.TryGetValue(raw.FrameIndex, out var entry)) continue;
                 var work = raw;
                 var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     work = ImageProcessor.CropAroundPoint(
                         work,
                         centrePlanet ? entry.CentroidX : work.Width / 2,
                         centrePlanet ? entry.CentroidY : work.Height / 2,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
+                        options.EnableCropping ? options.CropWidth : work.Width,
+                        options.EnableCropping ? options.CropHeight : work.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
                         options.ProtectBayerPattern);
                 }
                 ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
@@ -1701,16 +1720,16 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (!wantedByFrame.TryGetValue(raw.FrameIndex, out var entry)) continue;
                 var work = raw;
                 var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     work = ImageProcessor.CropAroundPoint(
                         work,
                         centrePlanet ? entry.CentroidX : work.Width / 2,
                         centrePlanet ? entry.CentroidY : work.Height / 2,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
+                        options.EnableCropping ? options.CropWidth : work.Width,
+                        options.EnableCropping ? options.CropHeight : work.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
                         options.ProtectBayerPattern);
                 }
                 ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
@@ -1726,7 +1745,6 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         using var rawMat = new Mat();
         int idx = minFrame;
-        AstroFrame? reusableCrop = null;
 
         while (idx <= maxFrame)
         {
@@ -1741,20 +1759,20 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             if (!cap.Read(rawMat) || rawMat.Empty()) break;
 
             var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-            AstroFrame work = options.EnableCropping
+            AstroFrame work = (options.EnableCropping || centrePlanet)
                 ? UniversalMediaReader.ExtractCroppedAstroFrameFromMat(
                     rawMat,
                     idx,
                     centrePlanet ? entry.CentroidX : rawMat.Width / 2,
                     centrePlanet ? entry.CentroidY : rawMat.Height / 2,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
-                    reusableDst: reusableCrop)
+                    options.EnableCropping ? options.CropWidth : rawMat.Width,
+                    options.EnableCropping ? options.CropHeight : rawMat.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
+                    reusableDst: null,
+                    protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern)
                 : UniversalMediaReader.MatToAstroFrame(rawMat, idx);
 
-            if (options.EnableCropping) reusableCrop = work;
             ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
             onSelectedFrame(idx, work);
             idx++;
@@ -1805,8 +1823,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 options.ObserverLatitudeDegrees,
                 options.TargetAltitudeDegrees,
                 options.TargetAzimuthDegrees);
-            double? pivX = options.EnableCropping ? null : det.CentroidX;
-            double? pivY = options.EnableCropping ? null : det.CentroidY;
+            bool alreadyCentered = options.EnableCropping || (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary);
+            double? pivX = alreadyCentered ? null : det.CentroidX;
+            double? pivY = alreadyCentered ? null : det.CentroidY;
             work = FieldDerotationEngine.ApplyDerotation(work, angle, pivX, pivY);
         }
 

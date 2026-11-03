@@ -407,14 +407,16 @@ public static class FfmpegCliBackend
                 Interlocked.Increment(ref acceptedBeforeLimit);
                 int targetX = centrePlanet ? det.CentroidX : w / 2;
                 int targetY = centrePlanet ? det.CentroidY : h / 2;
+                int offX = options.EnableCropping ? options.CropOffsetX : 0;
+                int offY = options.EnableCropping ? options.CropOffsetY : 0;
 
                 double score = options.EnableQualityEstimation
                     ? ComputeQualityOnRgb24RoiFast(
                         buf,
                         w,
                         h,
-                        targetX - options.CropOffsetX,
-                        targetY + options.CropOffsetY,
+                        targetX - offX,
+                        targetY - offY,
                         roiW,
                         roiH,
                         options.QualityAlgorithm,
@@ -432,7 +434,7 @@ public static class FfmpegCliBackend
                 if (shouldExtract)
                 {
                     int globalIdx = globalFrameBase + (idx - start);
-                    AstroFrame work = options.EnableCropping
+                    AstroFrame work = (options.EnableCropping || centrePlanet)
                         ? ExtractCroppedAstroFrameFromRgb24(
                             buf,
                             w,
@@ -440,10 +442,10 @@ public static class FfmpegCliBackend
                             globalIdx,
                             targetX,
                             targetY,
-                            options.CropWidth,
-                            options.CropHeight,
-                            options.CropOffsetX,
-                            options.CropOffsetY,
+                            options.EnableCropping ? options.CropWidth : w,
+                            options.EnableCropping ? options.CropHeight : h,
+                            offX,
+                            offY,
                             reusableDst: spareFrame)
                         : Rgb24ToAstroFrame(buf, w, h, globalIdx);
 
@@ -543,7 +545,13 @@ public static class FfmpegCliBackend
                     }
                 }
 
-                if (lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
+                bool clippedByLocalWindow =
+                    (rx0 > 0 && lMinX <= rx0 + localStep) ||
+                    (rx1 < w && lMaxX >= rx1 - localStep * 2) ||
+                    (ry0 > 0 && lMinY <= ry0 + localStep) ||
+                    (ry1 < h && lMaxY >= ry1 - localStep * 2);
+
+                if (!clippedByLocalWindow && lDet >= minArea && lWeight > 0 && lMinX <= lMaxX && lMinY <= lMaxY)
                 {
                     int lbaryX = (int)(lSumX / lWeight);
                     int lbaryY = (int)(lSumY / lWeight);

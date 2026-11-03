@@ -91,12 +91,13 @@ public sealed class CroppingStep : IFramePipelineStep
     public AstroFrame Execute(AstroFrame frame, FramePipelineContext context)
     {
         var opt = context.Options;
-        if (!opt.EnableCropping) return frame;
+        bool centre = opt.CentreObjectInFrame && opt.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        if (!opt.EnableCropping && !centre) return frame;
 
-        int cx = opt.CentreObjectInFrame && context.LastDetection is { Accepted: true }
+        int cx = centre && context.LastDetection is { Accepted: true }
             ? context.LastDetection.CentroidX
             : frame.Width / 2;
-        int cy = opt.CentreObjectInFrame && context.LastDetection is { Accepted: true }
+        int cy = centre && context.LastDetection is { Accepted: true }
             ? context.LastDetection.CentroidY
             : frame.Height / 2;
 
@@ -104,10 +105,10 @@ public sealed class CroppingStep : IFramePipelineStep
             frame,
             cx,
             cy,
-            opt.CropWidth,
-            opt.CropHeight,
-            opt.CropOffsetX,
-            opt.CropOffsetY,
+            opt.EnableCropping ? opt.CropWidth : frame.Width,
+            opt.EnableCropping ? opt.CropHeight : frame.Height,
+            opt.EnableCropping ? opt.CropOffsetX : 0,
+            opt.EnableCropping ? opt.CropOffsetY : 0,
             opt.ProtectBayerPattern);
     }
 }

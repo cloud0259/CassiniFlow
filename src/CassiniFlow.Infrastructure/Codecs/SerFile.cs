@@ -377,10 +377,10 @@ public sealed unsafe class SerFile : IDisposable
 
         int cx = w / 2;
         int cy = h / 2;
-        bool checkObject = options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne &&
+        bool checkObject = options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly &&
                            options.CheckPlanetObjectPresent &&
                            options.StabilisationMode == StabilisationMode.ObjectPlanetary;
-        bool centreObject = options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne &&
+        bool centreObject = options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly &&
                             options.CentreObjectInFrame &&
                             options.StabilisationMode == StabilisationMode.ObjectPlanetary;
 
@@ -500,7 +500,7 @@ public sealed unsafe class SerFile : IDisposable
             int finalMinX = (cleanMinX <= cleanMaxX) ? cleanMinX : Math.Max(minX, searchMinX);
             int finalMaxX = (cleanMinX <= cleanMaxX) ? cleanMaxX : Math.Min(maxX, searchMaxX);
             int finalMinY = (cleanMinY <= cleanMaxY) ? cleanMinY : Math.Max(minY, searchMinY);
-            int finalMaxY = (cleanMinY <= cleanMaxY) ? cleanMinY : Math.Min(maxY, searchMaxY);
+            int finalMaxY = (cleanMinY <= cleanMaxY) ? cleanMaxY : Math.Min(maxY, searchMaxY);
 
             int geomCenterX = (finalMinX + finalMaxX) / 2;
             int geomCenterY = (finalMinY + finalMaxY) / 2;
@@ -541,7 +541,7 @@ public sealed unsafe class SerFile : IDisposable
 
         // Détermination de la ROI d'évaluation de qualité (zone recadrée autour de la planète ou image entière)
         int roiX0 = 0, roiY0 = 0, roiX1 = w, roiY1 = h;
-        if (options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne && options.EnableCropping)
+        if (options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly && options.EnableCropping)
         {
             int cropW = Math.Clamp(options.CropWidth, 16, w);
             int cropH = Math.Clamp(options.CropHeight, 16, h);
