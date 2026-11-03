@@ -43,13 +43,13 @@
   <!-- ==================== HEADER (FIXED & ROBUST) ==================== -->
   <header
     class="sticky top-0 z-50 backdrop-blur-md bg-space-900/90 border-b border-space-600/70 transition-all duration-300">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
 
-      <!-- Brand Logo (Strict shrink-0 & whitespace-nowrap) -->
-      <a href="#" class="flex items-center gap-3 shrink-0 whitespace-nowrap group">
+      <!-- Brand Logo (Strict shrink-0 & whitespace-nowrap, text hidden on mobile) -->
+      <a href="#" class="flex items-center gap-2.5 sm:gap-3 shrink-0 whitespace-nowrap group">
         <img src="assets/icon_64x64.png" alt="CassiniFlow Logo"
-          class="w-10 h-10 rounded-xl shadow-glow transition-transform duration-300 group-hover:scale-105 shrink-0">
-        <div class="flex flex-col leading-tight">
+          class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-glow transition-transform duration-300 group-hover:scale-105 shrink-0">
+        <div class="hidden sm:flex flex-col leading-tight">
           <span
             class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent whitespace-nowrap">
             CassiniFlow
@@ -75,10 +75,10 @@
       </nav>
 
       <!-- Right Action Items -->
-      <div class="flex items-center gap-3 shrink-0">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <!-- Language Switcher -->
         <button id="langToggleBtn" onclick="toggleLanguage()"
-          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-space-600 hover:border-sky-400 text-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          class="text-xs font-semibold px-2 sm:px-2.5 py-1.5 rounded-lg border border-space-600 hover:border-sky-400 text-slate-300 transition-colors flex items-center gap-1 sm:gap-1.5 whitespace-nowrap"
           title="Switch language">
           <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i>
           <span id="langLabel">EN</span>
@@ -86,7 +86,7 @@
 
         <!-- GitHub Repo Button -->
         <a href="https://github.com/cloud0259/CassiniFlow" target="_blank" rel="noopener noreferrer"
-          class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 bg-space-800 hover:bg-space-700 rounded-lg border border-space-600 transition-colors whitespace-nowrap">
+          class="hidden md:flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 bg-space-800 hover:bg-space-700 rounded-lg border border-space-600 transition-colors whitespace-nowrap">
           <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path fill-rule="evenodd" clip-rule="evenodd"
               d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z">
@@ -98,8 +98,8 @@
 
         <!-- Fast Download Button (Dynamic Version) -->
         <a href="#download"
-          class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-lg shadow-glow transition-all duration-300 hover:scale-[1.02] whitespace-nowrap">
-          <i data-lucide="download" class="w-4 h-4 shrink-0"></i>
+          class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-bold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-lg shadow-glow transition-all duration-300 hover:scale-[1.02] whitespace-nowrap">
+          <i data-lucide="download" class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0"></i>
           <span data-i18n="btn_download"></span>
           <span id="headerVersionBadge"
             class="bg-blue-900/60 text-sky-200 px-1.5 py-0.5 rounded text-[10px] hidden sm:inline-block"
@@ -108,7 +108,7 @@
 
         <!-- Mobile Hamburger Button -->
         <button onclick="toggleMobileMenu()"
-          class="xl:hidden p-2 rounded-lg border border-space-600 text-slate-300 hover:text-white hover:bg-space-800 transition-colors"
+          class="xl:hidden p-1.5 sm:p-2 rounded-lg border border-space-600 text-slate-300 hover:text-white hover:bg-space-800 transition-colors"
           aria-label="Menu">
           <i data-lucide="menu" class="w-5 h-5"></i>
         </button>
@@ -150,7 +150,7 @@
 
       <!-- Main Headline -->
       <h1
-        class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.15] sm:leading-[1.1]"
+        class="text-3xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.15] sm:leading-[1.1]"
         data-i18n-html="hero_title"></h1>
 
       <!-- Subtitle -->
@@ -452,16 +452,16 @@
         <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="themes_title"></h2>
         <p class="mt-4 text-slate-300" data-i18n="themes_desc"></p>
 
-        <!-- Theme Switcher Buttons -->
-        <div class="mt-8 inline-flex p-1.5 rounded-xl bg-space-800 border border-space-600">
+        <!-- Theme Switcher Buttons (Responsive flex) -->
+        <div class="mt-8 inline-flex flex-wrap justify-center p-1.5 rounded-xl bg-space-800 border border-space-600 gap-1 sm:gap-0 max-w-full">
           <button onclick="switchThemePreview('dark')" id="btnThemeDark"
-            class="px-4 py-2 text-xs font-semibold rounded-lg bg-accent text-white transition-all"
+            class="px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg bg-accent text-white transition-all shrink-0"
             data-i18n="btn_theme_dark"></button>
           <button onclick="switchThemePreview('night')" id="btnThemeNight"
-            class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all"
+            class="px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all shrink-0"
             data-i18n="btn_theme_night"></button>
           <button onclick="switchThemePreview('light')" id="btnThemeLight"
-            class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all"
+            class="px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all shrink-0"
             data-i18n="btn_theme_light"></button>
         </div>
       </div>
