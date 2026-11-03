@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="pageTitle"></title>
+  <meta name="description" id="metaDescription"
+    content="CassiniFlow est une suite logicielle open-source haute performance dédiée au prétraitement et à l'empilement multi-zones (AP, Drizzle 1.5x/3x, ADC) pour l'astrophotographie planétaire, lunaire et solaire.">
+  <meta name="keywords"
+    content="astrophotographie, planetary imaging, lucky imaging, SER, FITS, autostakkert, siril, winjupos, stacking, drizzle, seeing, debayer">
+  <meta property="og:title" id="ogTitle" content="CassiniFlow — Prétraitement & Empilement Planétaire Haute Résolution">
+  <meta property="og:description" id="ogDescription"
+    content="Triez, stabilisez, calibrez et empilez vos séquences planétaires, lunaires et solaires. Multiplateforme Windows & Linux.">
+  <meta property="og:image" content="assets/cassiniflow_logo_1200w.png">
+  <meta property="og:type" content="website">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/icon_256x256.png">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS CDN & External Config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="js/tailwind-config.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- External Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="bg-space-900 text-slate-100 antialiased font-sans selection:bg-accent selection:text-white">
+
+  <!-- ==================== HEADER (FIXED & ROBUST) ==================== -->
+  <header
+    class="sticky top-0 z-50 backdrop-blur-md bg-space-900/90 border-b border-space-600/70 transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+
+      <!-- Brand Logo (Strict shrink-0 & whitespace-nowrap) -->
+      <a href="#" class="flex items-center gap-3 shrink-0 whitespace-nowrap group">
+        <img src="assets/icon_64x64.png" alt="CassiniFlow Logo"
+          class="w-10 h-10 rounded-xl shadow-glow transition-transform duration-300 group-hover:scale-105 shrink-0">
+        <div class="flex flex-col leading-tight">
+          <span
+            class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent whitespace-nowrap">
+            CassiniFlow
+          </span>
+          <span class="text-[10px] tracking-widest uppercase font-semibold text-sky-400/80 whitespace-nowrap"
+            data-i18n="brand_subtitle"></span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden xl:flex items-center gap-6 text-sm font-medium text-slate-300 shrink-0">
+        <a href="#modes" class="hover:text-sky-400 transition-colors whitespace-nowrap" data-i18n="nav_modes"></a>
+        <a href="#features" class="hover:text-sky-400 transition-colors whitespace-nowrap"
+          data-i18n="nav_features"></a>
+        <a href="#stacking" class="hover:text-sky-400 transition-colors whitespace-nowrap"
+          data-i18n="nav_stacking"></a>
+        <a href="#themes" class="hover:text-sky-400 transition-colors whitespace-nowrap"
+          data-i18n="nav_themes"></a>
+        <a href="#download" class="hover:text-sky-400 transition-colors whitespace-nowrap"
+          data-i18n="nav_download"></a>
+        <a href="#quickstart" class="hover:text-sky-400 transition-colors whitespace-nowrap"
+          data-i18n="nav_guide"></a>
+      </nav>
+
+      <!-- Right Action Items -->
+      <div class="flex items-center gap-3 shrink-0">
+        <!-- Language Switcher -->
+        <button id="langToggleBtn" onclick="toggleLanguage()"
+          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-space-600 hover:border-sky-400 text-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          title="Switch language">
+          <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i>
+          <span id="langLabel">EN</span>
+        </button>
+
+        <!-- GitHub Repo Button -->
+        <a href="https://github.com/cloud0259/CassiniFlow" target="_blank" rel="noopener noreferrer"
+          class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 bg-space-800 hover:bg-space-700 rounded-lg border border-space-600 transition-colors whitespace-nowrap">
+          <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd"
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z">
+            </path>
+          </svg>
+          <span>GitHub</span>
+          <span id="githubStarCount" class="text-sky-400 font-mono text-[11px]">★</span>
+        </a>
+
+        <!-- Fast Download Button (Dynamic Version) -->
+        <a href="#download"
+          class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-lg shadow-glow transition-all duration-300 hover:scale-[1.02] whitespace-nowrap">
+          <i data-lucide="download" class="w-4 h-4 shrink-0"></i>
+          <span data-i18n="btn_download"></span>
+          <span id="headerVersionBadge"
+            class="bg-blue-900/60 text-sky-200 px-1.5 py-0.5 rounded text-[10px] hidden sm:inline-block"
+            data-i18n="badge_latest"></span>
+        </a>
+
+        <!-- Mobile Hamburger Button -->
+        <button onclick="toggleMobileMenu()"
+          class="xl:hidden p-2 rounded-lg border border-space-600 text-slate-300 hover:text-white hover:bg-space-800 transition-colors"
+          aria-label="Menu">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <div id="mobileMenu" class="hidden xl:hidden bg-space-900 border-b border-space-600 px-4 py-4 space-y-3">
+      <a href="#modes" onclick="toggleMobileMenu()" class="block text-sm font-medium text-slate-300 hover:text-sky-400"
+        data-i18n="nav_modes"></a>
+      <a href="#features" onclick="toggleMobileMenu()"
+        class="block text-sm font-medium text-slate-300 hover:text-sky-400" data-i18n="nav_features"></a>
+      <a href="#stacking" onclick="toggleMobileMenu()"
+        class="block text-sm font-medium text-slate-300 hover:text-sky-400" data-i18n="nav_stacking"></a>
+      <a href="#themes" onclick="toggleMobileMenu()" class="block text-sm font-medium text-slate-300 hover:text-sky-400"
+        data-i18n="nav_themes"></a>
+      <a href="#download" onclick="toggleMobileMenu()"
+        class="block text-sm font-medium text-slate-300 hover:text-sky-400" data-i18n="nav_download"></a>
+      <a href="#quickstart" onclick="toggleMobileMenu()"
+        class="block text-sm font-medium text-slate-300 hover:text-sky-400" data-i18n="nav_guide_cli"></a>
+    </div>
+  </header>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section class="relative hero-glow pt-16 pb-24 overflow-hidden">
+    <div
+      class="absolute inset-0 bg-[linear-gradient(to_right,#1f293d0f_1px,transparent_1px),linear-gradient(to_bottom,#1f293d0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none">
+    </div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+      <!-- Pills / Badges (Dynamic Version) -->
+      <div
+        class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-space-800/90 border border-sky-500/30 text-xs font-medium text-sky-300 mb-8 backdrop-blur-sm">
+        <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="heroBadgeText" data-i18n="hero_badge"></span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1
+        class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.15] sm:leading-[1.1]"
+        data-i18n-html="hero_title"></h1>
+
+      <!-- Subtitle -->
+      <p class="mt-6 text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto font-normal leading-relaxed"
+        data-i18n-html="hero_subtitle"></p>
+
+      <!-- Dynamic CTA Download Group -->
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+
+        <!-- Primary Detected OS Button -->
+        <a id="heroPrimaryDownloadBtn" href="#download"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-glow transition-all duration-300 hover:scale-[1.02]">
+          <i id="heroOsIcon" data-lucide="monitor" class="w-5 h-5 text-sky-200"></i>
+          <span id="heroPrimaryDownloadLabel" data-i18n="hero_download_win"></span>
+        </a>
+
+        <!-- Secondary Button: All Packages -->
+        <a href="#download"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-semibold text-slate-200 bg-space-800 hover:bg-space-700 border border-space-600 rounded-xl transition-all duration-300">
+          <i data-lucide="layers" class="w-5 h-5 text-sky-400"></i>
+          <span data-i18n="hero_all_packages"></span>
+        </a>
+      </div>
+
+      <!-- Quick Trust Indicators -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+        <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span data-i18n="trust_open_source"></span></span>
+        <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span data-i18n="trust_standalone"></span></span>
+        <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span data-i18n="trust_ram"></span></span>
+        <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span data-i18n="trust_formats"></span></span>
+      </div>
+
+      <!-- Real App Screenshot Hero (Native clean frame, No MacOS buttons) -->
+      <div class="mt-12 relative max-w-6xl mx-auto group">
+        <div
+          class="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-500 to-amber-400 rounded-2xl blur-lg opacity-25">
+        </div>
+        <div class="relative rounded-2xl bg-space-850 border border-space-600 overflow-hidden shadow-2xl">
+          <!-- Real Application Screenshot in Dark Mode (High-Res 1870x1079 Lossless PNG) -->
+          <a href="assets/screenshots/cassiniflow_screen_dark.png" target="_blank" rel="noopener noreferrer"
+            class="block cursor-zoom-in relative">
+            <img src="assets/screenshots/cassiniflow_screen_dark.png"
+              alt="Interface CassiniFlow - Traitement de Saturne en mode Flux Direct Intégral"
+              class="w-full h-auto object-cover rounded-xl block">
+            <div
+              class="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-space-900/85 backdrop-blur-sm border border-space-600/80 text-xs font-medium text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 shadow-lg">
+              <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span data-i18n="zoom_tooltip"></span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== WORKFLOW SECTION : TWO WAYS TO USE ==================== -->
+  <section id="modes" class="py-24 bg-space-850 border-t border-b border-space-600/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center max-w-3xl mx-auto">
+        <h2 class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="modes_tag"></h2>
+        <p class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="modes_title"></p>
+        <p class="mt-4 text-slate-300" data-i18n="modes_desc"></p>
+      </div>
+
+      <div class="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Mode 1: Tout-en-un Direct -->
+        <div class="border-gradient rounded-2xl p-8 bg-space-750/90 relative flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <div
+                class="w-12 h-12 rounded-xl bg-blue-600/20 text-sky-400 flex items-center justify-center border border-blue-500/30">
+                <i data-lucide="zap" class="w-6 h-6"></i>
+              </div>
+              <span
+                class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full"
+                data-i18n="mode1_badge"></span>
+            </div>
+
+            <h3 class="mt-6 text-2xl font-bold text-white" data-i18n="mode1_title"></h3>
+            <p class="mt-2 text-sm text-slate-300" data-i18n="mode1_subtitle"></p>
+
+            <ul class="mt-6 space-y-3.5 text-sm text-slate-300">
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-sky-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode1_item1"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-sky-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode1_item2"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-sky-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode1_item3"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-sky-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode1_item4"></span>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            class="mt-8 pt-6 border-t border-space-600 flex items-center justify-between text-xs font-mono text-sky-400">
+            <span data-i18n="mode1_footer_wf"></span>
+            <span data-i18n="mode1_footer_out"></span>
+          </div>
+        </div>
+
+        <!-- Mode 2: Prétraitement & Curation pour outils tiers -->
+        <div class="border border-space-600 rounded-2xl p-8 bg-space-800/80 relative flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <div
+                class="w-12 h-12 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                <i data-lucide="git-merge" class="w-6 h-6"></i>
+              </div>
+              <span
+                class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-full"
+                data-i18n="mode2_badge"></span>
+            </div>
+
+            <h3 class="mt-6 text-2xl font-bold text-white" data-i18n="mode2_title"></h3>
+            <p class="mt-2 text-sm text-slate-300" data-i18n="mode2_subtitle"></p>
+
+            <ul class="mt-6 space-y-3.5 text-sm text-slate-300">
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode2_item1"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode2_item2"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode2_item3"></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i data-lucide="check" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
+                <span data-i18n-html="mode2_item4"></span>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            class="mt-8 pt-6 border-t border-space-600 flex items-center justify-between text-xs font-mono text-purple-400">
+            <span data-i18n="mode2_footer_wf"></span>
+            <span data-i18n="mode2_footer_out"></span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== STACKING ENGINE DEEP DIVE ==================== -->
+  <section id="stacking" class="py-24 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-16">
+        <div>
+          <span class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="stacking_tag"></span>
+          <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="stacking_title"></h2>
+        </div>
+        <p class="mt-4 md:mt-0 text-slate-300 max-w-md text-sm" data-i18n="stacking_desc"></p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Card 1: Grille AP Multi-Scale -->
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 hover:border-sky-500/50 transition-colors">
+          <div class="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4">
+            <i data-lucide="grid" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white" data-i18n="stack_c1_title"></h4>
+          <p class="mt-2 text-xs text-slate-300 leading-relaxed" data-i18n="stack_c1_desc"></p>
+          <div class="mt-4 text-[11px] font-mono text-sky-400">Multi-Scale Grid & Pruning</div>
+        </div>
+
+        <!-- Card 2: Drizzle 1.5x / 3.0x -->
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 hover:border-sky-500/50 transition-colors">
+          <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center mb-4">
+            <i data-lucide="maximize" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white" data-i18n="stack_c2_title"></h4>
+          <p class="mt-2 text-xs text-slate-300 leading-relaxed" data-i18n="stack_c2_desc"></p>
+          <div class="mt-4 text-[11px] font-mono text-blue-400">Drizzle 1.5x & 3.0x</div>
+        </div>
+
+        <!-- Card 3: Double-Stack de Référence -->
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 hover:border-sky-500/50 transition-colors">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4">
+            <i data-lucide="copy" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white" data-i18n="stack_c3_title"></h4>
+          <p class="mt-2 text-xs text-slate-300 leading-relaxed" data-i18n="stack_c3_desc"></p>
+          <div class="mt-4 text-[11px] font-mono text-amber-400">Reference Frame Double-Stack</div>
+        </div>
+
+        <!-- Card 4: ADC & Rehaussement Ondelettes -->
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 hover:border-sky-500/50 transition-colors">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white" data-i18n="stack_c4_title"></h4>
+          <p class="mt-2 text-xs text-slate-300 leading-relaxed" data-i18n="stack_c4_desc"></p>
+          <div class="mt-4 text-[11px] font-mono text-emerald-400">Software ADC & Blend</div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== CORE FEATURES GRID ==================== -->
+  <section id="features" class="py-24 bg-space-850 border-t border-b border-space-600/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="features_tag"></span>
+        <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="features_title"></h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <!-- Feature 1 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+            <i data-lucide="film" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat1_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat1_desc"></p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <i data-lucide="crosshair" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat2_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat2_desc"></p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat3_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat3_desc"></p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat4_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat4_desc"></p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat5_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat5_desc"></p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="flex flex-col gap-3 p-6 rounded-xl bg-space-750 border border-space-600">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4">
+            <i data-lucide="terminal" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white" data-i18n="feat6_title"></h3>
+          <p class="text-sm text-slate-300" data-i18n="feat6_desc"></p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== UI THEMES PREVIEW (WITH REAL SCREENSHOTS) ==================== -->
+  <section id="themes" class="py-24 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center max-w-3xl mx-auto mb-12">
+        <span class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="themes_tag"></span>
+        <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="themes_title"></h2>
+        <p class="mt-4 text-slate-300" data-i18n="themes_desc"></p>
+
+        <!-- Theme Switcher Buttons -->
+        <div class="mt-8 inline-flex p-1.5 rounded-xl bg-space-800 border border-space-600">
+          <button onclick="switchThemePreview('dark')" id="btnThemeDark"
+            class="px-4 py-2 text-xs font-semibold rounded-lg bg-accent text-white transition-all"
+            data-i18n="btn_theme_dark"></button>
+          <button onclick="switchThemePreview('night')" id="btnThemeNight"
+            class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all"
+            data-i18n="btn_theme_night"></button>
+          <button onclick="switchThemePreview('light')" id="btnThemeLight"
+            class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all"
+            data-i18n="btn_theme_light"></button>
+        </div>
+      </div>
+
+      <!-- Real Screenshots Interactive Showcase -->
+      <div id="themePreviewContainer"
+        class="max-w-6xl mx-auto rounded-2xl p-4 sm:p-6 border border-space-600 bg-space-850 shadow-2xl transition-all duration-300 group">
+        <div class="flex items-center justify-between border-b pb-4 mb-4 border-space-600/70">
+          <div class="flex items-center gap-3">
+            <div id="themeIndicatorDot" class="w-3.5 h-3.5 rounded-full bg-blue-500 shadow-glow"></div>
+            <span id="themeTitle" class="text-sm sm:text-base font-bold text-white"></span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="themeDescription" class="text-xs text-slate-400 hidden sm:inline"></span>
+            <a id="themeZoomLink" href="assets/screenshots/cassiniflow_screen_dark.png" target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-space-600 hover:border-sky-400 text-slate-300 hover:text-white transition-colors"
+              title="Zoom">
+              <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span class="hidden md:inline" data-i18n="fullscreen_btn"></span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Screenshot Image Display -->
+        <div class="relative rounded-xl overflow-hidden border border-space-600/80 bg-space-950">
+          <a id="themeImgAnchor" href="assets/screenshots/cassiniflow_screen_dark.png" target="_blank"
+            rel="noopener noreferrer" class="block cursor-zoom-in">
+            <img id="themeScreenshotImg" src="assets/screenshots/cassiniflow_screen_dark.png"
+              alt="Capture réelle de l'interface CassiniFlow"
+              class="w-full h-auto object-cover rounded-lg transition-opacity duration-300">
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== DOWNLOAD HUB (AUTOMATIC VERSION) ==================== -->
+  <section id="download" class="py-24 bg-space-850 border-t border-space-600/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="dl_tag"></span>
+        <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="dl_title"></h2>
+        <p class="mt-4 text-slate-300" data-i18n="dl_desc"></p>
+        <div
+          class="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 bg-space-800 rounded-lg border border-space-600 text-xs font-mono text-slate-300">
+          <span data-i18n="dl_latest_label"></span>
+          <strong id="releaseVersionTag" class="text-sky-400" data-i18n="dl_latest_tag"></strong>
+          <span class="text-slate-500">•</span>
+          <span id="releasePublishDate" data-i18n="dl_date_fallback"></span>
+        </div>
+      </div>
+
+      <!-- Packages Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Windows Setup -->
+        <div
+          class="p-6 rounded-2xl bg-space-800 border border-space-600 flex flex-col justify-between hover:border-sky-500/50 transition-all">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-sky-400 flex items-center justify-center mb-4">
+              <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            </div>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-bold text-white" data-i18n="pkg_win_setup_title"></h3>
+              <span
+                class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                data-i18n="badge_recommended"></span>
+            </div>
+            <p class="mt-2 text-xs text-slate-300" data-i18n="pkg_win_setup_desc"></p>
+            <div class="mt-4 text-[11px] font-mono text-slate-400">
+              <span data-i18n="file_label"></span> <code
+                class="text-slate-200">CassiniFlow-Setup-x64.exe</code>
+            </div>
+          </div>
+          <a id="linkWinSetup" href="https://github.com/cloud0259/CassiniFlow/releases/latest"
+            class="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-accent hover:bg-accent-hover rounded-xl shadow-glow transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span data-i18n="btn_dl_exe"></span>
+          </a>
+        </div>
+
+        <!-- Windows Portable -->
+        <div
+          class="p-6 rounded-2xl bg-space-800 border border-space-600 flex flex-col justify-between hover:border-sky-500/50 transition-all">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-sky-600/20 text-sky-400 flex items-center justify-center mb-4">
+              <i data-lucide="archive" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white" data-i18n="pkg_win_portable_title"></h3>
+            <p class="mt-2 text-xs text-slate-300" data-i18n="pkg_win_portable_desc"></p>
+            <div class="mt-4 text-[11px] font-mono text-slate-400">
+              <span data-i18n="file_label"></span> <code
+                class="text-slate-200">CassiniFlow-win-x64-portable.zip</code>
+            </div>
+          </div>
+          <a id="linkWinZip" href="https://github.com/cloud0259/CassiniFlow/releases/latest"
+            class="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 bg-space-700 hover:bg-space-600 border border-space-600 rounded-xl transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span data-i18n="btn_dl_zip"></span>
+          </a>
+        </div>
+
+        <!-- Linux DEB -->
+        <div
+          class="p-6 rounded-2xl bg-space-800 border border-space-600 flex flex-col justify-between hover:border-sky-500/50 transition-all">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center mb-4">
+              <i data-lucide="package" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white" data-i18n="pkg_linux_deb_title"></h3>
+            <p class="mt-2 text-xs text-slate-300" data-i18n="pkg_linux_deb_desc"></p>
+            <div class="mt-4 text-[11px] font-mono text-slate-400">
+              <span data-i18n="file_label"></span> <code class="text-slate-200">cassiniflow-x64.deb</code>
+            </div>
+          </div>
+          <a id="linkLinuxDeb" href="https://github.com/cloud0259/CassiniFlow/releases/latest"
+            class="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 bg-space-700 hover:bg-space-600 border border-space-600 rounded-xl transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span data-i18n="btn_dl_deb"></span>
+          </a>
+        </div>
+
+        <!-- Linux Portable & CLI -->
+        <div
+          class="p-6 rounded-2xl bg-space-800 border border-space-600 flex flex-col justify-between hover:border-sky-500/50 transition-all">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-4">
+              <i data-lucide="terminal" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white" data-i18n="pkg_linux_tar_title"></h3>
+            <p class="mt-2 text-xs text-slate-300" data-i18n="pkg_linux_tar_desc"></p>
+            <div class="mt-4 text-[11px] font-mono text-slate-400">
+              <span data-i18n="file_label"></span> <code
+                class="text-slate-200">cassiniflow-linux-x64.tar.gz</code>
+            </div>
+          </div>
+          <a id="linkLinuxTar" href="https://github.com/cloud0259/CassiniFlow/releases/latest"
+            class="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 bg-space-700 hover:bg-space-600 border border-space-600 rounded-xl transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span data-i18n="btn_dl_tar"></span>
+          </a>
+        </div>
+
+      </div>
+
+      <!-- Direct Releases Link -->
+      <div class="mt-10 text-center text-xs text-slate-400">
+        <span data-i18n="dl_history_question"></span>
+        <a href="https://github.com/cloud0259/CassiniFlow/releases" target="_blank" rel="noopener noreferrer"
+          class="text-sky-400 underline hover:text-sky-300 ml-1" data-i18n="dl_history_link"></a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== QUICKSTART & CLI GUIDE ==================== -->
+  <section id="quickstart" class="py-24 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-xs uppercase tracking-widest text-sky-400 font-bold" data-i18n="qs_tag"></span>
+        <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-white" data-i18n="qs_title"></h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 relative">
+          <div
+            class="w-8 h-8 rounded-full bg-accent text-white font-bold text-sm flex items-center justify-center mb-4">
+            1
+          </div>
+          <h4 class="text-base font-bold text-white" data-i18n="qs_step1_title"></h4>
+          <p class="mt-2 text-xs text-slate-300" data-i18n="qs_step1_desc"></p>
+        </div>
+
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 relative">
+          <div
+            class="w-8 h-8 rounded-full bg-accent text-white font-bold text-sm flex items-center justify-center mb-4">
+            2
+          </div>
+          <h4 class="text-base font-bold text-white" data-i18n="qs_step2_title"></h4>
+          <p class="mt-2 text-xs text-slate-300" data-i18n="qs_step2_desc"></p>
+        </div>
+
+        <div class="p-6 rounded-xl bg-space-800 border border-space-600 relative">
+          <div
+            class="w-8 h-8 rounded-full bg-accent text-white font-bold text-sm flex items-center justify-center mb-4">
+            3
+          </div>
+          <h4 class="text-base font-bold text-white" data-i18n="qs_step3_title"></h4>
+          <p class="mt-2 text-xs text-slate-300" data-i18n="qs_step3_desc"></p>
+        </div>
+
+      </div>
+
+      <!-- CLI Snippet Showcase -->
+      <div class="mt-16 max-w-4xl mx-auto rounded-2xl bg-space-950 border border-space-600 p-6 overflow-hidden">
+        <div class="flex items-center justify-between pb-3 border-b border-space-700 text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+            <span class="font-mono" data-i18n="cli_box_title"></span>
+          </div>
+          <span class="text-[11px] font-mono text-slate-500">PowerShell / Bash</span>
+        </div>
+        <pre class="mt-4 text-xs font-mono text-sky-300 overflow-x-auto leading-relaxed"><code id="cliSnippetCode"></code></pre>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-space-950 border-t border-space-700/80 py-12 text-xs text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+
+      <div class="flex items-center gap-3">
+        <img src="assets/icon_32x32.png" alt="CassiniFlow Icon" class="w-6 h-6">
+        <span data-i18n-html="footer_copy"></span>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <a href="https://github.com/cloud0259/CassiniFlow" target="_blank" rel="noopener noreferrer"
+          class="hover:text-sky-400 transition-colors flex items-center gap-1.5">
+          <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+          </svg>
+          <span data-i18n="footer_github"></span>
+        </a>
+        <a href="https://github.com/cloud0259/CassiniFlow/issues" target="_blank" rel="noopener noreferrer"
+          class="hover:text-sky-400 transition-colors flex items-center gap-1.5">
+          <i data-lucide="bug" class="w-4 h-4"></i>
+          <span data-i18n="footer_issues"></span>
+        </a>
+        <a href="https://github.com/cloud0259/CassiniFlow/blob/main/LICENSE" target="_blank" rel="noopener noreferrer"
+          class="hover:text-sky-400 transition-colors" data-i18n="footer_license"></a>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- Scripts: Translation Dictionary & Main App Logic -->
+  <script src="js/i18n-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

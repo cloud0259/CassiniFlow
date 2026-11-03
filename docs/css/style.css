@@ -1,0 +1,38 @@
+/* CassiniFlow Web - Custom Stylesheet */
+
+/* Gradient animated border */
+.border-gradient {
+  border: 1px solid transparent;
+  background: linear-gradient(#18202C, #18202C) padding-box,
+              linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.3)) border-box;
+}
+
+/* Subtle cosmic glow */
+.hero-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.22) 0%, rgba(56, 189, 248, 0.08) 35%, transparent 70%);
+}
+
+/* Smooth transitions */
+#themeScreenshotImg {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A374A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #38BDF8;
+}
+
