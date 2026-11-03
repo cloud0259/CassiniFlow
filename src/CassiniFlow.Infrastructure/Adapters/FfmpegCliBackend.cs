@@ -129,7 +129,7 @@ public static class FfmpegCliBackend
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Fichier Vidéo : {fi.Name}");
+        sb.AppendLine($"--- Fichier Vidéo : {fi.Name} ---");
         sb.AppendLine(new string('=', 56));
         sb.AppendLine($"Chemin      : {filePath}");
         sb.AppendLine($"Taille      : {fi.Length:N0} octets ({fi.Length / (1024.0 * 1024.0):F2} Mo)");
@@ -226,7 +226,7 @@ public static class FfmpegCliBackend
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
-        }) ?? throw new InvalidOperationException("Impossible de démarrer ffmpeg. Installez ffmpeg ('sudo apt install ffmpeg').");
+        }) ?? throw new InvalidOperationException("Failed to start FFmpeg process.");
 
         int byteCount = outW * outH * 3;
         byte[] buf = new byte[byteCount];

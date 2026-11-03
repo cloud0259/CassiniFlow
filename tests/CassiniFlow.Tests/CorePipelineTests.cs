@@ -139,7 +139,8 @@ public class CorePipelineTests
             options.QualityLimitingMode = QualityLimitingType.PercentageOfFrames;
             options.QualityFramesToKeep = 50;
 
-            var summary = await PipelineRunner.ExecuteAsync(frames, options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteAsync(frames, options, tempOutDir);
             Assert.True(summary.Success);
             Assert.Equal(6, summary.OutputFramesWritten);
             Assert.True(File.Exists(summary.OutputFilePath));
@@ -212,7 +213,8 @@ public class CorePipelineTests
                 OutputFormat = OutputFormat.Ser
             };
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempMp4A, tempMp4B], options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteFilesAsync([tempMp4A, tempMp4B], options, tempOutDir);
             Assert.True(summary.Success);
             Assert.True(summary.OutputFramesWritten >= 6);
             Assert.True(File.Exists(summary.OutputFilePath));
@@ -249,7 +251,8 @@ public class CorePipelineTests
                 FlipHorizontalX = true
             };
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
             Assert.True(summary.Success);
             Assert.Equal(4, summary.OutputFramesWritten);
 

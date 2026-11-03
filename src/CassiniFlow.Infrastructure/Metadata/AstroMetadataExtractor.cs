@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System;
 using System.Globalization;
 using System.IO;
@@ -524,17 +524,17 @@ public static class AstroMetadataExtractor
             camera = make.Trim();
         }
 
+        string equiv = focalLength35.HasValue && focalLength35.Value > 0
+            ? $" (eq. {focalLength35.Value:F0} mm)"
+            : string.Empty;
+
         if (fNumber.HasValue && focalLength.HasValue)
         {
-            telescope = focalLength35.HasValue && focalLength35.Value > 0
-                ? $"f/{fNumber.Value:F1}, {focalLength.Value:F1} mm (équiv. {focalLength35.Value} mm)"
-                : $"f/{fNumber.Value:F1}, {focalLength.Value:F1} mm";
+            telescope = $"f/{fNumber.Value:F1}, {focalLength.Value:F1} mm{equiv}";
         }
         else if (focalLength.HasValue)
         {
-            telescope = focalLength35.HasValue && focalLength35.Value > 0
-                ? $"{focalLength.Value:F1} mm (équiv. {focalLength35.Value} mm)"
-                : $"{focalLength.Value:F1} mm";
+            telescope = $"{focalLength.Value:F1} mm{equiv}";
         }
 
         string? shutter = expTime.HasValue ? AstroMediaMetadata.FormatShutterSpeed(expTime.Value) : null;

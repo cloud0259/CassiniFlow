@@ -32,7 +32,6 @@ public static class ExecutionLogGenerator
         sb.AppendLine(CultureInfo.InvariantCulture, $"Timestamp (UTC)      : {time:yyyy-MM-dd HH:mm:ss} UTC");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Application Version  : 1.0.0");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Operating System     : {Environment.OSVersion}");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"Runtime              : .NET {Environment.Version}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Workflow Mode        : {options.Stacking.WorkflowMode}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Run Mode             : {options.RunMode}");
         sb.AppendLine();
@@ -159,7 +158,15 @@ public static class ExecutionLogGenerator
         sb.AppendLine("--------------------------------------------------------------------------------");
         sb.AppendLine("OUTPUT ARTIFACTS");
         sb.AppendLine("--------------------------------------------------------------------------------");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"Format               : {options.OutputFormat}");
+        var effectiveFormat = options.Stacking.WorkflowMode is StackingWorkflowMode.PreProcessingOnly
+            ? options.OutputFormat
+            : options.OutputFormat switch
+            {
+                OutputFormat.Fits => OutputFormat.Fits,
+                OutputFormat.Png => OutputFormat.Png,
+                _ => OutputFormat.Tiff
+            };
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Format               : {effectiveFormat}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"WinJUPOS Naming      : {options.GenerateWinJuposFilenames}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Primary Output File  : {(string.IsNullOrEmpty(summary.OutputFilePath) ? "(None)" : summary.OutputFilePath)}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Execution Log File   : {(string.IsNullOrEmpty(summary.LogFilePath) ? "(None)" : summary.LogFilePath)}");

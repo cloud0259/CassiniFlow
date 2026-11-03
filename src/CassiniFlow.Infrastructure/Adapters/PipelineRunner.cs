@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Domain.Services;
@@ -23,6 +24,20 @@ internal readonly record struct FrameScanEntry(
 /// </summary>
 public sealed class PipelineRunner : IRunPipelineUseCase
 {
+    private readonly IAstroLocalization _loc;
+    private readonly IStackingPipelineUseCase _stackingRunner;
+    private readonly ICalibrationFrameProvider _calibrationProvider;
+
+    public PipelineRunner(
+        IAstroLocalization localization,
+        IStackingPipelineUseCase stackingRunner,
+        ICalibrationFrameProvider calibrationProvider)
+    {
+        _loc = localization ?? throw new ArgumentNullException(nameof(localization));
+        _stackingRunner = stackingRunner ?? throw new ArgumentNullException(nameof(stackingRunner));
+        _calibrationProvider = calibrationProvider ?? throw new ArgumentNullException(nameof(calibrationProvider));
+    }
+
     Task<PipelineRunSummary> IRunPipelineUseCase.ExecuteFilesAsync(
         IReadOnlyList<string> inputFiles,
         ProcessingOptions options,
@@ -296,7 +311,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         return Math.Clamp(byPercent, 1, totalCores);
     }
 
-    public static async Task<PipelineRunSummary> ExecuteFilesAsync(
+    public async Task<PipelineRunSummary> ExecuteFilesAsync(
         IReadOnlyList<string> inputFilePaths,
         ProcessingOptions options,
         string outputDirectory,
@@ -311,10 +326,10 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         if (options.Stacking.WorkflowMode is StackingWorkflowMode.StackingOnly or StackingWorkflowMode.DirectStreamAllInOne)
         {
-            return await StackingPipelineRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
+            return await _stackingRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
         }
 
-        var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(
+        var (masterDark, masterFlat) = _calibrationProvider.PrepareCalibrationMasters(
             options,
             outputDirectory,
             progress,
@@ -400,7 +415,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         return Path.Combine(dir, $"{stem}_{numStr}{ext}");
     }
 
-    private static async Task<PipelineRunSummary> ProcessFileGroupStreamingAsync(
+    private async Task<PipelineRunSummary> ProcessFileGroupStreamingAsync(
         IReadOnlyList<string> groupFiles,
         ProcessingOptions options,
         string outputDirectory,
@@ -544,13 +559,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                             if (processedCount % reportStep == 0 || processedCount == totalInputFrames)
                             {
                                 int pct = Math.Clamp((int)(processedCount * 95.0 / Math.Max(1, totalInputFrames)), 5, 98);
-                                progress?.Report(new PipelineProgressReport(
-                                    "Streaming Direct",
-                                    pct,
-                                    Path.GetFileName(path),
-                                    processedCount,
-                                    totalInputFrames,
-                                    $"{processedCount}/{totalInputFrames} frames traitées ({writer.FramesWritten} écrites)..."));
+                                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.DirectStreaming"), pct, Path.GetFileName(path), processedCount, totalInputFrames, _loc.Format("Progress.FramesProcessedWritten", processedCount, totalInputFrames, writer.FramesWritten)));
                             }
                         });
                 }
@@ -558,7 +567,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 // Fallback if 100% of frames were rejected by planet threshold on a personal video
                 if (writer.FramesWritten == 0 && totalInputFrames > 0 && checkPlanet)
                 {
-                    progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé sur fond noir détecté — encodage de toutes les frames sans rejet..."));
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.NoRejectionMode"), 50, sourceStem, 0, totalInputFrames, _loc.Get("Progress.NoIsolatedPlanetDetected")));
                     discardedNoPlanet = 0;
                     processedCount = 0;
 
@@ -639,13 +648,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                                     int pct = Math.Clamp((int)(doneCount * 82.0 / Math.Max(1, totalInputFrames)), 5, 84);
                                     int keptNow;
                                     lock (heapLock) keptNow = topKHeap.Count;
-                                    progress?.Report(new PipelineProgressReport(
-                                        "Analyse Parallèle Multi-Cœurs",
-                                        pct,
-                                        Path.GetFileName(seg.FilePath),
-                                        doneCount,
-                                        totalInputFrames,
-                                        $"{doneCount}/{totalInputFrames} frames analysées ({keptNow} retenues)..."));
+                                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ParallelAnalysis"), pct, Path.GetFileName(seg.FilePath), doneCount, totalInputFrames, _loc.Format("Progress.FramesAnalysedKept", doneCount, totalInputFrames, keptNow)));
                                 }
                             });
                     });
@@ -653,7 +656,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 // Fallback if 100% were rejected by planet threshold
                 if (topKHeap.Count == 0 && totalInputFrames > 0 && checkPlanet)
                 {
-                    progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé détecté — sélection parallèle des meilleures frames sans rejet..."));
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.NoRejectionMode"), 50, sourceStem, 0, totalInputFrames, _loc.Get("Progress.NoIsolatedPlanetParallel")));
                     discardedNoPlanet = 0;
                     scanned = 0;
                     acceptedBeforeLimit = 0;
@@ -716,13 +719,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     winners.Sort((a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
                 }
 
-                progress?.Report(new PipelineProgressReport(
-                    "Traitement Final & Encodage",
-                    90,
-                    Path.GetFileName(outputPath),
-                    winners.Count,
-                    totalInputFrames,
-                    $"Écriture des {winners.Count} frames vers '{Path.GetFileName(outputPath)}'..."));
+                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.EncodingPass2"), 90, Path.GetFileName(outputPath), winners.Count, totalInputFrames, _loc.Format("Progress.WritingFramesTo", winners.Count, Path.GetFileName(outputPath))));
 
                 int postWorkers = GetSafeWorkerThreadCount(options);
                 Parallel.For(0, winners.Count, new ParallelOptions { MaxDegreeOfParallelism = postWorkers, CancellationToken = cancellationToken }, i =>
@@ -794,13 +791,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                             if (doneCount % scanReportStep == 0 || doneCount == totalInputFrames)
                             {
                                 int pct = Math.Clamp((int)(doneCount * 55.0 / Math.Max(1, totalInputFrames)), 5, 55);
-                                progress?.Report(new PipelineProgressReport(
-                                    "Passe 1 : Analyse Parallèle",
-                                    pct,
-                                    Path.GetFileName(seg.FilePath),
-                                    doneCount,
-                                    totalInputFrames,
-                                    $"Passe 1/2 : {doneCount}/{totalInputFrames} frames analysées..."));
+                                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ParallelAnalysis"), pct, Path.GetFileName(seg.FilePath), doneCount, totalInputFrames, _loc.Format("Progress.Pass1FramesAnalysed", doneCount, totalInputFrames)));
                             }
                         });
                 });
@@ -838,13 +829,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 }
             }
 
-            progress?.Report(new PipelineProgressReport(
-                "Passe 2 : Encodage",
-                65,
-                Path.GetFileName(outputPath),
-                0,
-                scanEntries.Count,
-                $"Passe 2/2 : Écriture des {scanEntries.Count} meilleures frames vers '{Path.GetFileName(outputPath)}'..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.EncodingPass2"), 65, Path.GetFileName(outputPath), 0, scanEntries.Count, _loc.Format("Progress.Pass2WritingBest", scanEntries.Count, Path.GetFileName(outputPath))));
 
             using (var pass2Writer = new PipelineFrameWriter(
                 outputPath,
@@ -889,13 +874,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         sw.Stop();
         double fpsSpeed = totalInputFrames / Math.Max(0.001, sw.Elapsed.TotalSeconds);
-        progress?.Report(new PipelineProgressReport(
-            "Terminé",
-            100,
-            Path.GetFileName(outputPath),
-            outputFramesWritten,
-            totalInputFrames,
-            $"Terminé en {sw.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps) — {outputFramesWritten} frames écrites dans '{outputPath}'."));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.Done"), 100, Path.GetFileName(outputPath), outputFramesWritten, totalInputFrames, _loc.Format("Progress.FinishedInSeconds", sw.Elapsed.TotalSeconds, fpsSpeed, outputFramesWritten, outputPath)));
 
         string logPath = Path.Combine(outputDirectory, $"{fullStem}_log.txt");
         var summary = new PipelineRunSummary(
@@ -929,7 +908,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
     /// Calcule la rotation (en degrés) à appliquer à chaque fichier pour que l'orientation de l'objet
     /// (axe des anneaux de Saturne par exemple) corresponde à celle du premier fichier exploitable.
     /// </summary>
-    private static double[] ComputeAutoRotations(
+    private double[] ComputeAutoRotations(
         IReadOnlyList<string> groupFiles,
         IReadOnlyList<MediaFileSummary> fileSummaries,
         ProcessingOptions options,
@@ -941,13 +920,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         var angles = new AutoRotationAligner.OrientationResult?[groupFiles.Count];
         for (int i = 0; i < groupFiles.Count; i++)
         {
-            progress?.Report(new PipelineProgressReport(
-                "Détection de l'orientation",
-                2,
-                Path.GetFileName(groupFiles[i]),
-                0,
-                0,
-                $"Détection de l'orientation de l'objet : {Path.GetFileName(groupFiles[i])}..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.OrientationDetection"), 2, Path.GetFileName(groupFiles[i]), 0, 0, _loc.Format("Progress.DetectingOrientation", Path.GetFileName(groupFiles[i]))));
             try { angles[i] = AutoRotationAligner.MeasureOrientation(groupFiles[i], fileSummaries[i].FrameCount); }
             catch { angles[i] = null; }
         }
@@ -955,8 +928,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         int refIdx = Array.FindIndex(angles, a => a is not null && a.Elongation >= AutoRotationAligner.MinReliableElongation);
         if (refIdx < 0)
         {
-            progress?.Report(new PipelineProgressReport("Rotation auto", 3, "", 0, 0,
-                "Rotation automatique ignorée : objet pas assez allongé (anneaux non détectés)."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AutoRotation"), 3, "", 0, 0, _loc.Get("Progress.SkippingAutoRotation")));
             return result;
         }
 
@@ -972,9 +944,15 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             result[i] = AutoRotationAligner.NormalizeAxisAngle(refAngle - a.AngleDegrees);
         }
 
-        progress?.Report(new PipelineProgressReport("Rotation auto", 3, "", 0, 0,
-            "Rotation automatique : " + string.Join(", ", Enumerable.Range(0, groupFiles.Count)
-                .Select(i => $"{Path.GetFileName(groupFiles[i])} {result[i]:+0.0;-0.0;0.0}°"))));
+        string autoRotList = string.Join(", ", Enumerable.Range(0, groupFiles.Count)
+            .Select(i => $"{Path.GetFileName(groupFiles[i])} {result[i]:+0.0;-0.0;0.0}°"));
+        progress?.Report(new PipelineProgressReport(
+            _loc.Get("Progress.AutoRotation"),
+            3,
+            "",
+            0,
+            0,
+            _loc.Format("Progress.AutoRotationDetails", autoRotList)));
         return result;
     }
 
@@ -1886,14 +1864,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         }
     }
 
-    public static async Task<PipelineRunSummary> ExecuteAsync(
+    public async Task<PipelineRunSummary> ExecuteAsync(
         IReadOnlyList<AstroFrame> inputFrames,
         ProcessingOptions options,
         string outputDirectory,
         IProgress<PipelineProgressReport>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(options, outputDirectory, progress, cancellationToken);
+        var (masterDark, masterFlat) = _calibrationProvider.PrepareCalibrationMasters(options, outputDirectory, progress, cancellationToken);
         var sw = Stopwatch.StartNew();
         int total = inputFrames.Count;
         int discardedNoPlanet = 0;

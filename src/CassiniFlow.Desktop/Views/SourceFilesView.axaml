@@ -7,6 +7,11 @@
              x:Class="CassiniFlow.Desktop.Views.SourceFilesView"
              x:DataType="vm:MainWindowViewModel">
 
+    <UserControl.Resources>
+        <conv:FileNameConverter x:Key="FileNameConverter"/>
+        <conv:FileSizeConverter x:Key="FileSizeConverter"/>
+    </UserControl.Resources>
+
     <Grid RowDefinitions="Auto,*,Auto" Margin="2">
 
         <!-- Barre d'outils structurée en 2 rangées professionnelles -->
@@ -203,8 +208,8 @@
                                     <Border Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,2" ToolTip.Tip="{Binding}">
                                         <Grid ColumnDefinitions="*,Auto,Auto">
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileNameConverter.Instance}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileSizeConverter.Instance}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileNameConverter}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileSizeConverter}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
                                             </StackPanel>
                                             <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="4,0">
                                                 <TextBlock Text="DARK" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppAccent}"/>
@@ -255,8 +260,8 @@
                                     <Border Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,2" ToolTip.Tip="{Binding}">
                                         <Grid ColumnDefinitions="*,Auto,Auto">
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileNameConverter.Instance}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileSizeConverter.Instance}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileNameConverter}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileSizeConverter}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
                                             </StackPanel>
                                             <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="4,0">
                                                 <TextBlock Text="FLAT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppBadgeAccent}"/>
@@ -307,8 +312,8 @@
                                     <Border Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,2" ToolTip.Tip="{Binding}">
                                         <Grid ColumnDefinitions="*,Auto,Auto">
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileNameConverter.Instance}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Converter={x:Static conv:FileSizeConverter.Instance}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileNameConverter}}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FileSizeConverter}}" FontSize="10" Foreground="{DynamicResource AppTextSecondary}"/>
                                             </StackPanel>
                                             <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource AppBadgeBackground}" CornerRadius="3" Padding="4,2" Margin="4,0">
                                                 <TextBlock Text="FLAT-DARK" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}"/>

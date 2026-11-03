@@ -240,7 +240,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.AlignmentTileSize = 32;
             options.Stacking.StackPercentages = [50.0];
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+            var summary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempAvi], options, tempOutDir);
 
             Assert.True(summary.Success);
             Assert.Equal(1, summary.OutputFramesWritten);
@@ -274,7 +274,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.AlignmentTileSize = 32;
             options.Stacking.StackPercentages = [50.0];
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+            var summary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempAvi], options, tempOutDir);
 
             Assert.True(summary.Success);
             Assert.Equal(1, summary.OutputFramesWritten);
@@ -353,7 +353,7 @@ public class MultiZoneStackingEngineTests
     [Fact]
     public void MainWindowViewModel_StackFrameCount_MatchesMaxAvailableFrames()
     {
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         var file1 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
         {
@@ -395,11 +395,7 @@ public class MultiZoneStackingEngineTests
     [Fact]
     public void MainWindowViewModel_MultiTierPercentages_DefaultsTo25AndFiltersActive()
     {
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
-
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // Default Tier 1 is 25%, Tier 2 and 3 are 0%
         Assert.Equal(25, vm.StackPercentage1);
@@ -422,20 +418,54 @@ public class MultiZoneStackingEngineTests
         Assert.Equal(2, active.Count);
         Assert.Equal(5.0, active[0]);
         Assert.Equal(10.0, active[1]);
+    }
 
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
+    [Fact]
+    public void MainWindowViewModel_WorkflowButtons_ReactCorrectlyViaCommandAndProperty()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        Assert.True(vm.IsWorkflowDirectStreamAllInOne);
+        Assert.False(vm.IsWorkflowPreProcessingOnly);
+        Assert.False(vm.IsWorkflowStackingOnly);
+
+        // Command: prep
+        vm.SetWorkflowModeCommand.Execute("prep");
+        Assert.True(vm.IsWorkflowPreProcessingOnly);
+        Assert.False(vm.IsWorkflowStackingOnly);
+        Assert.False(vm.IsWorkflowDirectStreamAllInOne);
+        Assert.Equal(StackingWorkflowMode.PreProcessingOnly, vm.WorkflowMode);
+
+        // Command: stackingonly
+        vm.SetWorkflowModeCommand.Execute("stackingonly");
+        Assert.True(vm.IsWorkflowStackingOnly);
+        Assert.False(vm.IsWorkflowPreProcessingOnly);
+        Assert.False(vm.IsWorkflowDirectStreamAllInOne);
+        Assert.Equal(StackingWorkflowMode.StackingOnly, vm.WorkflowMode);
+
+        // Command: directstream
+        vm.SetWorkflowModeCommand.Execute("directstream");
+        Assert.True(vm.IsWorkflowDirectStreamAllInOne);
+        Assert.False(vm.IsWorkflowPreProcessingOnly);
+        Assert.False(vm.IsWorkflowStackingOnly);
+        Assert.Equal(StackingWorkflowMode.DirectStreamAllInOne, vm.WorkflowMode);
+
+        // Two-way property binding: PreProcessingOnly
+        vm.IsWorkflowPreProcessingOnly = true;
+        Assert.Equal(StackingWorkflowMode.PreProcessingOnly, vm.WorkflowMode);
+
+        // Two-way property binding: StackingOnly
+        vm.IsWorkflowStackingOnly = true;
+        Assert.Equal(StackingWorkflowMode.StackingOnly, vm.WorkflowMode);
+
+        // Two-way property binding: DirectStreamAllInOne
+        vm.IsWorkflowDirectStreamAllInOne = true;
+        Assert.Equal(StackingWorkflowMode.DirectStreamAllInOne, vm.WorkflowMode);
     }
 
     [Fact]
     public void MainWindowViewModel_CanStartProcessing_EnforcesValidationAndPreProcessingOnlyApRules()
     {
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
-
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // 1. Blocked when no source file is added
         Assert.False(vm.CanStartProcessing);
@@ -479,10 +509,6 @@ public class MultiZoneStackingEngineTests
         int countBefore = vm.CurrentAlignmentGrid.ActiveCount;
         vm.AddManualAlignmentPoint(100, 100);
         Assert.Equal(countBefore, vm.CurrentAlignmentGrid.ActiveCount);
-
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage1 = 25;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage2 = 0;
-        CassiniFlow.Desktop.Services.UserSettingsService.Current.StackPercentage3 = 0;
     }
 
     [Fact]
@@ -584,7 +610,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.AlignmentTileSize = 32;
             options.Stacking.StackPercentages = [20.0, 50.0];
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+            var summary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempAvi], options, tempOutDir);
 
             Assert.True(summary.Success);
             Assert.Equal(2, summary.OutputFramesWritten);
@@ -615,7 +641,7 @@ public class MultiZoneStackingEngineTests
     [Fact]
     public void MainWindowViewModel_WorkflowMode_AdjustsRightColumnMenusVisibility()
     {
-        var vm = new CassiniFlow.Desktop.ViewModels.MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // 1. Mode DirectStreamAllInOne (Tout) -> Toutes les sections sont visibles (1..10)
         vm.SetWorkflowMode("all");
@@ -697,7 +723,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.AlignmentTileSize = 32;
             options.Stacking.StackPercentages = [25.0];
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi1, tempAvi2], options, tempOutDir);
+            var summary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempAvi1, tempAvi2], options, tempOutDir);
 
             Assert.True(summary.Success);
             Assert.Equal(16, summary.TotalInputFrames);
@@ -788,7 +814,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.StackPercentages = [50.0];
 
             // 1. Test sur fichier SER (chemin zero-alloc Passe 1 + ReadFrameCropped Passe 2)
-            var serSummary = await PipelineRunner.ExecuteFilesAsync([tempSer], options, tempOutDir);
+            var serSummary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempSer], options, tempOutDir);
             Assert.True(serSummary.Success);
             Assert.True(File.Exists(serSummary.OutputFilePath));
 
@@ -802,7 +828,7 @@ public class MultiZoneStackingEngineTests
 
             // 2. Test sur fichier AVI (chemin PrepareFrame Passe 1 + PrepareFrameFastForStacking Passe 2)
             string aviOutDir = Path.Combine(tempOutDir, "avi");
-            var aviSummary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, aviOutDir);
+            var aviSummary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync([tempAvi], options, aviOutDir);
             Assert.True(aviSummary.Success);
             Assert.True(File.Exists(aviSummary.OutputFilePath));
 
@@ -861,7 +887,7 @@ public class MultiZoneStackingEngineTests
             options.Stacking.AlignmentTileSize = 32;
             options.Stacking.StackPercentages = [25.0, 50.0];
 
-            var summary = await PipelineRunner.ExecuteFilesAsync(inputFiles, options, tempOutDir);
+            var summary = await TestFactory.CreatePipelineRunner().ExecuteFilesAsync(inputFiles, options, tempOutDir);
 
             Assert.True(summary.Success);
             Assert.Equal(8, summary.TotalInputFrames);

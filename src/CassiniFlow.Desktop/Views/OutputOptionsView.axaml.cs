@@ -21,7 +21,7 @@ public partial class OutputOptionsView : UserControl
 
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = Loc.Pick("Choisir le dossier de sortie", "Choose the output folder"),
+            Title = Loc.Get("Dialogs.SelectOutputFolderTitle"),
             AllowMultiple = false
         });
 

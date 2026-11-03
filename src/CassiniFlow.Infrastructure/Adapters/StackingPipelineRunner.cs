@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Domain.Services;
@@ -15,11 +16,20 @@ namespace CassiniFlow.Infrastructure.Adapters;
 /// - Cache de corrélation de phase (ReferenceCorrelationCache) : fenêtres de Hanning et tuiles de référence précalculées.
 /// - Journalisation détaillée de chaque palier (%) dans la console en direct et dans le rapport d'exécution (.txt).
 /// </summary>
-public static class StackingPipelineRunner
+public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
 {
+    private readonly IAstroLocalization _loc;
+    private readonly ICalibrationFrameProvider _calibrationProvider;
+
+    public MultiZoneStackingPipelineRunner(IAstroLocalization localization, ICalibrationFrameProvider calibrationProvider)
+    {
+        _loc = localization ?? throw new ArgumentNullException(nameof(localization));
+        _calibrationProvider = calibrationProvider ?? throw new ArgumentNullException(nameof(calibrationProvider));
+    }
+
     private readonly record struct FrameScoreRecord(int FrameIndex, double QualityScore, int CentroidX, int CentroidY, string FilePath = "");
 
-    public static async Task<PipelineRunSummary> ExecuteAsync(
+    public async Task<PipelineRunSummary> ExecuteAsync(
         IReadOnlyList<string> inputFiles,
         ProcessingOptions options,
         string outputDirectory,
@@ -28,7 +38,7 @@ public static class StackingPipelineRunner
     {
         return await Task.Run(() =>
         {
-            var (masterDark, masterFlat) = CalibrationFrameProvider.PrepareCalibrationMasters(
+            var (masterDark, masterFlat) = _calibrationProvider.PrepareCalibrationMasters(
                 options,
                 outputDirectory,
                 progress,
@@ -52,7 +62,7 @@ public static class StackingPipelineRunner
         }, cancellationToken);
     }
 
-    private static PipelineRunSummary ExecuteBatchModeInternal(
+    private PipelineRunSummary ExecuteBatchModeInternal(
         List<string> validFiles,
         ProcessingOptions options,
         string outputDirectory,
@@ -81,13 +91,7 @@ public static class StackingPipelineRunner
             int expectedTotalFrames = Math.Max(1, summary.FrameCount);
             string ext = Path.GetExtension(file).ToLowerInvariant();
 
-            progress?.Report(new PipelineProgressReport(
-                "Analyse de Qualité",
-                1,
-                fileName,
-                0,
-                expectedTotalFrames,
-                $"Évaluation ultra-rapide de la netteté et sélection de la référence ({expectedTotalFrames} trames)..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), 1, fileName, 0, expectedTotalFrames, _loc.Format("Progress.FastSharpnessEval", expectedTotalFrames)));
 
             // =========================================================================
             // PASSE 1 : Analyse de qualité seeing & Sélection de la trame de référence
@@ -159,13 +163,7 @@ public static class StackingPipelineRunner
                     if (done % reportStep == 0 || done == framesToAnalyze)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, framesToAnalyze) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            "Analyse de Qualité",
-                            pct,
-                            fileName,
-                            done,
-                            framesToAnalyze,
-                            $"Analyse de qualité {done}/{framesToAnalyze} ({pct}%)..."));
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, done, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", done, framesToAnalyze, pct)));
                     }
                 });
 
@@ -194,7 +192,7 @@ public static class StackingPipelineRunner
                          options,
                          maxWorkers,
                          progress,
-                         "Analyse de Qualité",
+                         _loc.Get("Progress.QualityAnalysis"),
                          ref discardedNoPlanet,
                          ref totalInputFrames,
                          cancellationToken,
@@ -258,13 +256,7 @@ public static class StackingPipelineRunner
                     if (pass1Processed % reportStep == 0 || pass1Processed == expectedTotalFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)pass1Processed / expectedTotalFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            "Analyse de Qualité",
-                            pct,
-                            fileName,
-                            pass1Processed,
-                            expectedTotalFrames,
-                            $"Analyse de qualité {pass1Processed}/{expectedTotalFrames} ({pct}%)..."));
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, expectedTotalFrames, _loc.Format("Progress.QualityEvalProgress", pass1Processed, expectedTotalFrames, pct)));
                     }
                 }
             }
@@ -300,13 +292,7 @@ public static class StackingPipelineRunner
             // Génération de la trame de référence Double Stack (AutoStakkert Double Stack Reference)
             if (options.Stacking.DoubleStackReference && scoreRecords.Count >= 3)
             {
-                progress?.Report(new PipelineProgressReport(
-                    "Trame de Référence",
-                    46,
-                    fileName,
-                    0,
-                    scoreRecords.Count,
-                    "Synthèse de la trame de référence Double Stack (élimination du bruit de grenaille)..."));
+                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ReferenceFrame"), 46, fileName, 0, scoreRecords.Count, _loc.Get("Progress.DoubleStackSynth")));
 
                 bestRefFrame = CreateDoubleStackReference(scoreRecords, bestRefFrame, options, masterDark, masterFlat, expectedTotalFrames);
             }
@@ -322,13 +308,7 @@ public static class StackingPipelineRunner
                 ? options.Stacking.StackFrameCounts[0]
                 : int.MaxValue;
 
-            progress?.Report(new PipelineProgressReport(
-                "Points d'Alignement",
-                47,
-                fileName,
-                0,
-                scoreRecords.Count,
-                "Préparation de la grille de points d'alignement (AP) et du cache de corrélation..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AlignmentPoints"), 47, fileName, 0, scoreRecords.Count, _loc.Get("Progress.PreparingApGrid")));
 
             // Réutilisation de la grille AP placée par l'utilisateur si ses dimensions correspondent, sinon génération
             AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking);
@@ -352,15 +332,9 @@ public static class StackingPipelineRunner
             discardedQuality += (scoreRecords.Count - maxFramesToStack);
 
             var wantedList = scoreRecords.Take(maxFramesToStack).ToList();
-            string tiersDesc = string.Join(", ", tiers.Select(t => $"{t.FramesToStack} trames ({t.Percentage:F0}%)"));
+            string tiersDesc = string.Join(", ", tiers.Select(t => _loc.Format("Stacking.TierFramesDesc", t.FramesToStack, t.Percentage)));
 
-            progress?.Report(new PipelineProgressReport(
-                "Empilement Multi-Zones",
-                50,
-                fileName,
-                0,
-                maxFramesToStack,
-                $"Grille AP : {grid.ActiveCount} points actifs ({grid.TileSize}px). Paliers : {tiersDesc}..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.MultiZoneStacking"), 50, fileName, 0, maxFramesToStack, _loc.Format("Progress.ApGridPaliers", grid.ActiveCount, grid.TileSize, tiersDesc)));
 
             string outExt = options.OutputFormat switch
             {
@@ -407,13 +381,7 @@ public static class StackingPipelineRunner
                         OutputFilePath: outFilePath));
 
                     int pctProgress = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 48.0), 0, 48);
-                    progress?.Report(new PipelineProgressReport(
-                        $"Palier {tier.Percentage:F0}% Terminé",
-                        pctProgress,
-                        fileName,
-                        stackedSoFar,
-                        maxFramesToStack,
-                        $"✔ Palier {tier.Percentage:F0}% empilé : {tier.FramesToStack}/{scoreRecords.Count} trames retenues ({grid.ActiveCount} AP, tuiles {grid.TileSize}px) -> {outFileName}"));
+                    progress?.Report(new PipelineProgressReport(_loc.Format("Progress.TierCompleted", tier.Percentage), pctProgress, fileName, stackedSoFar, maxFramesToStack, _loc.Format("Progress.TierStackedSuccess", tier.Percentage, tier.FramesToStack, scoreRecords.Count, grid.ActiveCount, grid.TileSize, outFileName)));
 
                     nextTierIdx++;
                 }
@@ -431,7 +399,7 @@ public static class StackingPipelineRunner
                 maxFramesToStack,
                 maxWorkers,
                 fileName,
-                "Empilement Multi-Zones",
+                _loc.Get("Progress.MultiZoneStacking"),
                 progress,
                 cancellationToken,
                 ref stackedSoFar,
@@ -441,13 +409,7 @@ public static class StackingPipelineRunner
 
         sw.Stop();
         string generatedFilesText = string.Join(", ", allGeneratedFiles.Select(Path.GetFileName));
-        progress?.Report(new PipelineProgressReport(
-            "Terminé",
-            100,
-            string.Empty,
-            totalInputFrames,
-            totalInputFrames,
-            $"Empilement terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s. {outputFramesWritten} image(s) générée(s) : {generatedFilesText}"));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.Done"), 100, string.Empty, totalInputFrames, totalInputFrames, _loc.Format("Progress.StackingCompleted", sw.Elapsed.TotalSeconds, outputFramesWritten, generatedFilesText)));
 
         string logStem = validFiles.Count == 1 ? Path.GetFileNameWithoutExtension(validFiles[0]) : "stacking_batch";
         string logPath = Path.Combine(outputDirectory, $"{logStem}_stacked_log.txt");
@@ -481,7 +443,7 @@ public static class StackingPipelineRunner
         return runSummary;
     }
 
-    private static PipelineRunSummary ExecuteJoinModeInternal(
+    private PipelineRunSummary ExecuteJoinModeInternal(
         List<string> validFiles,
         ProcessingOptions options,
         string outputDirectory,
@@ -588,13 +550,7 @@ public static class StackingPipelineRunner
                 if (done % reportStep == 0 || done == totalExpectedFrames)
                 {
                     int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                    progress?.Report(new PipelineProgressReport(
-                        "Analyse de Qualité (Fusion)",
-                        pct,
-                        Path.GetFileName(imgFile),
-                        done,
-                        totalExpectedFrames,
-                        $"Analyse globale {done}/{totalExpectedFrames} ({pct}%)..."));
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, Path.GetFileName(imgFile), done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
                 }
             });
 
@@ -622,13 +578,7 @@ public static class StackingPipelineRunner
             string fileName = Path.GetFileName(file);
             string ext = Path.GetExtension(file).ToLowerInvariant();
 
-            progress?.Report(new PipelineProgressReport(
-                "Analyse de Qualité (Fusion)",
-                Math.Clamp((int)Math.Round((double)globalPass1Count / Math.Max(1, totalExpectedFrames) * 45.0), 1, 45),
-                fileName,
-                globalPass1Count,
-                totalExpectedFrames,
-                $"Évaluation globale [{fileIdx + 1}/{containerFiles.Count}] : {fileName}..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), Math.Clamp((int)Math.Round((double)globalPass1Count / Math.Max(1, totalExpectedFrames) * 45.0), 1, 45), fileName, globalPass1Count, totalExpectedFrames, _loc.Format("Progress.GlobalEvalFile", fileIdx + 1, containerFiles.Count, fileName)));
 
             if (ext == ".ser")
             {
@@ -685,13 +635,7 @@ public static class StackingPipelineRunner
                     if (done % 50 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            "Analyse de Qualité (Fusion)",
-                            pct,
-                            fileName,
-                            done,
-                            totalExpectedFrames,
-                            $"Analyse globale {done}/{totalExpectedFrames} ({pct}%)..."));
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
                     }
                 });
 
@@ -720,7 +664,7 @@ public static class StackingPipelineRunner
                          options,
                          maxWorkers,
                          progress,
-                         "Analyse de Qualité (Fusion)",
+                         _loc.Get("Progress.QualityAnalysisMerge"),
                          ref discardedNoPlanet,
                          ref totalInputFrames,
                          cancellationToken,
@@ -771,13 +715,7 @@ public static class StackingPipelineRunner
                     if (done % 10 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            "Analyse de Qualité (Fusion)",
-                            pct,
-                            fileName,
-                            done,
-                            totalExpectedFrames,
-                            $"Analyse globale {done}/{totalExpectedFrames} ({pct}%)..."));
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
                     }
                 }
             }
@@ -794,13 +732,7 @@ public static class StackingPipelineRunner
         // Synthèse de référence Double Stack multi-fichiers
         if (options.Stacking.DoubleStackReference && allScoreRecords.Count >= 3)
         {
-            progress?.Report(new PipelineProgressReport(
-                "Trame de Référence (Fusion)",
-                46,
-                Path.GetFileName(validFiles[0]),
-                0,
-                allScoreRecords.Count,
-                "Synthèse globale de la trame de référence Double Stack..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ReferenceFrame"), 46, Path.GetFileName(validFiles[0]), 0, allScoreRecords.Count, _loc.Get("Progress.DoubleStackSynthGlobal")));
 
             bestRefFrame = CreateDoubleStackReference(allScoreRecords, bestRefFrame, options, masterDark, masterFlat, totalExpectedFrames);
         }
@@ -815,13 +747,7 @@ public static class StackingPipelineRunner
             ? options.Stacking.StackFrameCounts[0]
             : int.MaxValue;
 
-        progress?.Report(new PipelineProgressReport(
-            "Points d'Alignement (Fusion)",
-            47,
-            Path.GetFileName(validFiles[0]),
-            0,
-            allScoreRecords.Count,
-            "Préparation de la grille de points d'alignement (AP) et du cache de corrélation..."));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AlignmentPointsJoin"), 47, Path.GetFileName(validFiles[0]), 0, allScoreRecords.Count, _loc.Get("Progress.PreparingApGrid")));
 
         AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking);
 
@@ -844,14 +770,8 @@ public static class StackingPipelineRunner
 
         var wantedList = allScoreRecords.Take(maxFramesToStack).ToList();
 
-        string tiersDesc = string.Join(", ", tiers.Select(t => $"{t.FramesToStack} trames ({t.Percentage:F0}%)"));
-        progress?.Report(new PipelineProgressReport(
-            "Empilement Multi-Zones (Fusion)",
-            50,
-            Path.GetFileName(validFiles[0]),
-            0,
-            maxFramesToStack,
-            $"Grille AP : {grid.ActiveCount} points actifs ({grid.TileSize}px). Empilement fusionné : {tiersDesc}..."));
+        string tiersDesc = string.Join(", ", tiers.Select(t => _loc.Format("Stacking.TierFramesDesc", t.FramesToStack, t.Percentage)));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.MultiZoneStackingJoin"), 50, Path.GetFileName(validFiles[0]), 0, maxFramesToStack, _loc.Format("Progress.ApGridJoined", grid.ActiveCount, grid.TileSize, tiersDesc)));
 
         string outExt = options.OutputFormat switch
         {
@@ -900,13 +820,7 @@ public static class StackingPipelineRunner
                     OutputFilePath: outFilePath));
 
                 int pctProgress = 50 + Math.Clamp((int)Math.Round((double)stackedSoFar / maxFramesToStack * 48.0), 0, 48);
-                progress?.Report(new PipelineProgressReport(
-                    $"Palier {tier.Percentage:F0}% Terminé",
-                    pctProgress,
-                    Path.GetFileName(validFiles[0]),
-                    stackedSoFar,
-                    maxFramesToStack,
-                    $"✔ Palier {tier.Percentage:F0}% empilé : {tier.FramesToStack}/{allScoreRecords.Count} trames retenues ({grid.ActiveCount} AP, tuiles {grid.TileSize}px) -> {outFileName}"));
+                progress?.Report(new PipelineProgressReport(_loc.Format("Progress.TierCompleted", tier.Percentage), pctProgress, Path.GetFileName(validFiles[0]), stackedSoFar, maxFramesToStack, _loc.Format("Progress.TierStackedSuccess", tier.Percentage, tier.FramesToStack, allScoreRecords.Count, grid.ActiveCount, grid.TileSize, outFileName)));
 
                 nextTierIdx++;
             }
@@ -924,7 +838,7 @@ public static class StackingPipelineRunner
             maxFramesToStack,
             maxWorkers,
             Path.GetFileName(validFiles[0]),
-            "Empilement Multi-Zones (Fusion)",
+            _loc.Get("Progress.MultiZoneStackingMerge"),
             progress,
             cancellationToken,
             ref stackedSoFar,
@@ -933,13 +847,7 @@ public static class StackingPipelineRunner
 
         sw.Stop();
         string generatedFilesText = string.Join(", ", allGeneratedFiles.Select(Path.GetFileName));
-        progress?.Report(new PipelineProgressReport(
-            "Terminé",
-            100,
-            string.Empty,
-            totalInputFrames,
-            totalInputFrames,
-            $"Empilement fusionné terminé avec succès en {sw.Elapsed.TotalSeconds:F2}s ({validFiles.Count} vidéos combinées). Image(s) générée(s) : {generatedFilesText}"));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.Done"), 100, string.Empty, totalInputFrames, totalInputFrames, _loc.Format("Progress.StackingJoinedCompleted", sw.Elapsed.TotalSeconds, validFiles.Count, generatedFilesText)));
 
         string logPath = Path.Combine(outputDirectory, $"{baseStem}_joined_stacked_log.txt");
         var summary = new PipelineRunSummary(
@@ -972,7 +880,7 @@ public static class StackingPipelineRunner
         return summary;
     }
 
-    private static AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions)
+    private AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions)
     {
         if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom &&
             custom.FrameWidth == bestRefFrame.Width &&
@@ -1016,7 +924,7 @@ public static class StackingPipelineRunner
     /// en optimisant l'accès aux fichiers SER (MemoryMapped), vidéos AVI/MP4/MOV/MKV (pré-extraction ROI sans allocation inutile)
     /// et séquences d'images FITS/TIFF/PNG/BMP/DNG (lecture recadrée multi-cœurs).
     /// </summary>
-    private static void ExecuteParallelPass2Slices(
+    private void ExecuteParallelPass2Slices(
         List<FrameScoreRecord> wantedList,
         List<StackingTier> tiers,
         MultiZoneStackingEngine cumulativeStacker,
@@ -1138,13 +1046,7 @@ public static class StackingPipelineRunner
                             if (done % 25 == 0 || done == maxFramesToStack)
                             {
                                 int pct = 50 + Math.Clamp((int)Math.Round((double)done / maxFramesToStack * 46.0), 0, 46);
-                                progress?.Report(new PipelineProgressReport(
-                                    progressStageName,
-                                    pct,
-                                    progressFileName,
-                                    done,
-                                    maxFramesToStack,
-                                    $"Empilement {done}/{maxFramesToStack} trames ({pct}%)..."));
+                                progress?.Report(new PipelineProgressReport(progressStageName, pct, progressFileName, done, maxFramesToStack, _loc.Format("Progress.StackingFramesProgress", done, maxFramesToStack, pct)));
                             }
 
                             return local;
@@ -1176,7 +1078,7 @@ public static class StackingPipelineRunner
     /// Parcourt une seule fois un fichier vidéo (AVI/MP4/MOV/MKV) pour en extraire uniquement les trames retenues
     /// pour l'empilement, en découpant directement la sous-fenêtre recadrée depuis la Mat OpenCV native (sans allocation plein capteur).
     /// </summary>
-    private static void ExtractWantedVideoFramesForPass2(
+    private void ExtractWantedVideoFramesForPass2(
         string filePath,
         List<FrameScoreRecord> wantedRecords,
         ProcessingOptions options,
@@ -1290,7 +1192,7 @@ public static class StackingPipelineRunner
     /// Analyse la Passe 1 d'un fichier vidéo (AVI/MP4/MOV/MKV) directement sur les pointeurs Mat OpenCV natifs
     /// (zéro allocation d'AstroFrame par trame) et en parallèle par segments lorsque la vidéo est longue.
     /// </summary>
-    private static bool TryAnalyzeVideoPass1ZeroAlloc(
+    private bool TryAnalyzeVideoPass1ZeroAlloc(
         string filePath,
         int expectedTotalFrames,
         ProcessingOptions options,
@@ -1320,7 +1222,7 @@ public static class StackingPipelineRunner
             0);
     }
 
-    private static bool TryAnalyzeVideoPass1ZeroAlloc(
+    private bool TryAnalyzeVideoPass1ZeroAlloc(
         string filePath,
         int expectedTotalFrames,
         ProcessingOptions options,
@@ -1439,13 +1341,7 @@ public static class StackingPipelineRunner
                     if (done % reportStep == 0 || done == reportTotal)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, reportTotal) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(
-                            stageName,
-                            pct,
-                            fileName,
-                            done,
-                            reportTotal,
-                            $"Analyse de qualité {done}/{reportTotal} ({pct}%)..."));
+                        progress?.Report(new PipelineProgressReport(stageName, pct, fileName, done, reportTotal, _loc.Format("Progress.QualityEvalProgress", done, reportTotal, pct)));
                     }
 
                     idx++;
@@ -1477,7 +1373,7 @@ public static class StackingPipelineRunner
     /// <summary>
     /// Analyse rapide sans débayérisation plein capteur pour une image individuelle (FITS, TIFF, PNG, BMP, JPG, DNG).
     /// </summary>
-    private static (bool Accepted, int CentroidX, int CentroidY, double QualityScore) AnalyzeSingleImageFileZeroAlloc(
+    private (bool Accepted, int CentroidX, int CentroidY, double QualityScore) AnalyzeSingleImageFileZeroAlloc(
         string filePath,
         ProcessingOptions options)
     {
@@ -1552,7 +1448,7 @@ public static class StackingPipelineRunner
     /// Lit et prépare une trame non-SER (FITS, BMP, TIFF, PNG, DNG, vidéo) en Passe 2 en ne lisant/découpant
     /// que la sous-fenêtre recadrée lorsque le recadrage est actif.
     /// </summary>
-    private static AstroFrame ReadAndPrepareNonSerFrameForStacking(
+    private AstroFrame ReadAndPrepareNonSerFrameForStacking(
         FrameScoreRecord record,
         ProcessingOptions options,
         AstroFrame? masterDark = null,
@@ -1622,7 +1518,7 @@ public static class StackingPipelineRunner
     /// Lit et prépare une trame SER en Passe 2 en ne lisant depuis la mémoire mappée que la sous-fenêtre
     /// recadrée (ReadFrameCropped) lorsque le recadrage est actif. Évite de lire et débayériser toute la trame plein capteur.
     /// </summary>
-    private static AstroFrame ReadAndPrepareSerFrameForStacking(
+    private AstroFrame ReadAndPrepareSerFrameForStacking(
         SerFile ser,
         FrameScoreRecord record,
         ProcessingOptions options,
@@ -1686,7 +1582,7 @@ public static class StackingPipelineRunner
     /// Prépare une trame retenue en Passe 2 en réutilisant le centroïde déjà calculé en Passe 1,
     /// en recadrant AVANT la débayérisation lorsque c'est possible (gain 10x-15x).
     /// </summary>
-    private static AstroFrame PrepareFrameFastForStacking(
+    private AstroFrame PrepareFrameFastForStacking(
         AstroFrame raw,
         ProcessingOptions options,
         int knownCentroidX,
@@ -1833,7 +1729,7 @@ public static class StackingPipelineRunner
         return work;
     }
 
-    private static AstroFrame PrepareFrame(
+    private AstroFrame PrepareFrame(
         AstroFrame raw,
         ProcessingOptions options,
         out int centroidX,
@@ -1915,7 +1811,7 @@ public static class StackingPipelineRunner
             totalFrames: totalFrames);
     }
 
-    private static AstroFrame CreateDoubleStackReference(
+    private AstroFrame CreateDoubleStackReference(
         IReadOnlyList<FrameScoreRecord> sortedRecords,
         AstroFrame initialBest,
         ProcessingOptions options,
@@ -1998,7 +1894,7 @@ public static class StackingPipelineRunner
         return ConvolutionSharpeningFilter.ApplySharpening(refFrame, blendPercent: 12);
     }
 
-    private static unsafe void AccumulateToRefBuffer(
+    private unsafe void AccumulateToRefBuffer(
         double[] accum,
         double[] counts,
         AstroFrame frame,
@@ -2042,5 +1938,22 @@ public static class StackingPipelineRunner
         public int FramesToStack { get; init; }
         public MultiZoneStackingEngine? Stacker { get; set; }
         public string OutputFilePath { get; set; } = string.Empty;
+    }
+}
+
+
+public static class StackingPipelineRunner
+{
+    public static Task<PipelineRunSummary> ExecuteAsync(
+        IReadOnlyList<string> inputFiles,
+        ProcessingOptions options,
+        string outputDirectory,
+        IProgress<PipelineProgressReport>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var loc = new AstroLocalizationService();
+        var calib = new CalibrationFrameProviderService(loc);
+        var runner = new MultiZoneStackingPipelineRunner(loc, calib);
+        return runner.ExecuteAsync(inputFiles, options, outputDirectory, progress, cancellationToken);
     }
 }
