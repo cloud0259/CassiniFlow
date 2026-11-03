@@ -207,7 +207,7 @@ public sealed class AstroViewerControl : Control
     private void DrawEmptyPlaceholder(DrawingContext context, Rect bounds)
     {
         string prompt = Loc.Get("Viewer.NoVideoPrompt");
-        var culture = Loc.IsEnglish ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+        var culture = Loc.IsEnglish ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo("fr-FR");
 
         var ft = new FormattedText(
             prompt,

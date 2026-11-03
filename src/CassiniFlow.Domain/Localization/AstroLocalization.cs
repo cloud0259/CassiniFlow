@@ -27,6 +27,7 @@ public class AstroLocalizationService : IAstroLocalization
     private static readonly Dictionary<string, string> SharedEnStrings = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, string> SharedFrToEn = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> SharedEnToFr = new(StringComparer.Ordinal);
+    private static readonly CultureInfo FrCulture = CultureInfo.GetCultureInfo("fr-FR");
 
     private static readonly (Regex Pattern, string Replacement)[] RuntimeRules =
     [
@@ -96,7 +97,7 @@ public class AstroLocalizationService : IAstroLocalization
         string pattern = Get(key);
         try
         {
-            var culture = _current == DomainLanguage.English ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+            var culture = _current == DomainLanguage.English ? CultureInfo.InvariantCulture : FrCulture;
             return string.Format(culture, pattern, args);
         }
         catch

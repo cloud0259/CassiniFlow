@@ -83,6 +83,30 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void Loc_Format_UsesLanguageSpecificCulture_IndependentOfSystemCulture()
+    {
+        var prevCulture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Simulate an en-US environment (like GitHub Actions runners)
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+
+            Loc.SetLanguage(AppLanguage.French, save: false);
+            var frSize = Loc.Format("UI.FileSizeKb", 2.0);
+            Assert.Equal("2,0 Ko", frSize);
+
+            Loc.SetLanguage(AppLanguage.English, save: false);
+            var enSize = Loc.Format("UI.FileSizeKb", 2.0);
+            Assert.Equal("2.0 KB", enSize);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = prevCulture;
+            Loc.SetLanguage(AppLanguage.French, save: false);
+        }
+    }
+
+    [Fact]
     public void Loc_TranslateRuntime_TranslatesEngineLogMessages()
     {
         Loc.SetLanguage(AppLanguage.English, save: false);
