@@ -15,8 +15,15 @@ namespace CassiniFlow.Desktop.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow()
+    private readonly IThemeService _themeService;
+
+    public MainWindow() : this(Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<IThemeService>(App.Services))
     {
+    }
+
+    public MainWindow(IThemeService themeService)
+    {
+        _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnWindowDrop);
         AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
@@ -28,7 +35,7 @@ public partial class MainWindow : Window
             UpdateMenuCheckStates();
 
             // Démarrage automatique du didacticiel au premier lancement
-            if (DataContext is MainWindowViewModel vm && !UserSettingsService.Current.HasSeenTutorial)
+            if (DataContext is MainWindowViewModel vm && !vm.HasSeenTutorial)
             {
                 vm.StartTutorial();
             }
@@ -42,7 +49,7 @@ public partial class MainWindow : Window
             }
         };
 
-        ThemeManager.ThemeChanged += UpdateMenuCheckStates;
+        _themeService.ThemeChanged += UpdateMenuCheckStates;
         Loc.LanguageChanged += () =>
         {
             Loc.LocalizeTree(this);
@@ -72,20 +79,20 @@ public partial class MainWindow : Window
 
         if (DarkThemeMenuItem != null)
         {
-            DarkThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.DeepSpaceDark;
+            DarkThemeMenuItem.IsChecked = _themeService.CurrentTheme == AppTheme.DeepSpaceDark;
         }
         if (LightThemeMenuItem != null)
         {
-            LightThemeMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.CleanLabLight;
+            LightThemeMenuItem.IsChecked = _themeService.CurrentTheme == AppTheme.CleanLabLight;
         }
         if (NightVisionMenuItem != null)
         {
-            NightVisionMenuItem.IsChecked = ThemeManager.CurrentTheme == AppTheme.NightVision;
+            NightVisionMenuItem.IsChecked = _themeService.CurrentTheme == AppTheme.NightVision;
         }
 
         if (ThemeQuickToggleButton != null)
         {
-            ThemeQuickToggleButton.Content = ThemeManager.CurrentTheme switch
+            ThemeQuickToggleButton.Content = _themeService.CurrentTheme switch
             {
                 AppTheme.CleanLabLight => "☀️",
                 AppTheme.NightVision => "🔴",
@@ -122,30 +129,30 @@ public partial class MainWindow : Window
 
     private void OnSetThemeDarkClick(object? sender, RoutedEventArgs e)
     {
-        ThemeManager.ApplyTheme(AppTheme.DeepSpaceDark);
+        _themeService.ApplyTheme(AppTheme.DeepSpaceDark);
         UpdateMenuCheckStates();
     }
 
     private void OnSetThemeLightClick(object? sender, RoutedEventArgs e)
     {
-        ThemeManager.ApplyTheme(AppTheme.CleanLabLight);
+        _themeService.ApplyTheme(AppTheme.CleanLabLight);
         UpdateMenuCheckStates();
     }
 
     private void OnSetThemeNightVisionClick(object? sender, RoutedEventArgs e)
     {
-        ThemeManager.ApplyTheme(AppTheme.NightVision);
+        _themeService.ApplyTheme(AppTheme.NightVision);
         UpdateMenuCheckStates();
     }
 
     private void OnToggleThemeClick(object? sender, RoutedEventArgs e)
     {
-        ThemeManager.ToggleNextTheme();
+        _themeService.ToggleNextTheme();
     }
 
     private void OnWindowDragOver(object? sender, DragEventArgs e)
     {
-        if (DataContext is MainWindowViewModel { IsProcessing: true } or MainWindowViewModel { IsLoadingFiles: true })
+        if (DataContext is MainWindowViewModel { IsProcessing: true } or MainWindowViewModel { IsLoadingFiles: true } or MainWindowViewModel { IsMeasuringPlanetSizes: true })
         {
             e.DragEffects = DragDropEffects.None;
             return;
@@ -158,7 +165,7 @@ public partial class MainWindow : Window
 
     private async void OnWindowDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsLoadingFiles) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsLoadingFiles || vm.IsMeasuringPlanetSizes) return;
 
         var files = e.Data.GetFiles();
         if (files is null) return;
@@ -171,21 +178,35 @@ public partial class MainWindow : Window
 
         if (localPaths.Count > 0)
         {
-            await vm.AddPhysicalFilesAsync(localPaths);
+            switch (vm.SelectedSourceFileTabIndex)
+            {
+                case 1:
+                    vm.AddDarkFiles(localPaths);
+                    break;
+                case 2:
+                    vm.AddFlatFiles(localPaths);
+                    break;
+                case 3:
+                    vm.AddFlatDarkFiles(localPaths);
+                    break;
+                default:
+                    await vm.AddPhysicalFilesAsync(localPaths);
+                    break;
+            }
         }
     }
 
     private async void OnAddVideoFilesClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
 
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Loc.Pick("Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)", "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)"),
+            Title = Loc.Get("Dialogs.SelectSourceFilesTitle"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(Loc.Pick("Vidéos & Séquences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)", "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)"))
+                new FilePickerFileType(Loc.Get("Dialogs.FilterVideosAndImages"))
                 {
                     Patterns = ["*.avi", "*.mp4", "*.mov", "*.mkv", "*.webm", "*.wmv", "*.ser", "*.fit", "*.fits", "*.bmp", "*.png", "*.tif", "*.tiff", "*.jpg", "*.jpeg", "*.dng"]
                 },
@@ -205,13 +226,57 @@ public partial class MainWindow : Window
         }
     }
 
+    private async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> PickCalibrationFilesAsync(string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Astrophotography Calibration (SER, FITS, TIFF, PNG, BMP, AVI)")
+                {
+                    Patterns = ["*.ser", "*.fit", "*.fits", "*.tif", "*.tiff", "*.png", "*.bmp", "*.avi"]
+                },
+                FilePickerFileTypes.All
+            ]
+        });
+
+        return files
+            .Select(f => f.TryGetLocalPath())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+    }
+
+    private async void OnAddDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectDarkFiles"));
+        if (paths.Count > 0) vm.AddDarkFiles(paths);
+    }
+
+    private async void OnAddFlatFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatFiles"));
+        if (paths.Count > 0) vm.AddFlatFiles(paths);
+    }
+
+    private async void OnAddFlatDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatDarkFiles"));
+        if (paths.Count > 0) vm.AddFlatDarkFiles(paths);
+    }
+
     private async void OnSelectOutputFolderClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = Loc.Pick("Choisir le dossier de sortie", "Choose the output folder"),
+            Title = Loc.Get("Dialogs.SelectOutputFolderTitle"),
             AllowMultiple = false
         });
 

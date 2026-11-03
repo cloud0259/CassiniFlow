@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
              xmlns:controls="using:CassiniFlow.Desktop.Controls"
@@ -16,10 +16,10 @@
                     <StackPanel Spacing="3">
                         <TextBlock Text="{loc:Tr QualityOptions.SharpnessAlgo}" Classes="label"/>
                         <ComboBox SelectedIndex="{Binding SelectedQualityAlgoIndex}" HorizontalAlignment="Stretch">
-                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoDefault}"/>
+                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoDefault}" ToolTip.Tip="{loc:Tr QualityOptions.AlgoDefaultTip}"/>
                             <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoNinox}"/>
-                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoPeak}"/>
-                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoTotal}"/>
+                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoPeak}" ToolTip.Tip="{loc:Tr QualityOptions.AlgoPeakTip}"/>
+                            <ComboBoxItem Content="{loc:Tr QualityOptions.AlgoTotal}" ToolTip.Tip="{loc:Tr QualityOptions.AlgoTotalTip}"/>
                         </ComboBox>
                     </StackPanel>
 

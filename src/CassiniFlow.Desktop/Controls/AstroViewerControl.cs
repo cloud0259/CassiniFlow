@@ -72,7 +72,9 @@ public sealed class AstroViewerControl : Control
                 if (args.PropertyName is nameof(MainWindowViewModel.IsAlignmentGridVisible)
                     or nameof(MainWindowViewModel.CurrentAlignmentGrid)
                     or nameof(MainWindowViewModel.ShowOverlayBoxes)
-                    or nameof(MainWindowViewModel.PreviewCroppedOutput))
+                    or nameof(MainWindowViewModel.PreviewCroppedOutput)
+                    or nameof(MainWindowViewModel.IsWorkflowPreProcessingOnly)
+                    or nameof(MainWindowViewModel.WorkflowMode))
                 {
                     InvalidateVisual();
                 }
@@ -105,8 +107,9 @@ public sealed class AstroViewerControl : Control
         var pt = e.GetPosition(this);
         var pointerPoint = e.GetCurrentPoint(this);
 
-        // Si la grille d'alignement est visible : clic gauche pour placer un AP, clic droit pour en retirer un
-        if (vm.IsAlignmentGridVisible)
+        // Si la grille d'alignement est visible et qu'on n'est pas en mode pré-traitement seul :
+        // clic gauche pour placer un AP, clic droit pour en retirer un
+        if (!vm.IsWorkflowPreProcessingOnly && vm.IsAlignmentGridVisible)
         {
             if (!_lastImageDestRect.Contains(pt))
                 return;
@@ -147,7 +150,7 @@ public sealed class AstroViewerControl : Control
 
         if (DataContext is MainWindowViewModel vm)
         {
-            Cursor = vm.IsAlignmentGridVisible
+            Cursor = (!vm.IsWorkflowPreProcessingOnly && vm.IsAlignmentGridVisible)
                 ? new Cursor(StandardCursorType.Cross)
                 : Cursor.Default;
         }
@@ -204,7 +207,7 @@ public sealed class AstroViewerControl : Control
     private void DrawEmptyPlaceholder(DrawingContext context, Rect bounds)
     {
         string prompt = Loc.Get("Viewer.NoVideoPrompt");
-        var culture = Loc.IsEnglish ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+        var culture = Loc.IsEnglish ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo("fr-FR");
 
         var ft = new FormattedText(
             prompt,
@@ -243,7 +246,7 @@ public sealed class AstroViewerControl : Control
         double displayScale,
         double fullToScreenScale)
     {
-        if (vm.IsAlignmentGridVisible && vm.CurrentAlignmentGrid is not null && vm.CurrentAlignmentGrid.Points.Count > 0)
+        if (!vm.IsWorkflowPreProcessingOnly && vm.IsAlignmentGridVisible && vm.CurrentAlignmentGrid is not null && vm.CurrentAlignmentGrid.Points.Count > 0)
         {
             DrawAlignmentGridOverlay(context, vm, vm.CurrentAlignmentGrid, destRect, displayScale, fullToScreenScale);
         }

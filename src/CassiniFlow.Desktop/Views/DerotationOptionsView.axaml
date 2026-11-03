@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.DerotationOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="10" Margin="2,4,2,2">
+        <Border Classes="groupbox" Padding="10,8">
+            <StackPanel Spacing="8">
+                <CheckBox Content="{loc:Tr Derotation.Enable}"
+                          ToolTip.Tip="{loc:Tr Derotation.EnableTip}"
+                          IsChecked="{Binding EnableFieldDerotation}"
+                          FontWeight="SemiBold"
+                          FontSize="12"/>
+
+                <StackPanel Spacing="6" IsEnabled="{Binding EnableFieldDerotation}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0"
+                                   Text="{loc:Tr Derotation.Latitude}"
+                                   ToolTip.Tip="{loc:Tr Derotation.LatitudeTip}"
+                                   Classes="label"
+                                   VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1"
+                                                Value="{Binding ObserverLatitudeDegrees}"
+                                                ToolTip.Tip="{loc:Tr Derotation.LatitudeTip}"
+                                                Minimum="-90"
+                                                Maximum="90"
+                                                Increment="0.1"
+                                                FormatString="0.00"
+                                                Width="110"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0"
+                                   Text="{loc:Tr Derotation.Altitude}"
+                                   ToolTip.Tip="{loc:Tr Derotation.AltitudeTip}"
+                                   Classes="label"
+                                   VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1"
+                                                Value="{Binding TargetAltitudeDegrees}"
+                                                ToolTip.Tip="{loc:Tr Derotation.AltitudeTip}"
+                                                Minimum="1"
+                                                Maximum="89"
+                                                Increment="1"
+                                                FormatString="0"
+                                                Width="110"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0"
+                                   Text="{loc:Tr Derotation.Azimuth}"
+                                   ToolTip.Tip="{loc:Tr Derotation.AzimuthTip}"
+                                   Classes="label"
+                                   VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1"
+                                                Value="{Binding TargetAzimuthDegrees}"
+                                                ToolTip.Tip="{loc:Tr Derotation.AzimuthTip}"
+                                                Minimum="0"
+                                                Maximum="360"
+                                                Increment="1"
+                                                FormatString="0"
+                                                Width="110"/>
+                    </Grid>
+                    <Border Background="{DynamicResource AppPanelSubtleBackground}"
+                            BorderBrush="{DynamicResource AppBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,6"
+                            Margin="0,4,0,0">
+                        <TextBlock Text="{Binding DerotationInfoText}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource AppAccent}"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
+

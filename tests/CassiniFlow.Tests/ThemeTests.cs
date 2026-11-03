@@ -1,3 +1,4 @@
+using CassiniFlow.Desktop.Services;
 using CassiniFlow.Desktop.Theme;
 
 namespace CassiniFlow.Tests;
@@ -5,41 +6,45 @@ namespace CassiniFlow.Tests;
 public class ThemeTests
 {
     [Fact]
-    public void ThemeManager_CanSwitchThemes()
+    public void ThemeService_CanSwitchThemes()
     {
-        ThemeManager.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
-        Assert.Equal(AppTheme.DeepSpaceDark, ThemeManager.CurrentTheme);
+        IThemeService themeService = new ThemeService(new JsonUserSettingsService());
 
-        ThemeManager.ApplyTheme(AppTheme.CleanLabLight, save: false);
-        Assert.Equal(AppTheme.CleanLabLight, ThemeManager.CurrentTheme);
+        themeService.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
+        Assert.Equal(AppTheme.DeepSpaceDark, themeService.CurrentTheme);
 
-        ThemeManager.ApplyTheme(AppTheme.NightVision, save: false);
-        Assert.Equal(AppTheme.NightVision, ThemeManager.CurrentTheme);
+        themeService.ApplyTheme(AppTheme.CleanLabLight, save: false);
+        Assert.Equal(AppTheme.CleanLabLight, themeService.CurrentTheme);
+
+        themeService.ApplyTheme(AppTheme.NightVision, save: false);
+        Assert.Equal(AppTheme.NightVision, themeService.CurrentTheme);
 
         // Reset to default
-        ThemeManager.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
+        themeService.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
     }
 
     [Fact]
-    public void ThemeManager_ToggleNextTheme_CyclesThroughAllThemes()
+    public void ThemeService_ToggleNextTheme_CyclesThroughAllThemes()
     {
-        ThemeManager.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
+        IThemeService themeService = new ThemeService(new JsonUserSettingsService());
 
-        ThemeManager.ToggleNextTheme();
-        Assert.Equal(AppTheme.CleanLabLight, ThemeManager.CurrentTheme);
+        themeService.ApplyTheme(AppTheme.DeepSpaceDark, save: false);
 
-        ThemeManager.ToggleNextTheme();
-        Assert.Equal(AppTheme.NightVision, ThemeManager.CurrentTheme);
+        themeService.ToggleNextTheme();
+        Assert.Equal(AppTheme.CleanLabLight, themeService.CurrentTheme);
 
-        ThemeManager.ToggleNextTheme();
-        Assert.Equal(AppTheme.DeepSpaceDark, ThemeManager.CurrentTheme);
+        themeService.ToggleNextTheme();
+        Assert.Equal(AppTheme.NightVision, themeService.CurrentTheme);
+
+        themeService.ToggleNextTheme();
+        Assert.Equal(AppTheme.DeepSpaceDark, themeService.CurrentTheme);
     }
 
     [Fact]
-    public void ThemeManager_NightVisionVariant_HasProperKey()
+    public void ThemeService_NightVisionVariant_HasProperKey()
     {
-        Assert.NotNull(ThemeManager.NightVisionVariant);
-        Assert.Equal("NightVision", ThemeManager.NightVisionVariant.Key);
+        Assert.NotNull(ThemeService.NightVisionVariant);
+        Assert.Equal("NightVision", ThemeService.NightVisionVariant.Key);
     }
 
     [Fact]

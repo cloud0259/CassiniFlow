@@ -6,6 +6,7 @@ using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class AutoStakkertFeaturesTests
 {
     [Fact]
@@ -77,7 +78,7 @@ public class AutoStakkertFeaturesTests
     public void MainWindowViewModel_Card1TitleAndWorkflowFlags_AdaptToStackingOnly()
     {
         Loc.SetLanguage(AppLanguage.French, save: false);
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // 1. Mode StackingOnly
         vm.SetWorkflowMode("stackingonly");
@@ -114,7 +115,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void MainWindowViewModel_AutoStakkertProperties_TwoWayBindingAndCommit()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
 
         // Stabilisation
         vm.IsStabilisationSurface = true;
@@ -162,7 +163,7 @@ public class AutoStakkertFeaturesTests
     public void StackingStab_Translations_AreValidAndHaveNoMojibake()
     {
         Loc.SetLanguage(AppLanguage.French, save: false);
-        Assert.Equal("Planète (COG)", Loc.Get("StackingStab.PlanetCog"));
+        Assert.Equal("Centre de gravité", Loc.Get("StackingStab.PlanetCog"));
         Assert.Equal("Désactiver la stabilisation", Loc.Get("StackingStab.DisableStabilization"));
         Assert.Equal("Estimateur de qualité", Loc.Get("StackingStab.QualityEstimator"));
         Assert.Equal("Référence Double Stack", Loc.Get("StackingStab.DoubleStackReference"));
@@ -170,7 +171,7 @@ public class AutoStakkertFeaturesTests
         Assert.DoesNotContain("Ã", Loc.Get("StackingStab.DisableStabilizationTip"));
 
         Loc.SetLanguage(AppLanguage.English, save: false);
-        Assert.Equal("Planet (COG)", Loc.Get("StackingStab.PlanetCog"));
+        Assert.Equal("Centre of Gravity", Loc.Get("StackingStab.PlanetCog"));
         Assert.Equal("Disable Stabilization", Loc.Get("StackingStab.DisableStabilization"));
         Assert.Equal("Double Stack Reference", Loc.Get("StackingStab.DoubleStackReference"));
 
@@ -180,7 +181,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void ManualPoints_ArePreserved_WhenPreviewCroppingIsToggled()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.EnableCropping = true;
         vm.CropWidth = 320;
         vm.CropHeight = 320;
@@ -216,7 +217,7 @@ public class AutoStakkertFeaturesTests
     [Fact]
     public void AlignmentGrid_IsRecalculated_WhenCropSizeChanges()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         vm.EnableCropping = true;
         vm.CropWidth = 200;
         vm.CropHeight = 200;

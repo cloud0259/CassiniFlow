@@ -1,4 +1,4 @@
-﻿using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Domain.Services;
 
@@ -147,10 +147,14 @@ public static class AutoRotationAligner
     }
 
     /// <summary>
-    /// Fait pivoter la frame autour de son centre de <paramref name="degrees"/> (sens horaire à l'écran
-    /// pour un angle positif), interpolation bilinéaire, taille conservée, fond noir.
+    /// Fait pivoter la frame autour de son centre (ou d'un pivot donné) de <paramref name="degrees"/>
+    /// (sens horaire à l'écran pour un angle positif), interpolation bilinéaire unsafe, taille conservée, fond noir.
     /// </summary>
-    public static AstroFrame Rotate(AstroFrame src, double degrees)
+    public static unsafe AstroFrame Rotate(
+        AstroFrame src,
+        double degrees,
+        double? pivotX = null,
+        double? pivotY = null)
     {
         if (Math.Abs(degrees) < 0.05) return src;
 
@@ -168,34 +172,64 @@ public static class AutoRotationAligner
 
         double rad = degrees * Math.PI / 180.0;
         double cos = Math.Cos(rad), sin = Math.Sin(rad);
-        double cx = (w - 1) / 2.0, cy = (h - 1) / 2.0;
-        ushort[] s = src.Data;
-        ushort[] d = dst.Data;
+        double cx = pivotX ?? ((w - 1) / 2.0);
+        double cy = pivotY ?? ((h - 1) / 2.0);
+        int maxValidX = w - 1;
+        int maxValidY = h - 1;
 
-        Parallel.For(0, h, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) }, y =>
+        fixed (ushort* pSrc = src.Data)
+        fixed (ushort* pDst = dst.Data)
         {
-            double dy = y - cy;
-            for (int x = 0; x < w; x++)
+            for (int y = 0; y < h; y++)
             {
-                double dx = x - cx;
-                double sx = cos * dx + sin * dy + cx;
-                double sy = -sin * dx + cos * dy + cy;
-                int x0 = (int)Math.Floor(sx), y0 = (int)Math.Floor(sy);
-                if (x0 < 0 || y0 < 0 || x0 >= w - 1 || y0 >= h - 1) continue;
-                double fx = sx - x0, fy = sy - y0;
-                int i00 = (y0 * w + x0) * ch;
-                int i10 = i00 + ch;
-                int i01 = i00 + w * ch;
-                int i11 = i01 + ch;
-                int o = (y * w + x) * ch;
-                for (int c = 0; c < ch; c++)
+                double dy = y - cy;
+                double baseSx = sin * dy + cx - cos * cx;
+                double baseSy = cos * dy + cy + sin * cx;
+                int dstRow = y * w * ch;
+
+                for (int x = 0; x < w; x++)
                 {
-                    double v = (s[i00 + c] * (1 - fx) + s[i10 + c] * fx) * (1 - fy)
-                             + (s[i01 + c] * (1 - fx) + s[i11 + c] * fx) * fy;
-                    d[o + c] = (ushort)Math.Clamp((int)(v + 0.5), 0, 65535);
+                    double sx = cos * x + baseSx;
+                    double sy = -sin * x + baseSy;
+                    if (sx < 0.0 || sy < 0.0) continue;
+
+                    int x0 = (int)sx;
+                    int y0 = (int)sy;
+                    if (x0 >= maxValidX || y0 >= maxValidY) continue;
+
+                    double fx = sx - x0;
+                    double fy = sy - y0;
+                    double wx0 = 1.0 - fx;
+                    double wy0 = 1.0 - fy;
+
+                    double w00 = wx0 * wy0;
+                    double w10 = fx * wy0;
+                    double w01 = wx0 * fy;
+                    double w11 = fx * fy;
+
+                    int i00 = (y0 * w + x0) * ch;
+                    int i10 = i00 + ch;
+                    int i01 = i00 + w * ch;
+                    int i11 = i01 + ch;
+                    int o = dstRow + x * ch;
+
+                    if (ch == 3)
+                    {
+                        pDst[o] = (ushort)(pSrc[i00] * w00 + pSrc[i10] * w10 + pSrc[i01] * w01 + pSrc[i11] * w11 + 0.5);
+                        pDst[o + 1] = (ushort)(pSrc[i00 + 1] * w00 + pSrc[i10 + 1] * w10 + pSrc[i01 + 1] * w01 + pSrc[i11 + 1] * w11 + 0.5);
+                        pDst[o + 2] = (ushort)(pSrc[i00 + 2] * w00 + pSrc[i10 + 2] * w10 + pSrc[i01 + 2] * w01 + pSrc[i11 + 2] * w11 + 0.5);
+                    }
+                    else
+                    {
+                        for (int c = 0; c < ch; c++)
+                        {
+                            double v = pSrc[i00 + c] * w00 + pSrc[i10 + c] * w10 + pSrc[i01 + c] * w01 + pSrc[i11 + c] * w11;
+                            pDst[o + c] = (ushort)(v + 0.5);
+                        }
+                    }
                 }
             }
-        });
+        }
 
         return dst;
     }

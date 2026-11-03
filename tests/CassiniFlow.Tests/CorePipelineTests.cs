@@ -139,7 +139,8 @@ public class CorePipelineTests
             options.QualityLimitingMode = QualityLimitingType.PercentageOfFrames;
             options.QualityFramesToKeep = 50;
 
-            var summary = await PipelineRunner.ExecuteAsync(frames, options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteAsync(frames, options, tempOutDir);
             Assert.True(summary.Success);
             Assert.Equal(6, summary.OutputFramesWritten);
             Assert.True(File.Exists(summary.OutputFilePath));
@@ -212,7 +213,8 @@ public class CorePipelineTests
                 OutputFormat = OutputFormat.Ser
             };
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempMp4A, tempMp4B], options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteFilesAsync([tempMp4A, tempMp4B], options, tempOutDir);
             Assert.True(summary.Success);
             Assert.True(summary.OutputFramesWritten >= 6);
             Assert.True(File.Exists(summary.OutputFilePath));
@@ -249,7 +251,8 @@ public class CorePipelineTests
                 FlipHorizontalX = true
             };
 
-            var summary = await PipelineRunner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
+            var runner = TestFactory.CreatePipelineRunner();
+            var summary = await runner.ExecuteFilesAsync([tempAvi], options, tempOutDir);
             Assert.True(summary.Success);
             Assert.Equal(4, summary.OutputFramesWritten);
 
@@ -268,5 +271,98 @@ public class CorePipelineTests
             if (File.Exists(tempAvi)) File.Delete(tempAvi);
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
+    }
+
+    [Theory]
+    [InlineData(DebayerAlgorithm.Bilinear)]
+    [InlineData(DebayerAlgorithm.HqLinear)]
+    [InlineData(DebayerAlgorithm.SmoothHue)]
+    public void ImageProcessor_Debayer_AllAlgorithmsProduceValidColorFrame(DebayerAlgorithm algo)
+    {
+        int w = 64, h = 64;
+        var raw = new AstroFrame(w, h, 1, 16) { IsBayerRaw = true, BayerPattern = BayerPattern.Rggb };
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                raw.Data[y * w + x] = (ushort)(20000 + ((x + y) * 100));
+            }
+        }
+
+        var debayered = ImageProcessor.Debayer(raw, BayerPattern.Rggb, algo);
+        Assert.Equal(3, debayered.Channels);
+        Assert.Equal(w, debayered.Width);
+        Assert.Equal(h, debayered.Height);
+        Assert.False(debayered.IsBayerRaw);
+        Assert.True(debayered.Data[0] > 0);
+        Assert.True(debayered.Data[1] > 0);
+        Assert.True(debayered.Data[2] > 0);
+    }
+
+    [Fact]
+    public void PipelineRunner_PreviewSingleFrame_WhenDebayerDisabled_PreservesRawChannels()
+    {
+        int w = 64, h = 64;
+        var raw = new AstroFrame(w, h, 1, 16) { IsBayerRaw = true, BayerPattern = BayerPattern.Rggb };
+        for (int i = 0; i < raw.Data.Length; i++) raw.Data[i] = 10000;
+
+        var options = new ProcessingOptions
+        {
+            DebayerEnabled = false,
+            EnableCropping = false
+        };
+
+        var (proc, _) = PipelineRunner.PreviewSingleFrame(raw, options);
+        Assert.Equal(1, proc.Channels);
+    }
+
+    [Fact]
+    public void PipelineRunner_PreviewSingleFrame_WhenMonochrome3ChannelVideo_DebayersToColor()
+    {
+        int w = 64, h = 64;
+        var raw = new AstroFrame(w, h, 3, 16);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                ushort val = (ushort)(y % 2 == 0 ? (x % 2 == 0 ? 40000 : 25000) : (x % 2 == 0 ? 25000 : 15000));
+                int idx = (y * w + x) * 3;
+                raw.Data[idx] = val;
+                raw.Data[idx + 1] = val;
+                raw.Data[idx + 2] = val;
+            }
+        }
+
+        var options = new ProcessingOptions
+        {
+            DebayerEnabled = true,
+            DebayerPattern = BayerPattern.Rggb,
+            DebayerType = DebayerAlgorithm.HqLinear,
+            EnableCropping = false
+        };
+
+        var (proc, _) = PipelineRunner.PreviewSingleFrame(raw, options);
+        Assert.Equal(3, proc.Channels);
+        Assert.True(proc.Data[0] != proc.Data[2]);
+    }
+
+    [Fact]
+    public void ImageProcessor_ApplyCalibration_HotPixelsWithoutMasterDark_SuppressesDefectivePixels()
+    {
+        int w = 32, h = 32;
+        var frame = new AstroFrame(w, h, 1, 16);
+        for (int i = 0; i < frame.Data.Length; i++) frame.Data[i] = 2000;
+
+        frame.Data[10 * w + 10] = 60000;
+
+        ImageProcessor.ApplyCalibration(
+            frame,
+            masterDark: null,
+            replaceHotPixels: true,
+            hotPixelThresholdPercent: 30,
+            darkHasBayer: false,
+            masterFlat: null);
+
+        Assert.True(frame.Data[10 * w + 10] < 5000);
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+using System.Globalization;
+using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Infrastructure.Adapters;
@@ -47,6 +48,10 @@ public static class Program
             Console.WriteLine($"[@PROGRESS={r.PercentComplete}%] {r.Stage}: {r.LogMessage}");
         });
 
+        var loc = new AstroLocalizationService();
+        var calib = new CalibrationFrameProviderService(loc);
+        var stacking = new MultiZoneStackingPipelineRunner(loc, calib);
+        var runner = new PipelineRunner(loc, stacking, calib);
         PipelineRunSummary summary;
         if (inputFiles.Count > 0)
         {
@@ -58,15 +63,15 @@ public static class Program
                     return 1;
                 }
             }
-            summary = await PipelineRunner.ExecuteFilesAsync(inputFiles, options, outDir, progress);
+            summary = await runner.ExecuteFilesAsync(inputFiles, options, outDir, progress);
         }
         else
         {
             var frames = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.JupiterRggb, 24);
-            summary = await PipelineRunner.ExecuteAsync(frames, options, outDir, progress);
+            summary = await runner.ExecuteAsync(frames, options, outDir, progress);
         }
 
-        Console.WriteLine($"Completed in {summary.Elapsed.TotalSeconds:F2}s â€” Output: {summary.OutputFilePath}");
+        Console.WriteLine($"Completed in {summary.Elapsed.TotalSeconds:F2}s — Output: {summary.OutputFilePath}");
         return summary.Success ? 0 : 1;
     }
 

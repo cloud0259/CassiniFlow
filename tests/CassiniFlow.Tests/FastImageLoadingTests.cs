@@ -110,7 +110,7 @@ public class FastImageLoadingTests
     [Fact]
     public void MainWindowViewModel_HasLoadingFileProperties()
     {
-        var vm = new MainWindowViewModel();
+        var vm = TestFactory.CreateMainWindowViewModel();
         Assert.False(vm.IsLoadingFiles);
         Assert.True(vm.CanAddFiles);
         Assert.Equal(string.Empty, vm.LoadingStatusText);

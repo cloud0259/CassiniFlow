@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Domain.Services;
@@ -23,6 +24,20 @@ internal readonly record struct FrameScanEntry(
 /// </summary>
 public sealed class PipelineRunner : IRunPipelineUseCase
 {
+    private readonly IAstroLocalization _loc;
+    private readonly IStackingPipelineUseCase _stackingRunner;
+    private readonly ICalibrationFrameProvider _calibrationProvider;
+
+    public PipelineRunner(
+        IAstroLocalization localization,
+        IStackingPipelineUseCase stackingRunner,
+        ICalibrationFrameProvider calibrationProvider)
+    {
+        _loc = localization ?? throw new ArgumentNullException(nameof(localization));
+        _stackingRunner = stackingRunner ?? throw new ArgumentNullException(nameof(stackingRunner));
+        _calibrationProvider = calibrationProvider ?? throw new ArgumentNullException(nameof(calibrationProvider));
+    }
+
     Task<PipelineRunSummary> IRunPipelineUseCase.ExecuteFilesAsync(
         IReadOnlyList<string> inputFiles,
         ProcessingOptions options,
@@ -48,9 +63,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.DarkDataHasBayer,
             masterFlat);
 
-        if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+        if (options.DebayerEnabled && !options.ProtectBayerPattern)
         {
-            work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+            if (work.Channels == 1)
+            {
+                work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+            }
+            else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+            {
+                var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+            }
         }
 
         if (options.Binning != BinningMode.Disabled)
@@ -86,19 +109,28 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.MaxOverexposedPixels,
             rejectClippedObjects: false);
 
-        if (applyCropToOutput || !options.EnableCropping)
+        bool centrePlanet = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        if (applyCropToOutput || (!options.EnableCropping && !centrePlanet))
         {
-            if (applyCropToOutput && options.EnableCropping)
+            if (applyCropToOutput && (options.EnableCropping || centrePlanet))
             {
-                int scaledCropW = Math.Max(16, (int)Math.Round(options.CropWidth * previewScale));
-                int scaledCropH = Math.Max(16, (int)Math.Round(options.CropHeight * previewScale));
-                int scaledOffX = (int)Math.Round(options.CropOffsetX * previewScale);
-                int scaledOffY = (int)Math.Round(options.CropOffsetY * previewScale);
+                int scaledCropW = options.EnableCropping
+                    ? Math.Max(16, (int)Math.Round(options.CropWidth * previewScale))
+                    : work.Width;
+                int scaledCropH = options.EnableCropping
+                    ? Math.Max(16, (int)Math.Round(options.CropHeight * previewScale))
+                    : work.Height;
+                int scaledOffX = options.EnableCropping
+                    ? (int)Math.Round(options.CropOffsetX * previewScale)
+                    : 0;
+                int scaledOffY = options.EnableCropping
+                    ? (int)Math.Round(options.CropOffsetY * previewScale)
+                    : 0;
 
-                int targetX = (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary)
+                int targetX = centrePlanet
                     ? detection.CentroidX
                     : work.Width / 2;
-                int targetY = (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary)
+                int targetY = centrePlanet
                     ? detection.CentroidY
                     : work.Height / 2;
 
@@ -170,6 +202,21 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 };
                 detection = detection with { CentroidX = rx, CentroidY = ry };
             }
+        }
+
+        if (options.EnableFieldDerotation)
+        {
+            double safeFps = (double)options.WinJuposInputFps > 0 ? (double)options.WinJuposInputFps : 30.0;
+            double angle = FieldDerotationEngine.ComputeFrameDerotationAngle(
+                work.FrameIndex,
+                Math.Max(100, work.FrameIndex + 1),
+                safeFps,
+                options.ObserverLatitudeDegrees,
+                options.TargetAltitudeDegrees,
+                options.TargetAzimuthDegrees);
+            double? pivX = (applyCropToOutput && options.EnableCropping) ? null : detection.CentroidX;
+            double? pivY = (applyCropToOutput && options.EnableCropping) ? null : detection.CentroidY;
+            work = FieldDerotationEngine.ApplyDerotation(work, angle, pivX, pivY);
         }
 
         work.DetectedCentroidX = detection.CentroidX;
@@ -273,7 +320,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         return Math.Clamp(byPercent, 1, totalCores);
     }
 
-    public static async Task<PipelineRunSummary> ExecuteFilesAsync(
+    public async Task<PipelineRunSummary> ExecuteFilesAsync(
         IReadOnlyList<string> inputFilePaths,
         ProcessingOptions options,
         string outputDirectory,
@@ -288,8 +335,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         if (options.Stacking.WorkflowMode is StackingWorkflowMode.StackingOnly or StackingWorkflowMode.DirectStreamAllInOne)
         {
-            return await StackingPipelineRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
+            return await _stackingRunner.ExecuteAsync(validPaths, options, outputDirectory, progress, cancellationToken);
         }
+
+        var (masterDark, masterFlat) = _calibrationProvider.PrepareCalibrationMasters(
+            options,
+            outputDirectory,
+            progress,
+            cancellationToken);
 
         var sw = Stopwatch.StartNew();
         Directory.CreateDirectory(outputDirectory);
@@ -299,6 +352,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         {
             int totalIn = 0, totalOut = 0, totalNoPlanet = 0, totalOver = 0, totalQual = 0;
             string lastOutputPath = string.Empty;
+            string lastLogPath = string.Empty;
             object batchLock = new();
             int completedFiles = 0;
 
@@ -309,7 +363,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 async (f, ct) =>
                 {
                     string file = validPaths[f];
-                    var subSummary = await ProcessFileGroupStreamingAsync([file], options, outputDirectory, progress, ct);
+                    var subSummary = await ProcessFileGroupStreamingAsync([file], options, outputDirectory, progress, ct, masterDark, masterFlat);
                     lock (batchLock)
                     {
                         completedFiles++;
@@ -321,15 +375,19 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                         if (!string.IsNullOrEmpty(subSummary.OutputFilePath))
                         {
                             lastOutputPath = subSummary.OutputFilePath;
+                            if (!string.IsNullOrEmpty(subSummary.LogFilePath))
+                            {
+                                lastLogPath = subSummary.LogFilePath;
+                            }
                         }
                     }
                 });
 
             sw.Stop();
-            return new PipelineRunSummary(totalOut > 0, sw.Elapsed, totalIn, totalOut, totalNoPlanet, totalOver, totalQual, lastOutputPath);
+            return new PipelineRunSummary(totalOut > 0, sw.Elapsed, totalIn, totalOut, totalNoPlanet, totalOver, totalQual, lastOutputPath, lastLogPath);
         }
 
-        return await ProcessFileGroupStreamingAsync(validPaths, options, outputDirectory, progress, cancellationToken);
+        return await ProcessFileGroupStreamingAsync(validPaths, options, outputDirectory, progress, cancellationToken, masterDark, masterFlat);
     }
 
     public static bool IsImageOutputFormat(OutputFormat format) =>
@@ -366,12 +424,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         return Path.Combine(dir, $"{stem}_{numStr}{ext}");
     }
 
-    private static async Task<PipelineRunSummary> ProcessFileGroupStreamingAsync(
+    private async Task<PipelineRunSummary> ProcessFileGroupStreamingAsync(
         IReadOnlyList<string> groupFiles,
         ProcessingOptions options,
         string outputDirectory,
         IProgress<PipelineProgressReport>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AstroFrame? masterDark = null,
+        AstroFrame? masterFlat = null)
     {
         var sw = Stopwatch.StartNew();
         int totalInputFrames = 0;
@@ -508,13 +568,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                             if (processedCount % reportStep == 0 || processedCount == totalInputFrames)
                             {
                                 int pct = Math.Clamp((int)(processedCount * 95.0 / Math.Max(1, totalInputFrames)), 5, 98);
-                                progress?.Report(new PipelineProgressReport(
-                                    "Streaming Direct",
-                                    pct,
-                                    Path.GetFileName(path),
-                                    processedCount,
-                                    totalInputFrames,
-                                    $"{processedCount}/{totalInputFrames} frames traitées ({writer.FramesWritten} écrites)..."));
+                                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.DirectStreaming"), pct, Path.GetFileName(path), processedCount, totalInputFrames, _loc.Format("Progress.FramesProcessedWritten", processedCount, totalInputFrames, writer.FramesWritten)));
                             }
                         });
                 }
@@ -522,7 +576,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 // Fallback if 100% of frames were rejected by planet threshold on a personal video
                 if (writer.FramesWritten == 0 && totalInputFrames > 0 && checkPlanet)
                 {
-                    progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé sur fond noir détecté — encodage de toutes les frames sans rejet..."));
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.NoRejectionMode"), 50, sourceStem, 0, totalInputFrames, _loc.Get("Progress.NoIsolatedPlanetDetected")));
                     discardedNoPlanet = 0;
                     processedCount = 0;
 
@@ -603,13 +657,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                                     int pct = Math.Clamp((int)(doneCount * 82.0 / Math.Max(1, totalInputFrames)), 5, 84);
                                     int keptNow;
                                     lock (heapLock) keptNow = topKHeap.Count;
-                                    progress?.Report(new PipelineProgressReport(
-                                        "Analyse Parallèle Multi-Cœurs",
-                                        pct,
-                                        Path.GetFileName(seg.FilePath),
-                                        doneCount,
-                                        totalInputFrames,
-                                        $"{doneCount}/{totalInputFrames} frames analysées ({keptNow} retenues)..."));
+                                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ParallelAnalysis"), pct, Path.GetFileName(seg.FilePath), doneCount, totalInputFrames, _loc.Format("Progress.FramesAnalysedKept", doneCount, totalInputFrames, keptNow)));
                                 }
                             });
                     });
@@ -617,7 +665,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 // Fallback if 100% were rejected by planet threshold
                 if (topKHeap.Count == 0 && totalInputFrames > 0 && checkPlanet)
                 {
-                    progress?.Report(new PipelineProgressReport("Mode Sans Rejet", 50, sourceStem, 0, totalInputFrames, "Aucun objet isolé détecté — sélection parallèle des meilleures frames sans rejet..."));
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.NoRejectionMode"), 50, sourceStem, 0, totalInputFrames, _loc.Get("Progress.NoIsolatedPlanetParallel")));
                     discardedNoPlanet = 0;
                     scanned = 0;
                     acceptedBeforeLimit = 0;
@@ -680,13 +728,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     winners.Sort((a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
                 }
 
-                progress?.Report(new PipelineProgressReport(
-                    "Traitement Final & Encodage",
-                    90,
-                    Path.GetFileName(outputPath),
-                    winners.Count,
-                    totalInputFrames,
-                    $"Écriture des {winners.Count} frames vers '{Path.GetFileName(outputPath)}'..."));
+                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.EncodingPass2"), 90, Path.GetFileName(outputPath), winners.Count, totalInputFrames, _loc.Format("Progress.WritingFramesTo", winners.Count, Path.GetFileName(outputPath))));
 
                 int postWorkers = GetSafeWorkerThreadCount(options);
                 Parallel.For(0, winners.Count, new ParallelOptions { MaxDegreeOfParallelism = postWorkers, CancellationToken = cancellationToken }, i =>
@@ -758,13 +800,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                             if (doneCount % scanReportStep == 0 || doneCount == totalInputFrames)
                             {
                                 int pct = Math.Clamp((int)(doneCount * 55.0 / Math.Max(1, totalInputFrames)), 5, 55);
-                                progress?.Report(new PipelineProgressReport(
-                                    "Passe 1 : Analyse Parallèle",
-                                    pct,
-                                    Path.GetFileName(seg.FilePath),
-                                    doneCount,
-                                    totalInputFrames,
-                                    $"Passe 1/2 : {doneCount}/{totalInputFrames} frames analysées..."));
+                                progress?.Report(new PipelineProgressReport(_loc.Get("Progress.ParallelAnalysis"), pct, Path.GetFileName(seg.FilePath), doneCount, totalInputFrames, _loc.Format("Progress.Pass1FramesAnalysed", doneCount, totalInputFrames)));
                             }
                         });
                 });
@@ -802,13 +838,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 }
             }
 
-            progress?.Report(new PipelineProgressReport(
-                "Passe 2 : Encodage",
-                65,
-                Path.GetFileName(outputPath),
-                0,
-                scanEntries.Count,
-                $"Passe 2/2 : Écriture des {scanEntries.Count} meilleures frames vers '{Path.GetFileName(outputPath)}'..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.EncodingPass2"), 65, Path.GetFileName(outputPath), 0, scanEntries.Count, _loc.Format("Progress.Pass2WritingBest", scanEntries.Count, Path.GetFileName(outputPath))));
 
             using (var pass2Writer = new PipelineFrameWriter(
                 outputPath,
@@ -853,15 +883,10 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         sw.Stop();
         double fpsSpeed = totalInputFrames / Math.Max(0.001, sw.Elapsed.TotalSeconds);
-        progress?.Report(new PipelineProgressReport(
-            "Terminé",
-            100,
-            Path.GetFileName(outputPath),
-            outputFramesWritten,
-            totalInputFrames,
-            $"Terminé en {sw.Elapsed.TotalSeconds:F2}s ({fpsSpeed:F1} fps) — {outputFramesWritten} frames écrites dans '{outputPath}'."));
+        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.Done"), 100, Path.GetFileName(outputPath), outputFramesWritten, totalInputFrames, _loc.Format("Progress.FinishedInSeconds", sw.Elapsed.TotalSeconds, fpsSpeed, outputFramesWritten, outputPath)));
 
-        return new PipelineRunSummary(
+        string logPath = Path.Combine(outputDirectory, $"{fullStem}_log.txt");
+        var summary = new PipelineRunSummary(
             outputFramesWritten > 0,
             sw.Elapsed,
             totalInputFrames,
@@ -869,14 +894,30 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             discardedNoPlanet,
             0,
             discardedQuality,
-            outputPath);
+            outputPath,
+            logPath);
+
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                groupFiles,
+                timestampUtc: DateTime.UtcNow);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+
+        return summary;
     }
 
     /// <summary>
     /// Calcule la rotation (en degrés) à appliquer à chaque fichier pour que l'orientation de l'objet
     /// (axe des anneaux de Saturne par exemple) corresponde à celle du premier fichier exploitable.
     /// </summary>
-    private static double[] ComputeAutoRotations(
+    private double[] ComputeAutoRotations(
         IReadOnlyList<string> groupFiles,
         IReadOnlyList<MediaFileSummary> fileSummaries,
         ProcessingOptions options,
@@ -888,13 +929,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         var angles = new AutoRotationAligner.OrientationResult?[groupFiles.Count];
         for (int i = 0; i < groupFiles.Count; i++)
         {
-            progress?.Report(new PipelineProgressReport(
-                "Détection de l'orientation",
-                2,
-                Path.GetFileName(groupFiles[i]),
-                0,
-                0,
-                $"Détection de l'orientation de l'objet : {Path.GetFileName(groupFiles[i])}..."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.OrientationDetection"), 2, Path.GetFileName(groupFiles[i]), 0, 0, _loc.Format("Progress.DetectingOrientation", Path.GetFileName(groupFiles[i]))));
             try { angles[i] = AutoRotationAligner.MeasureOrientation(groupFiles[i], fileSummaries[i].FrameCount); }
             catch { angles[i] = null; }
         }
@@ -902,8 +937,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         int refIdx = Array.FindIndex(angles, a => a is not null && a.Elongation >= AutoRotationAligner.MinReliableElongation);
         if (refIdx < 0)
         {
-            progress?.Report(new PipelineProgressReport("Rotation auto", 3, "", 0, 0,
-                "Rotation automatique ignorée : objet pas assez allongé (anneaux non détectés)."));
+            progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AutoRotation"), 3, "", 0, 0, _loc.Get("Progress.SkippingAutoRotation")));
             return result;
         }
 
@@ -919,9 +953,15 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             result[i] = AutoRotationAligner.NormalizeAxisAngle(refAngle - a.AngleDegrees);
         }
 
-        progress?.Report(new PipelineProgressReport("Rotation auto", 3, "", 0, 0,
-            "Rotation automatique : " + string.Join(", ", Enumerable.Range(0, groupFiles.Count)
-                .Select(i => $"{Path.GetFileName(groupFiles[i])} {result[i]:+0.0;-0.0;0.0}°"))));
+        string autoRotList = string.Join(", ", Enumerable.Range(0, groupFiles.Count)
+            .Select(i => $"{Path.GetFileName(groupFiles[i])} {result[i]:+0.0;-0.0;0.0}°"));
+        progress?.Report(new PipelineProgressReport(
+            _loc.Get("Progress.AutoRotation"),
+            3,
+            "",
+            0,
+            0,
+            _loc.Format("Progress.AutoRotationDetails", autoRotList)));
         return result;
     }
 
@@ -1085,12 +1125,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 Interlocked.Increment(ref acceptedBeforeLimit);
                 int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
+                int offX = options.EnableCropping ? options.CropOffsetX : 0;
+                int offY = options.EnableCropping ? options.CropOffsetY : 0;
 
                 double score = options.EnableQualityEstimation
                     ? UniversalMediaReader.ComputeQualityOnMatRoiFast(
                         rawMat,
-                        targetX - options.CropOffsetX,
-                        targetY - options.CropOffsetY,
+                        targetX - offX,
+                        targetY - offY,
                         roiW,
                         roiH,
                         options.QualityAlgorithm,
@@ -1108,19 +1150,22 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (shouldExtract)
                 {
                     int globalIdx = globalFrameBase + (idx - startIdx);
-                    AstroFrame work = options.EnableCropping
+                    AstroFrame work = (options.EnableCropping || centrePlanet)
                         ? UniversalMediaReader.ExtractCroppedAstroFrameFromMat(
                             rawMat,
                             globalIdx,
                             targetX,
                             targetY,
-                            options.CropWidth,
-                            options.CropHeight,
-                            options.CropOffsetX,
-                            options.CropOffsetY,
-                            reusableDst: spareFrame)
+                            options.EnableCropping ? options.CropWidth : rawMat.Width,
+                            options.EnableCropping ? options.CropHeight : rawMat.Height,
+                            offX,
+                            offY,
+                            reusableDst: spareFrame,
+                            protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern)
                         : UniversalMediaReader.MatToAstroFrame(rawMat, globalIdx);
 
+                    work.DetectedCentroidX = det.CentroidX;
+                    work.DetectedCentroidY = det.CentroidY;
                     work.QualityScore = score;
                     work.TimestampUtc = startUtc.AddSeconds(idx / fps);
 
@@ -1152,18 +1197,84 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             return; }
         }
 
-        // Non-video files (SER, FITS, BMP, PNG, TIFF)
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(filePath);
+            int last = Math.Min(ser.Header.FrameCount - 1, endIdx);
+            for (int idx = Math.Max(0, startIdx); idx <= last; idx++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int done = Interlocked.Increment(ref scannedCount);
+
+                var (accepted, cx, cy, fastScore) = ser.AnalyzeFrameZeroAlloc(idx, options, options.SerBitDepthOverride);
+                if (enforcePlanetRejection && !accepted)
+                {
+                    Interlocked.Increment(ref discardedNoPlanet);
+                    onStep(done);
+                    continue;
+                }
+
+                Interlocked.Increment(ref acceptedBeforeLimit);
+                double score = options.EnableQualityEstimation ? fastScore : 100.0;
+
+                bool shouldExtract;
+                lock (heapLock)
+                {
+                    shouldExtract = topKHeap.Count < maxKeepTarget || score > currentMinScoreInHeap;
+                }
+
+                if (shouldExtract)
+                {
+                    int targetX = centrePlanet ? cx : ser.Header.ImageWidth / 2;
+                    int targetY = centrePlanet ? cy : ser.Header.ImageHeight / 2;
+                    AstroFrame work = (options.EnableCropping || centrePlanet)
+                        ? ser.ReadFrameCropped(
+                            idx,
+                            targetX,
+                            targetY,
+                            options.EnableCropping ? options.CropWidth : ser.Header.ImageWidth,
+                            options.EnableCropping ? options.CropHeight : ser.Header.ImageHeight,
+                            options.EnableCropping ? options.CropOffsetX : 0,
+                            options.EnableCropping ? options.CropOffsetY : 0,
+                            options.SerBitDepthOverride)
+                        : ser.ReadFrame(idx, options.SerBitDepthOverride);
+
+                    work.FrameIndex = globalFrameBase + (idx - startIdx);
+                    work.DetectedCentroidX = cx;
+                    work.DetectedCentroidY = cy;
+                    if (options.DebayerEnabled && !options.ProtectBayerPattern && work.Channels == 1)
+                    {
+                        work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                    }
+                    work.QualityScore = score;
+
+                    lock (heapLock)
+                    {
+                        if (topKHeap.Count < maxKeepTarget)
+                        {
+                            topKHeap.Enqueue(work, score);
+                            topKHeap.TryPeek(out _, out currentMinScoreInHeap);
+                        }
+                        else if (score > currentMinScoreInHeap)
+                        {
+                            topKHeap.DequeueEnqueue(work, score);
+                            topKHeap.TryPeek(out _, out currentMinScoreInHeap);
+                        }
+                    }
+                }
+
+                onStep(done);
+            }
+            return;
+        }
+
+        // Non-video files (FITS, BMP, PNG, TIFF)
         foreach (var raw in UniversalMediaReader.EnumerateFrames(filePath, startIdx, endIdx, options.SerBitDepthOverride))
         {
             cancellationToken.ThrowIfCancellationRequested();
             int done = Interlocked.Increment(ref scannedCount);
             var work = raw;
             work.FrameIndex = globalFrameBase + (raw.FrameIndex - startIdx);
-
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
-            {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
-            }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
                 work,
@@ -1184,7 +1295,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             }
 
             Interlocked.Increment(ref acceptedBeforeLimit);
-            if (options.EnableCropping)
+            work.DetectedCentroidX = det.CentroidX;
+            work.DetectedCentroidY = det.CentroidY;
+            if (options.EnableCropping || centrePlanet)
             {
                 int targetX = centrePlanet ? det.CentroidX : work.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : work.Height / 2;
@@ -1192,11 +1305,24 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     work,
                     targetX,
                     targetY,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
-                    options.ProtectBayerPattern);
+                    options.EnableCropping ? options.CropWidth : work.Width,
+                    options.EnableCropping ? options.CropHeight : work.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
+                    protectBayerEvenSteps: work.IsBayerRaw || options.DebayerEnabled || options.ProtectBayerPattern);
+            }
+
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
+            {
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             double score = options.EnableQualityEstimation
@@ -1250,6 +1376,31 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         string ext = Path.GetExtension(filePath).ToLowerInvariant();
         var localEntries = new List<FrameScanEntry>(Math.Max(16, endIdx - startIdx + 1));
 
+        if (ext == ".ser")
+        {
+            using var ser = new SerFile(filePath);
+            int last = Math.Min(ser.Header.FrameCount - 1, endIdx);
+            for (int idx = Math.Max(0, startIdx); idx <= last; idx++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int done = Interlocked.Increment(ref scannedCount);
+                var (accepted, cx, cy, fastScore) = ser.AnalyzeFrameZeroAlloc(idx, options, options.SerBitDepthOverride);
+                if (enforcePlanetRejection && !accepted)
+                {
+                    Interlocked.Increment(ref discardedNoPlanet);
+                    onStep(done);
+                    continue;
+                }
+                localEntries.Add(new FrameScanEntry(fileIndex, idx, cx, cy, options.EnableQualityEstimation ? fastScore : 100.0));
+                onStep(done);
+            }
+            lock (scanLock)
+            {
+                scanEntries.AddRange(localEntries);
+            }
+            return;
+        }
+
         if (UniversalMediaReader.IsOpenCvNativeAvailable && UniversalMediaReader.VideoExtensions.Contains(ext))
         {
         var cap = TryOpenVideoCapture(filePath);
@@ -1292,12 +1443,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
                 int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
+                int offX = options.EnableCropping ? options.CropOffsetX : 0;
+                int offY = options.EnableCropping ? options.CropOffsetY : 0;
 
                 double score = options.EnableQualityEstimation
                     ? UniversalMediaReader.ComputeQualityOnMatRoiFast(
                         rawMat,
-                        targetX - options.CropOffsetX,
-                        targetY - options.CropOffsetY,
+                        targetX - offX,
+                        targetY - offY,
                         roiW,
                         roiH,
                         options.QualityAlgorithm,
@@ -1324,9 +1477,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             int done = Interlocked.Increment(ref scannedCount);
             var work = raw;
 
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1402,7 +1563,6 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             using var rawMat = new Mat();
             int idx = startIdx;
             int hintX = -1, hintY = -1, cachedThresh = -1;
-            AstroFrame? reusableCrop = null;
 
             while (idx <= endIdx && cap.Read(rawMat) && !rawMat.Empty())
             {
@@ -1427,7 +1587,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 }
 
                 AstroFrame work;
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     int targetX = centrePlanet ? det.CentroidX : rawMat.Width / 2;
                     int targetY = centrePlanet ? det.CentroidY : rawMat.Height / 2;
@@ -1436,12 +1596,12 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                         idx,
                         targetX,
                         targetY,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
-                        reusableDst: reusableCrop);
-                    reusableCrop = work;
+                        options.EnableCropping ? options.CropWidth : rawMat.Width,
+                        options.EnableCropping ? options.CropHeight : rawMat.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
+                        reusableDst: null,
+                        protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern);
                 }
                 else
                 {
@@ -1460,9 +1620,17 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             cancellationToken.ThrowIfCancellationRequested();
             var work = raw;
 
-            if ((options.DebayerEnabled || work.IsBayerRaw) && work.Channels == 1 && !options.ProtectBayerPattern)
+            if (options.DebayerEnabled && !options.ProtectBayerPattern)
             {
-                work = ImageProcessor.Debayer(work, work.IsBayerRaw ? work.BayerPattern : options.DebayerPattern, options.DebayerType);
+                if (work.Channels == 1)
+                {
+                    work = ImageProcessor.Debayer(work, options.DebayerPattern, options.DebayerType);
+                }
+                else if (work.Channels == 3 && ImageProcessor.IsMonochrome(work))
+                {
+                    var mono = ImageProcessor.ConvertToMonochrome(work, MonochromeConversionMode.UseRgbChannels);
+                    work = ImageProcessor.Debayer(mono, options.DebayerPattern, options.DebayerType);
+                }
             }
 
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
@@ -1482,7 +1650,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 continue;
             }
 
-            if (options.EnableCropping)
+            if (options.EnableCropping || centrePlanet)
             {
                 int targetX = centrePlanet ? det.CentroidX : work.Width / 2;
                 int targetY = centrePlanet ? det.CentroidY : work.Height / 2;
@@ -1490,10 +1658,10 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     work,
                     targetX,
                     targetY,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
+                    options.EnableCropping ? options.CropWidth : work.Width,
+                    options.EnableCropping ? options.CropHeight : work.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
                     options.ProtectBayerPattern);
             }
 
@@ -1525,16 +1693,16 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (!wantedByFrame.TryGetValue(raw.FrameIndex, out var entry)) continue;
                 var work = raw;
                 var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     work = ImageProcessor.CropAroundPoint(
                         work,
                         centrePlanet ? entry.CentroidX : work.Width / 2,
                         centrePlanet ? entry.CentroidY : work.Height / 2,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
+                        options.EnableCropping ? options.CropWidth : work.Width,
+                        options.EnableCropping ? options.CropHeight : work.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
                         options.ProtectBayerPattern);
                 }
                 ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
@@ -1552,16 +1720,16 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 if (!wantedByFrame.TryGetValue(raw.FrameIndex, out var entry)) continue;
                 var work = raw;
                 var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-                if (options.EnableCropping)
+                if (options.EnableCropping || centrePlanet)
                 {
                     work = ImageProcessor.CropAroundPoint(
                         work,
                         centrePlanet ? entry.CentroidX : work.Width / 2,
                         centrePlanet ? entry.CentroidY : work.Height / 2,
-                        options.CropWidth,
-                        options.CropHeight,
-                        options.CropOffsetX,
-                        options.CropOffsetY,
+                        options.EnableCropping ? options.CropWidth : work.Width,
+                        options.EnableCropping ? options.CropHeight : work.Height,
+                        options.EnableCropping ? options.CropOffsetX : 0,
+                        options.EnableCropping ? options.CropOffsetY : 0,
                         options.ProtectBayerPattern);
                 }
                 ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
@@ -1577,7 +1745,6 @@ public sealed class PipelineRunner : IRunPipelineUseCase
 
         using var rawMat = new Mat();
         int idx = minFrame;
-        AstroFrame? reusableCrop = null;
 
         while (idx <= maxFrame)
         {
@@ -1592,20 +1759,20 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             if (!cap.Read(rawMat) || rawMat.Empty()) break;
 
             var det = new DetectionResult(true, null, entry.CentroidX, entry.CentroidY, 100, 0, 40);
-            AstroFrame work = options.EnableCropping
+            AstroFrame work = (options.EnableCropping || centrePlanet)
                 ? UniversalMediaReader.ExtractCroppedAstroFrameFromMat(
                     rawMat,
                     idx,
                     centrePlanet ? entry.CentroidX : rawMat.Width / 2,
                     centrePlanet ? entry.CentroidY : rawMat.Height / 2,
-                    options.CropWidth,
-                    options.CropHeight,
-                    options.CropOffsetX,
-                    options.CropOffsetY,
-                    reusableDst: reusableCrop)
+                    options.EnableCropping ? options.CropWidth : rawMat.Width,
+                    options.EnableCropping ? options.CropHeight : rawMat.Height,
+                    options.EnableCropping ? options.CropOffsetX : 0,
+                    options.EnableCropping ? options.CropOffsetY : 0,
+                    reusableDst: null,
+                    protectBayerEvenSteps: options.DebayerEnabled || options.ProtectBayerPattern)
                 : UniversalMediaReader.MatToAstroFrame(rawMat, idx);
 
-            if (options.EnableCropping) reusableCrop = work;
             ApplyPostCropTransformations(ref work, options, det, recomputeQuality: false);
             onSelectedFrame(idx, work);
             idx++;
@@ -1645,6 +1812,22 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             options.FlipHorizontalX,
             options.FlipVerticalY,
             options.Rotation);
+
+        if (options.EnableFieldDerotation)
+        {
+            double safeFps = (double)options.WinJuposInputFps > 0 ? (double)options.WinJuposInputFps : 30.0;
+            double angle = FieldDerotationEngine.ComputeFrameDerotationAngle(
+                work.FrameIndex,
+                Math.Max(100, work.FrameIndex + 1),
+                safeFps,
+                options.ObserverLatitudeDegrees,
+                options.TargetAltitudeDegrees,
+                options.TargetAzimuthDegrees);
+            bool alreadyCentered = options.EnableCropping || (options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary);
+            double? pivX = alreadyCentered ? null : det.CentroidX;
+            double? pivY = alreadyCentered ? null : det.CentroidY;
+            work = FieldDerotationEngine.ApplyDerotation(work, angle, pivX, pivY);
+        }
 
         work.DetectedCentroidX = det.CentroidX;
         work.DetectedCentroidY = det.CentroidY;
@@ -1700,13 +1883,14 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         }
     }
 
-    public static async Task<PipelineRunSummary> ExecuteAsync(
+    public async Task<PipelineRunSummary> ExecuteAsync(
         IReadOnlyList<AstroFrame> inputFrames,
         ProcessingOptions options,
         string outputDirectory,
         IProgress<PipelineProgressReport>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var (masterDark, masterFlat) = _calibrationProvider.PrepareCalibrationMasters(options, outputDirectory, progress, cancellationToken);
         var sw = Stopwatch.StartNew();
         int total = inputFrames.Count;
         int discardedNoPlanet = 0;
@@ -1718,7 +1902,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             for (int i = 0; i < total; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var (proc, det) = PreviewSingleFrame(inputFrames[i], options, applyCropToOutput: true);
+                var (proc, det) = PreviewSingleFrame(inputFrames[i], options, masterDark, masterFlat, applyCropToOutput: true);
                 if (!det.Accepted)
                 {
                     discardedNoPlanet++;
@@ -1766,7 +1950,21 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         }
 
         sw.Stop();
-        return new PipelineRunSummary(accepted.Count > 0, sw.Elapsed, total, accepted.Count, discardedNoPlanet, 0, discardedQuality, outputPath);
+        string logPath = Path.Combine(outputDirectory, "cassiniflow_output_log.txt");
+        var summary = new PipelineRunSummary(accepted.Count > 0, sw.Elapsed, total, accepted.Count, discardedNoPlanet, 0, discardedQuality, outputPath, logPath);
+        try
+        {
+            string logText = ExecutionLogGenerator.Generate(
+                options,
+                summary,
+                sourceFiles: [],
+                timestampUtc: DateTime.UtcNow);
+            File.WriteAllText(logPath, logText);
+        }
+        catch
+        {
+        }
+        return summary;
     }
 
     /// <summary>

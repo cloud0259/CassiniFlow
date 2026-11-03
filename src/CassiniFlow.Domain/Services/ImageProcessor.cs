@@ -128,6 +128,41 @@ public static class ImageProcessor
                 }
             }
         }
+        else if (replaceHotPixels)
+        {
+            ushort threshold = (ushort)Math.Clamp(hotPixelThresholdPercent * 65535 / 100, 1, 65535);
+            int step = darkHasBayer ? 2 : 1;
+            int w = frame.Width;
+            int h = frame.Height;
+            int ch = frame.Channels;
+
+            fixed (ushort* pFrame = frame.Data)
+            {
+                for (int y = step; y < h - step; y++)
+                {
+                    for (int x = step; x < w - step; x++)
+                    {
+                        for (int c = 0; c < ch; c++)
+                        {
+                            int idx = (y * w + x) * ch + c;
+                            ushort val = pFrame[idx];
+                            if (val >= threshold)
+                            {
+                                int n1 = pFrame[((y - step) * w + x) * ch + c];
+                                int n2 = pFrame[((y + step) * w + x) * ch + c];
+                                int n3 = pFrame[(y * w + (x - step)) * ch + c];
+                                int n4 = pFrame[(y * w + (x + step)) * ch + c];
+                                int maxNeighbor = Math.Max(n1, Math.Max(n2, Math.Max(n3, n4)));
+                                if (val > maxNeighbor * 1.4 && val - maxNeighbor > 1500)
+                                {
+                                    pFrame[idx] = (ushort)((n1 + n2 + n3 + n4) >> 2);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         if (masterFlat is not null && masterFlat.Data.Length == len)
         {
@@ -148,10 +183,62 @@ public static class ImageProcessor
         }
     }
 
+    /// <summary>
+    /// Vérifie si une frame est monochrome (1 canal, ou 3 canaux avec composantes R, G, B identiques).
+    /// </summary>
+    public static bool IsMonochrome(AstroFrame frame)
+    {
+        if (frame.Channels == 1) return true;
+        if (frame.Channels != 3) return false;
+
+        int w = frame.Width;
+        int h = frame.Height;
+        ushort[] data = frame.Data;
+        int step = Math.Max(1, (w * h) / 120);
+        int totalChecked = 0;
+        int monoCount = 0;
+
+        for (int i = 0; i < w * h; i += step)
+        {
+            int idx = i * 3;
+            ushort r = data[idx];
+            ushort g = data[idx + 1];
+            ushort b = data[idx + 2];
+            if (Math.Abs(r - g) <= 512 && Math.Abs(g - b) <= 512)
+            {
+                monoCount++;
+            }
+            totalChecked++;
+        }
+
+        return totalChecked > 0 && (double)monoCount / totalChecked >= 0.98;
+    }
+
     public static AstroFrame Debayer(AstroFrame src, BayerPattern pattern, DebayerAlgorithm algorithm)
     {
-        if (src.Channels == 3) return src;
+        AstroFrame monoSrc = src;
+        if (src.Channels == 3)
+        {
+            if (IsMonochrome(src))
+            {
+                monoSrc = ConvertToMonochrome(src, MonochromeConversionMode.UseRgbChannels);
+            }
+            else
+            {
+                return src;
+            }
+        }
 
+        return algorithm switch
+        {
+            DebayerAlgorithm.HqLinear => DebayerHqLinear(monoSrc, pattern),
+            DebayerAlgorithm.SmoothHue => DebayerSmoothHue(monoSrc, pattern),
+            _ => DebayerBilinear(monoSrc, pattern)
+        };
+    }
+
+    private static unsafe AstroFrame DebayerBilinear(AstroFrame src, BayerPattern pattern)
+    {
         int w = src.Width;
         int h = src.Height;
         var dst = new AstroFrame(w, h, 3, src.OriginalBitDepth)
@@ -174,12 +261,288 @@ public static class ImageProcessor
         ushort[] sData = src.Data;
         ushort[] dData = dst.Data;
 
-        ushort GetClamped(int x, int y)
+        fixed (ushort* pSrc = sData)
+        fixed (ushort* pDst = dData)
+        {
+            ushort GetClamped(int x, int y)
+            {
+                int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+                int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+                return sData[cy * w + cx];
+            }
+
+            for (int y = 0; y < h; y++)
+            {
+                bool isRedRow = (y & 1) == ry;
+                int rowBase = y * w;
+                bool yInterior = y > 0 && y < h - 1;
+
+                for (int x = 0; x < w; x++)
+                {
+                    bool isRedCol = (x & 1) == rx;
+                    ushort r, g, b;
+
+                    if (yInterior && x > 0 && x < w - 1)
+                    {
+                        int idx = rowBase + x;
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[idx];
+                            g = (ushort)((pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) >> 2);
+                            b = (ushort)((pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) >> 2);
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            r = (ushort)((pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) >> 2);
+                            g = (ushort)((pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) >> 2);
+                            b = pSrc[idx];
+                        }
+                        else if (isRedRow)
+                        {
+                            r = (ushort)((pSrc[idx - 1] + pSrc[idx + 1]) >> 1);
+                            g = pSrc[idx];
+                            b = (ushort)((pSrc[idx - w] + pSrc[idx + w]) >> 1);
+                        }
+                        else
+                        {
+                            r = (ushort)((pSrc[idx - w] + pSrc[idx + w]) >> 1);
+                            g = pSrc[idx];
+                            b = (ushort)((pSrc[idx - 1] + pSrc[idx + 1]) >> 1);
+                        }
+                    }
+                    else
+                    {
+                        (r, g, b) = (isRedRow, isRedCol) switch
+                        {
+                            (true, true) => (
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                                (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2)
+                            ),
+                            (false, false) => (
+                                (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2),
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
+                                pSrc[rowBase + x]
+                            ),
+                            (true, false) => (
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1),
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1)
+                            ),
+                            _ => (
+                                (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1),
+                                pSrc[rowBase + x],
+                                (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1)
+                            )
+                        };
+                    }
+
+                    int outIdx = (rowBase + x) * 3;
+                    pDst[outIdx] = r;
+                    pDst[outIdx + 1] = g;
+                    pDst[outIdx + 2] = b;
+                }
+            }
+        }
+
+        return dst;
+    }
+
+    private static unsafe AstroFrame DebayerHqLinear(AstroFrame src, BayerPattern pattern)
+    {
+        int w = src.Width;
+        int h = src.Height;
+        var dst = new AstroFrame(w, h, 3, src.OriginalBitDepth)
+        {
+            FrameIndex = src.FrameIndex,
+            IsBayerRaw = false,
+            TimestampUtc = src.TimestampUtc,
+            QualityScore = src.QualityScore
+        };
+
+        (int rx, int ry) = pattern switch
+        {
+            BayerPattern.Rggb => (0, 0),
+            BayerPattern.Grbg => (1, 0),
+            BayerPattern.Gbrg => (0, 1),
+            BayerPattern.Bggr => (1, 1),
+            _ => (0, 0)
+        };
+
+        ushort[] sData = src.Data;
+        ushort[] dData = dst.Data;
+        int w2 = w * 2;
+
+        fixed (ushort* pSrc = sData)
+        fixed (ushort* pDst = dData)
+        {
+            ushort Get(int x, int y)
+            {
+                int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+                int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+                return sData[cy * w + cx];
+            }
+
+            for (int y = 0; y < h; y++)
+            {
+                bool isRedRow = (y & 1) == ry;
+                int rowBase = y * w;
+                bool yInterior = y >= 2 && y < h - 2;
+
+                for (int x = 0; x < w; x++)
+                {
+                    bool isRedCol = (x & 1) == rx;
+                    ushort r, g, b;
+
+                    if (yInterior && x >= 2 && x < w - 2)
+                    {
+                        int idx = rowBase + x;
+                        int crossAxial = pSrc[idx - 2] + pSrc[idx + 2] + pSrc[idx - w2] + pSrc[idx + w2];
+
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[idx];
+                            int gVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) + 4 * r - crossAxial) >> 4;
+                            g = (ushort)(gVal < 0 ? 0 : (gVal > 65535 ? 65535 : gVal));
+
+                            int bVal = (4 * (pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) + 6 * r - ((3 * crossAxial) >> 1)) >> 4;
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            b = pSrc[idx];
+                            int gVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1] + pSrc[idx - w] + pSrc[idx + w]) + 4 * b - crossAxial) >> 4;
+                            g = (ushort)(gVal < 0 ? 0 : (gVal > 65535 ? 65535 : gVal));
+
+                            int rVal = (4 * (pSrc[idx - w - 1] + pSrc[idx - w + 1] + pSrc[idx + w - 1] + pSrc[idx + w + 1]) + 6 * b - ((3 * crossAxial) >> 1)) >> 4;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                        }
+                        else if (isRedRow)
+                        {
+                            g = pSrc[idx];
+                            int rVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1]) + 2 * g - pSrc[idx - 2] - pSrc[idx + 2]) >> 3;
+                            int bVal = (4 * (pSrc[idx - w] + pSrc[idx + w]) + 2 * g - pSrc[idx - w2] - pSrc[idx + w2]) >> 3;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                        else
+                        {
+                            g = pSrc[idx];
+                            int rVal = (4 * (pSrc[idx - w] + pSrc[idx + w]) + 2 * g - pSrc[idx - w2] - pSrc[idx + w2]) >> 3;
+                            int bVal = (4 * (pSrc[idx - 1] + pSrc[idx + 1]) + 2 * g - pSrc[idx - 2] - pSrc[idx + 2]) >> 3;
+                            r = (ushort)(rVal < 0 ? 0 : (rVal > 65535 ? 65535 : rVal));
+                            b = (ushort)(bVal < 0 ? 0 : (bVal > 65535 ? 65535 : bVal));
+                        }
+                    }
+                    else
+                    {
+                        if (isRedRow && isRedCol)
+                        {
+                            r = pSrc[rowBase + x];
+                            int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
+                                        4 * r -
+                                        Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
+                            g = (ushort)Math.Clamp(gVal, 0, 65535);
+
+                            int bVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
+                                        6 * r -
+                                        3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                        else if (!isRedRow && !isRedCol)
+                        {
+                            b = pSrc[rowBase + x];
+                            int gVal = (4 * (Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) +
+                                        4 * b -
+                                        Get(x - 2, y) - Get(x + 2, y) - Get(x, y - 2) - Get(x, y + 2)) / 16;
+                            g = (ushort)Math.Clamp(gVal, 0, 65535);
+
+                            int rVal = (4 * (Get(x - 1, y - 1) + Get(x + 1, y - 1) + Get(x - 1, y + 1) + Get(x + 1, y + 1)) +
+                                        6 * b -
+                                        3 * (Get(x - 2, y) + Get(x + 2, y) + Get(x, y - 2) + Get(x, y + 2)) / 2) / 16;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                        }
+                        else if (isRedRow && !isRedCol)
+                        {
+                            g = pSrc[rowBase + x];
+                            int rVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
+                            int bVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                        else
+                        {
+                            g = pSrc[rowBase + x];
+                            int rVal = (4 * (Get(x, y - 1) + Get(x, y + 1)) + 2 * g - Get(x, y - 2) - Get(x, y + 2)) / 8;
+                            int bVal = (4 * (Get(x - 1, y) + Get(x + 1, y)) + 2 * g - Get(x - 2, y) - Get(x + 2, y)) / 8;
+                            r = (ushort)Math.Clamp(rVal, 0, 65535);
+                            b = (ushort)Math.Clamp(bVal, 0, 65535);
+                        }
+                    }
+
+                    int outIdx = (rowBase + x) * 3;
+                    pDst[outIdx] = r;
+                    pDst[outIdx + 1] = g;
+                    pDst[outIdx + 2] = b;
+                }
+            }
+        }
+
+        return dst;
+    }
+
+    private static AstroFrame DebayerSmoothHue(AstroFrame src, BayerPattern pattern)
+    {
+        int w = src.Width;
+        int h = src.Height;
+        var dst = new AstroFrame(w, h, 3, src.OriginalBitDepth)
+        {
+            FrameIndex = src.FrameIndex,
+            IsBayerRaw = false,
+            TimestampUtc = src.TimestampUtc,
+            QualityScore = src.QualityScore
+        };
+
+        (int rx, int ry) = pattern switch
+        {
+            BayerPattern.Rggb => (0, 0),
+            BayerPattern.Grbg => (1, 0),
+            BayerPattern.Gbrg => (0, 1),
+            BayerPattern.Bggr => (1, 1),
+            _ => (0, 0)
+        };
+
+        ushort[] sData = src.Data;
+        ushort[] dData = dst.Data;
+
+        ushort Get(int x, int y)
         {
             int cx = x < 0 ? 0 : (x >= w ? w - 1 : x);
             int cy = y < 0 ? 0 : (y >= h ? h - 1 : y);
             return sData[cy * w + cx];
         }
+
+        ushort[] green = new ushort[w * h];
+        for (int y = 0; y < h; y++)
+        {
+            bool isRedRow = (y & 1) == ry;
+            int rowBase = y * w;
+            for (int x = 0; x < w; x++)
+            {
+                bool isRedCol = (x & 1) == rx;
+                if ((isRedRow && !isRedCol) || (!isRedRow && isRedCol))
+                {
+                    green[rowBase + x] = sData[rowBase + x];
+                }
+                else
+                {
+                    green[rowBase + x] = (ushort)((Get(x - 1, y) + Get(x + 1, y) + Get(x, y - 1) + Get(x, y + 1)) >> 2);
+                }
+            }
+        }
+
+        int GetDiffR(int x, int y) => Get(x, y) - green[Math.Clamp(y, 0, h - 1) * w + Math.Clamp(x, 0, w - 1)];
+        int GetDiffB(int x, int y) => Get(x, y) - green[Math.Clamp(y, 0, h - 1) * w + Math.Clamp(x, 0, w - 1)];
 
         for (int y = 0; y < h; y++)
         {
@@ -188,34 +551,34 @@ public static class ImageProcessor
             for (int x = 0; x < w; x++)
             {
                 bool isRedCol = (x & 1) == rx;
-                (ushort r, ushort g, ushort b) = (isRedRow, isRedCol) switch
+                int g = green[rowBase + x];
+                int diffR, diffB;
+
+                if (isRedRow && isRedCol)
                 {
-                    (true, true) => (
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
-                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2)
-                    ),
-                    (false, false) => (
-                        (ushort)((GetClamped(x - 1, y - 1) + GetClamped(x + 1, y - 1) + GetClamped(x - 1, y + 1) + GetClamped(x + 1, y + 1)) >> 2),
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y) + GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 2),
-                        sData[rowBase + x]
-                    ),
-                    (true, false) => (
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1),
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1)
-                    ),
-                    _ => (
-                        (ushort)((GetClamped(x, y - 1) + GetClamped(x, y + 1)) >> 1),
-                        sData[rowBase + x],
-                        (ushort)((GetClamped(x - 1, y) + GetClamped(x + 1, y)) >> 1)
-                    )
-                };
+                    diffR = sData[rowBase + x] - g;
+                    diffB = (GetDiffB(x - 1, y - 1) + GetDiffB(x + 1, y - 1) + GetDiffB(x - 1, y + 1) + GetDiffB(x + 1, y + 1)) >> 2;
+                }
+                else if (!isRedRow && !isRedCol)
+                {
+                    diffB = sData[rowBase + x] - g;
+                    diffR = (GetDiffR(x - 1, y - 1) + GetDiffR(x + 1, y - 1) + GetDiffR(x - 1, y + 1) + GetDiffR(x + 1, y + 1)) >> 2;
+                }
+                else if (isRedRow && !isRedCol)
+                {
+                    diffR = (GetDiffR(x - 1, y) + GetDiffR(x + 1, y)) >> 1;
+                    diffB = (GetDiffB(x, y - 1) + GetDiffB(x, y + 1)) >> 1;
+                }
+                else
+                {
+                    diffR = (GetDiffR(x, y - 1) + GetDiffR(x, y + 1)) >> 1;
+                    diffB = (GetDiffB(x - 1, y) + GetDiffB(x + 1, y)) >> 1;
+                }
 
                 int outIdx = (rowBase + x) * 3;
-                dData[outIdx] = r;
-                dData[outIdx + 1] = g;
-                dData[outIdx + 2] = b;
+                dData[outIdx] = (ushort)Math.Clamp(g + diffR, 0, 65535);
+                dData[outIdx + 1] = (ushort)g;
+                dData[outIdx + 2] = (ushort)Math.Clamp(g + diffB, 0, 65535);
             }
         }
 

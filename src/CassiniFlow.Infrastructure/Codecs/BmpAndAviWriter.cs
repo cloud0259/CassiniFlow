@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Text;
 using CassiniFlow.Domain.Models;
@@ -9,9 +10,9 @@ namespace CassiniFlow.Infrastructure.Codecs;
 /// </summary>
 public static class BmpAndAviWriter
 {
-    public static void WriteBmp(string outputPath, AstroFrame frame)
+    public static unsafe void WriteBmp(string outputPath, AstroFrame frame)
     {
-        using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536);
         int width = frame.Width;
         int height = frame.Height;
         int rowStride = (width * 3 + 3) & ~3;
@@ -32,34 +33,53 @@ public static class BmpAndAviWriter
         BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(34, 4), imageSize);
         fs.Write(hdr);
 
-        byte[] row = new byte[rowStride];
-        for (int y = height - 1; y >= 0; y--)
+        byte[] imgBuf = ArrayPool<byte>.Shared.Rent(imageSize);
+        try
         {
-            Array.Clear(row);
-            for (int x = 0; x < width; x++)
+            Array.Clear(imgBuf, 0, imageSize);
+            int ch = frame.Channels;
+            fixed (ushort* pSrc = frame.Data)
+            fixed (byte* pDst = imgBuf)
             {
-                if (frame.Channels == 1)
+                for (int y = 0; y < height; y++)
                 {
-                    byte v = (byte)(frame.Data[y * width + x] >> 8);
-                    row[x * 3] = v;
-                    row[x * 3 + 1] = v;
-                    row[x * 3 + 2] = v;
-                }
-                else
-                {
-                    int idx = (y * width + x) * 3;
-                    row[x * 3] = (byte)(frame.Data[idx + 2] >> 8);     // B
-                    row[x * 3 + 1] = (byte)(frame.Data[idx + 1] >> 8); // G
-                    row[x * 3 + 2] = (byte)(frame.Data[idx] >> 8);     // R
+                    byte* dstRow = pDst + (height - 1 - y) * rowStride;
+                    if (ch == 1)
+                    {
+                        ushort* srcRow = pSrc + y * width;
+                        for (int x = 0; x < width; x++)
+                        {
+                            byte v = (byte)(srcRow[x] >> 8);
+                            int d = x * 3;
+                            dstRow[d] = v;
+                            dstRow[d + 1] = v;
+                            dstRow[d + 2] = v;
+                        }
+                    }
+                    else
+                    {
+                        ushort* srcRow = pSrc + y * width * 3;
+                        for (int x = 0; x < width; x++)
+                        {
+                            int s = x * 3;
+                            dstRow[s] = (byte)(srcRow[s + 2] >> 8);     // B
+                            dstRow[s + 1] = (byte)(srcRow[s + 1] >> 8); // G
+                            dstRow[s + 2] = (byte)(srcRow[s] >> 8);     // R
+                        }
+                    }
                 }
             }
-            fs.Write(row);
+            fs.Write(imgBuf.AsSpan(0, imageSize));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(imgBuf);
         }
     }
 
-    public static AstroFrame ReadBmp(string filePath)
+    public static unsafe AstroFrame ReadBmp(string filePath)
     {
-        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536);
         Span<byte> hdr = stackalloc byte[54];
         fs.ReadExactly(hdr);
         if (hdr[0] != 'B' || hdr[1] != 'M')
@@ -72,34 +92,152 @@ public static class BmpAndAviWriter
 
         bool topDown = height < 0;
         height = Math.Abs(height);
-        int bytesPerPixel = bpp / 8;
+        int bytesPerPixel = Math.Max(1, bpp / 8);
         int rowStride = (width * bytesPerPixel + 3) & ~3;
+        int totalBytes = rowStride * height;
 
         fs.Seek(dataOffset, SeekOrigin.Begin);
-        var frame = new AstroFrame(width, height, bytesPerPixel >= 3 ? 3 : 1, 8);
-        byte[] row = new byte[rowStride];
-
-        for (int i = 0; i < height; i++)
+        int channels = bytesPerPixel >= 3 ? 3 : 1;
+        var frame = new AstroFrame(width, height, channels, 8);
+        byte[] buf = ArrayPool<byte>.Shared.Rent(totalBytes);
+        try
         {
-            int y = topDown ? i : (height - 1 - i);
-            fs.ReadExactly(row);
-            for (int x = 0; x < width; x++)
+            fs.ReadExactly(buf.AsSpan(0, totalBytes));
+            fixed (byte* pSrc = buf)
+            fixed (ushort* pDst = frame.Data)
             {
-                if (frame.Channels == 1)
+                for (int i = 0; i < height; i++)
                 {
-                    frame.Data[y * width + x] = (ushort)(row[x] * 257);
-                }
-                else
-                {
-                    int dst = (y * width + x) * 3;
-                    frame.Data[dst] = (ushort)(row[x * bytesPerPixel + 2] * 257);
-                    frame.Data[dst + 1] = (ushort)(row[x * bytesPerPixel + 1] * 257);
-                    frame.Data[dst + 2] = (ushort)(row[x * bytesPerPixel] * 257);
+                    int y = topDown ? i : (height - 1 - i);
+                    byte* srcRow = pSrc + i * rowStride;
+                    if (channels == 1)
+                    {
+                        ushort* dstRow = pDst + y * width;
+                        for (int x = 0; x < width; x++)
+                        {
+                            dstRow[x] = (ushort)(srcRow[x] * 257);
+                        }
+                    }
+                    else
+                    {
+                        ushort* dstRow = pDst + y * width * 3;
+                        for (int x = 0; x < width; x++)
+                        {
+                            int s = x * bytesPerPixel;
+                            int d = x * 3;
+                            dstRow[d] = (ushort)(srcRow[s + 2] * 257);
+                            dstRow[d + 1] = (ushort)(srcRow[s + 1] * 257);
+                            dstRow[d + 2] = (ushort)(srcRow[s] * 257);
+                        }
+                    }
                 }
             }
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
+        }
 
         return frame;
+    }
+
+    public static unsafe AstroFrame ReadBmpCropped(
+        string filePath,
+        int centerX,
+        int centerY,
+        int cropWidth,
+        int cropHeight,
+        int offsetX = 0,
+        int offsetY = 0,
+        bool protectBayerEvenSteps = true)
+    {
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        Span<byte> hdr = stackalloc byte[54];
+        fs.ReadExactly(hdr);
+        if (hdr[0] != 'B' || hdr[1] != 'M')
+            throw new InvalidDataException($"Incorrect BMP signature in '{filePath}'.");
+
+        int dataOffset = BinaryPrimitives.ReadInt32LittleEndian(hdr.Slice(10, 4));
+        int srcW = BinaryPrimitives.ReadInt32LittleEndian(hdr.Slice(18, 4));
+        int srcH = BinaryPrimitives.ReadInt32LittleEndian(hdr.Slice(22, 4));
+        short bpp = BinaryPrimitives.ReadInt16LittleEndian(hdr.Slice(28, 2));
+
+        bool topDown = srcH < 0;
+        srcH = Math.Abs(srcH);
+        int bytesPerPixel = Math.Max(1, bpp / 8);
+        int rowStride = (srcW * bytesPerPixel + 3) & ~3;
+        int channels = bytesPerPixel >= 3 ? 3 : 1;
+
+        cropWidth = Math.Max(16, cropWidth);
+        cropHeight = Math.Max(16, cropHeight);
+        int startX = centerX - (cropWidth / 2) - offsetX;
+        int startY = centerY - (cropHeight / 2) - offsetY;
+        if (protectBayerEvenSteps && channels == 1)
+        {
+            startX &= ~1;
+            startY &= ~1;
+        }
+
+        var dst = new AstroFrame(cropWidth, cropHeight, channels, 8)
+        {
+            DetectedCentroidX = cropWidth / 2,
+            DetectedCentroidY = cropHeight / 2
+        };
+
+        int copyY0 = Math.Max(0, -startY);
+        int copyY1 = Math.Min(cropHeight, srcH - startY);
+        int copyX0 = Math.Max(0, -startX);
+        int copyX1 = Math.Min(cropWidth, srcW - startX);
+        int copyW = copyX1 - copyX0;
+        int copyH = copyY1 - copyY0;
+        if (copyW <= 0 || copyH <= 0) return dst;
+
+        int srcStartX = startX + copyX0;
+        int srcStartY = startY + copyY0;
+        int firstFileRow = topDown ? srcStartY : (srcH - (srcStartY + copyH));
+        int subBytes = copyH * rowStride;
+        byte[] buf = ArrayPool<byte>.Shared.Rent(subBytes);
+        try
+        {
+            fs.Seek(dataOffset + (long)firstFileRow * rowStride, SeekOrigin.Begin);
+            fs.ReadExactly(buf.AsSpan(0, subBytes));
+            fixed (byte* pSrc = buf)
+            fixed (ushort* pDst = dst.Data)
+            {
+                for (int r = 0; r < copyH; r++)
+                {
+                    int dstY = copyY0 + r;
+                    int bufRow = topDown ? r : (copyH - 1 - r);
+                    byte* srcRow = pSrc + bufRow * rowStride + srcStartX * bytesPerPixel;
+                    if (channels == 1)
+                    {
+                        ushort* dstRow = pDst + dstY * cropWidth + copyX0;
+                        for (int x = 0; x < copyW; x++)
+                        {
+                            dstRow[x] = (ushort)(srcRow[x] * 257);
+                        }
+                    }
+                    else
+                    {
+                        ushort* dstRow = pDst + (dstY * cropWidth + copyX0) * 3;
+                        for (int x = 0; x < copyW; x++)
+                        {
+                            int s = x * bytesPerPixel;
+                            int d = x * 3;
+                            dstRow[d] = (ushort)(srcRow[s + 2] * 257);
+                            dstRow[d + 1] = (ushort)(srcRow[s + 1] * 257);
+                            dstRow[d + 2] = (ushort)(srcRow[s] * 257);
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
+        }
+
+        return dst;
     }
 
     /// <summary>

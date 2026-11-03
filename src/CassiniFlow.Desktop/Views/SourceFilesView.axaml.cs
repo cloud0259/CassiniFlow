@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -76,17 +76,17 @@ public partial class SourceFilesView : UserControl
 
     private async void OnAddVideoFilesClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing || vm.IsMeasuringPlanetSizes) return;
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Loc.Pick("Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)", "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, DNG)"),
+            Title = Loc.Get("Dialogs.SelectSourceFilesTitle"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(Loc.Pick("Vidéos & Séquences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)", "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG, DNG)"))
+                new FilePickerFileType(Loc.Get("Dialogs.FilterVideosAndImages"))
                 {
                     Patterns = ["*.avi", "*.mp4", "*.mov", "*.mkv", "*.webm", "*.wmv", "*.ser", "*.fit", "*.fits", "*.bmp", "*.png", "*.tif", "*.tiff", "*.jpg", "*.jpeg", "*.dng"]
                 },
@@ -104,5 +104,128 @@ public partial class SourceFilesView : UserControl
         {
             await vm.AddPhysicalFilesAsync(localPaths);
         }
+    }
+
+    private async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> PickCalibrationFilesAsync(string title)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return [];
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Astrophotography Calibration (SER, FITS, TIFF, PNG, BMP, AVI)")
+                {
+                    Patterns = ["*.ser", "*.fit", "*.fits", "*.tif", "*.tiff", "*.png", "*.bmp", "*.avi"]
+                },
+                FilePickerFileTypes.All
+            ]
+        });
+
+        return files
+            .Select(f => f.TryGetLocalPath())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+    }
+
+    private async void OnAddDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectDarkFiles"));
+        if (paths.Count > 0) vm.AddDarkFiles(paths);
+    }
+
+    private async void OnAddFlatFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatFiles"));
+        if (paths.Count > 0) vm.AddFlatFiles(paths);
+    }
+
+    private async void OnAddFlatDarkFilesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsLoadingFiles || vm.IsProcessing) return;
+        var paths = await PickCalibrationFilesAsync(Loc.Get("Dialogs.SelectFlatDarkFiles"));
+        if (paths.Count > 0) vm.AddFlatDarkFiles(paths);
+    }
+
+    private void OnCalibrationDragOver(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsFileListBusy)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = e.Data.Contains(DataFormats.Files)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
+
+    private async void OnLightsDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsFileListBusy) return;
+        var paths = ExtractDroppedFiles(e);
+        if (paths.Count > 0) await vm.AddPhysicalFilesAsync(paths);
+    }
+
+    private void OnDarksDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsFileListBusy) return;
+        var paths = ExtractDroppedFiles(e);
+        if (paths.Count > 0) vm.AddDarkFiles(paths);
+    }
+
+    private void OnFlatsDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsFileListBusy) return;
+        var paths = ExtractDroppedFiles(e);
+        if (paths.Count > 0) vm.AddFlatFiles(paths);
+    }
+
+    private void OnFlatDarksDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsFileListBusy) return;
+        var paths = ExtractDroppedFiles(e);
+        if (paths.Count > 0) vm.AddFlatDarkFiles(paths);
+    }
+
+    private void OnRemoveDarkFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: string path } && DataContext is MainWindowViewModel vm)
+        {
+            vm.RemoveDarkFile(path);
+        }
+    }
+
+    private void OnRemoveFlatFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: string path } && DataContext is MainWindowViewModel vm)
+        {
+            vm.RemoveFlatFile(path);
+        }
+    }
+
+    private void OnRemoveFlatDarkFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: string path } && DataContext is MainWindowViewModel vm)
+        {
+            vm.RemoveFlatDarkFile(path);
+        }
+    }
+
+    private static System.Collections.Generic.List<string> ExtractDroppedFiles(DragEventArgs e)
+    {
+        var files = e.Data.GetFiles();
+        if (files == null) return [];
+        return files
+            .Select(f => f.TryGetLocalPath())
+            .Where(p => !string.IsNullOrWhiteSpace(p) && System.IO.File.Exists(p))
+            .Cast<string>()
+            .ToList();
     }
 }
