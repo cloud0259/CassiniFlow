@@ -11,6 +11,7 @@ public sealed class UserSettings
     public int MaxCpuUsagePercent { get; set; } = 80;
     public int CpuWarningThresholdPercent { get; set; } = 85;
     public bool HasSeenTutorial { get; set; } = false;
+    public bool CheckUpdatesOnStartup { get; set; } = true;
 
     // Persisted preferences (Feature #40)
     public bool WinJuposNaming { get; set; } = false;

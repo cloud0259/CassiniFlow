@@ -55,6 +55,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IStackingPipelineUseCase, MultiZoneStackingPipelineRunner>();
         services.AddSingleton<IRunPipelineUseCase, PipelineRunner>();
         services.AddSingleton<ICelestialTargetClassifier, CelestialTargetClassifierService>();
+        services.AddSingleton<IUpdateCheckerService, GitHubReleaseUpdateChecker>();
 
         services.AddTransient<TutorialViewModel>();
         services.AddTransient<AlignmentOptionsViewModel>();
