@@ -52,18 +52,19 @@ jobs:
             if echo "$PR_TITLE" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' >/dev/null; then
               VERSION=$(echo "$PR_TITLE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             else
-              CUR_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props 2>/dev/null || echo "1.1.1")
+              LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+              if [ -n "$LAST_TAG" ]; then
+                CUR_VERSION="${LAST_TAG#v}"
+                COMMITS_LOG=$(git log "$LAST_TAG..HEAD" --oneline 2>/dev/null || echo "")
+              else
+                CUR_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props 2>/dev/null || echo "1.1.1")
+                COMMITS_LOG=$(git log -n 50 --oneline 2>/dev/null || echo "")
+              fi
+
               IFS='.' read -r MAJOR MINOR PATCH <<< "$CUR_VERSION"
               MAJOR=${MAJOR:-1}
               MINOR=${MINOR:-1}
               PATCH=${PATCH:-1}
-
-              LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-              if [ -n "$LAST_TAG" ]; then
-                COMMITS_LOG=$(git log "$LAST_TAG..HEAD" --oneline 2>/dev/null || echo "")
-              else
-                COMMITS_LOG=$(git log -n 50 --oneline 2>/dev/null || echo "")
-              fi
 
               if echo "$COMMITS_LOG" | grep -iE "(BREAKING CHANGE|!:)"; then
                 MAJOR=$((MAJOR + 1))
