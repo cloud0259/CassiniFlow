@@ -28,6 +28,11 @@ dotnet publish "$rootDir\src\CassiniFlow.Cli\CassiniFlow.Cli.csproj" `
     --self-contained true `
     -o $stagingCli
 
+# Copie de l'icône dans les assets du staging pour l'archive portable
+$stagingAssets = "$stagingDesktop\Assets"
+if (-not (Test-Path $stagingAssets)) { New-Item -ItemType Directory -Path $stagingAssets -Force | Out-Null }
+Copy-Item "$rootDir\src\CassiniFlow.Desktop\Assets\cassiniflow.ico" -Destination "$stagingAssets\cassiniflow.ico" -Force
+
 # 3. Création de l'archive portable .zip
 $artifactsDir = "$rootDir\release-artifacts"
 if (-not (Test-Path $artifactsDir)) {

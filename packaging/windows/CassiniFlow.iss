@@ -45,27 +45,28 @@ Name: "assoc_fits"; Description: "Associer les images astronomiques FITS (.fit, 
 [Files]
 Source: "..\..\staging\win-x64\Desktop\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\staging\win-x64\Cli\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\src\CassiniFlow.Desktop\Assets\cassiniflow.ico"; DestDir: "{app}\Assets"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\cassiniflow.ico"
-Name: "{group}\{#MyAppName} CLI"; Filename: "{app}\cli\{#MyCliExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName} CLI"; Filename: "{app}\cli\{#MyCliExeName}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\cassiniflow.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; SER file association
 Root: HKA; Subkey: "Software\Classes\.ser"; ValueType: string; ValueName: ""; ValueData: "CassiniFlow.SerFile"; Flags: uninsdeletevalue; Tasks: assoc_ser
 Root: HKA; Subkey: "Software\Classes\CassiniFlow.SerFile"; ValueType: string; ValueName: ""; ValueData: "Séquence vidéo astronomique SER"; Flags: uninsdeletekey; Tasks: assoc_ser
-Root: HKA; Subkey: "Software\Classes\CassiniFlow.SerFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Assets\cassiniflow.ico,0"; Tasks: assoc_ser
+Root: HKA; Subkey: "Software\Classes\CassiniFlow.SerFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"; Tasks: assoc_ser
 Root: HKA; Subkey: "Software\Classes\CassiniFlow.SerFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: assoc_ser
 
 ; FITS file association
 Root: HKA; Subkey: "Software\Classes\.fits"; ValueType: string; ValueName: ""; ValueData: "CassiniFlow.FitsFile"; Flags: uninsdeletevalue; Tasks: assoc_fits
 Root: HKA; Subkey: "Software\Classes\.fit"; ValueType: string; ValueName: ""; ValueData: "CassiniFlow.FitsFile"; Flags: uninsdeletevalue; Tasks: assoc_fits
 Root: HKA; Subkey: "Software\Classes\CassiniFlow.FitsFile"; ValueType: string; ValueName: ""; ValueData: "Image astronomique FITS"; Flags: uninsdeletekey; Tasks: assoc_fits
-Root: HKA; Subkey: "Software\Classes\CassiniFlow.FitsFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Assets\cassiniflow.ico,0"; Tasks: assoc_fits
+Root: HKA; Subkey: "Software\Classes\CassiniFlow.FitsFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"; Tasks: assoc_fits
 Root: HKA; Subkey: "Software\Classes\CassiniFlow.FitsFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: assoc_fits
 
 [Run]

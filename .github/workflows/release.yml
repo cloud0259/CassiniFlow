@@ -113,6 +113,10 @@ jobs:
         if: matrix.target.name == 'win-x64'
         shell: pwsh
         run: |
+          # Copy icon to staging assets
+          New-Item -ItemType Directory -Path "staging/win-x64/Desktop/Assets" -Force | Out-Null
+          Copy-Item "src/CassiniFlow.Desktop/Assets/cassiniflow.ico" -Destination "staging/win-x64/Desktop/Assets/cassiniflow.ico" -Force
+
           # 1. Portable ZIP
           Compress-Archive -Path "staging/win-x64/*" -DestinationPath "release-artifacts/CassiniFlow-win-x64-portable.zip" -Force
           
