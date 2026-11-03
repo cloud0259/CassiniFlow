@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "project": "CassiniFlow",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Système de couleurs officiel pour l'interface de CassiniFlow et son identité visuelle (logo).",
 
   "uiThemes": {
