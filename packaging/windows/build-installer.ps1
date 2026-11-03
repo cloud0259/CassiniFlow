@@ -43,8 +43,12 @@ Compress-Archive -Path "$stagingWin\*" -DestinationPath $portableZip -Force
 # 4. Compilation de l'installateur Inno Setup si ISCC est disponible
 $isccPaths = @(
     "iscc.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+    "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+    "${env:ProgramFiles}\Inno Setup 7\ISCC.exe"
 )
 
 $iscc = $null
@@ -55,6 +59,21 @@ foreach ($p in $isccPaths) {
     } elseif (Test-Path $p) {
         $iscc = $p
         break
+    }
+}
+
+if (-not $iscc) {
+    # Recherche dans le registre Windows (installations personnalisées ou via winget)
+    $regPaths = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+    $regEntry = Get-ItemProperty $regPaths -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -like "*Inno Setup*" -and $_.InstallLocation } |
+        Select-Object -First 1
+    if ($regEntry -and (Test-Path "$($regEntry.InstallLocation)\ISCC.exe")) {
+        $iscc = "$($regEntry.InstallLocation)\ISCC.exe"
     }
 }
 
