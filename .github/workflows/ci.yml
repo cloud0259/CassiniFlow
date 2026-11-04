@@ -50,3 +50,6 @@ jobs:
 
       - name: Run unit tests
         run: dotnet test CassiniFlow.slnx -c Release --no-build --verbosity normal
+
+      - name: Run unit tests with dynamic version override
+        run: dotnet test CassiniFlow.slnx -c Release -p:Version=9.9.9 --verbosity normal
