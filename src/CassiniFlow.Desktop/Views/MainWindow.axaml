@@ -11,7 +11,7 @@
         MinWidth="1040" MinHeight="620"
         Background="{DynamicResource AppWindowBackground}"
         Foreground="{DynamicResource AppTextPrimary}"
-        Icon="/Assets/cassiniflow.ico"
+        Icon="/Assets/icon_256x256.png"
         DragDrop.AllowDrop="True">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
