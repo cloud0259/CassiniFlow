@@ -11,12 +11,6 @@ using CassiniFlow.Desktop.Services;
 
 namespace CassiniFlow.Desktop.Localization;
 
-public enum AppLanguage
-{
-    French,
-    English
-}
-
 /// <summary>
 /// Adaptateur de localisation pour l'interface graphique Avalonia (CassiniFlow.Desktop).
 /// Délégué directement vers le port <see cref="IAstroLocalization"/> du Domaine CassiniFlow.
@@ -174,27 +168,5 @@ public sealed class Loc : INotifyPropertyChanged
 
         o.SetValue(p, target);
         return true;
-    }
-}
-
-/// <summary>
-/// Extension de balisage XAML permettant la syntaxe {loc:Tr MaCle}.
-/// </summary>
-public sealed class TrExtension : MarkupExtension
-{
-    public string Key { get; set; }
-
-    public TrExtension(string key)
-    {
-        Key = key;
-    }
-
-    public override object ProvideValue(IServiceProvider serviceProvider)
-    {
-        return new Binding($"[{Key}]")
-        {
-            Source = Loc.Notifier,
-            Mode = BindingMode.OneWay
-        };
     }
 }

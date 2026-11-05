@@ -2,13 +2,6 @@ using System;
 
 namespace CassiniFlow.Desktop.Theme;
 
-public enum AppTheme
-{
-    DeepSpaceDark,
-    CleanLabLight,
-    NightVision
-}
-
 public interface IThemeService
 {
     AppTheme CurrentTheme { get; }

@@ -1,105 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace CassiniFlow.Domain.Models;
-
-/// <summary>
-/// Turbulence severity level evaluated from seeing and score variance.
-/// </summary>
-public enum TurbulenceLevel
-{
-    Low = 0,      // Calm seeing, optimal sharpness (green)
-    Moderate = 1, // Medium stability (yellow/orange)
-    High = 2      // Severe turbulence, blurry or drifting (red)
-}
-
-/// <summary>
-/// Represents a contiguous sequence of frames exhibiting a common turbulence level.
-/// </summary>
-public readonly record struct TurbulenceZone(int StartFrame, int EndFrame, TurbulenceLevel Level);
-
-/// <summary>
-/// Individual quality score and rank for a single frame.
-/// </summary>
-public readonly record struct FrameQualityRecord(
-    int FrameIndex,
-    double RawScore,
-    double NormalizedScore, // 0.0 to 100.0%
-    int Rank                // 1-based rank (1 = best frame in recording)
-);
-
-/// <summary>
-/// Complete dataset for the quality timeline, holding evaluated scores across multiple algorithms,
-/// turbulence zones, and ranking lookups.
-/// </summary>
-public class QualityTimelineDataSet
-{
-    public string FilePath { get; }
-    public int TotalFrames { get; }
-    public QualityAlgorithm PrimaryAlgorithm { get; set; }
-
-    private readonly Dictionary<QualityAlgorithm, FrameQualityRecord[]> _scoresByAlgo = new();
-    private readonly Dictionary<QualityAlgorithm, FrameQualityRecord[]> _sortedScoresByAlgo = new();
-    private readonly Dictionary<QualityAlgorithm, double[]> _smoothedScoresByAlgo = new();
-    private readonly List<TurbulenceZone> _turbulenceZones = new();
-
-    public IReadOnlyList<TurbulenceZone> TurbulenceZones => _turbulenceZones;
-    public int BestFrameIndex { get; private set; } = 0;
-
-    public QualityTimelineDataSet(string filePath, int totalFrames, QualityAlgorithm primaryAlgorithm)
-    {
-        FilePath = filePath ?? string.Empty;
-        TotalFrames = Math.Max(0, totalFrames);
-        PrimaryAlgorithm = primaryAlgorithm;
-    }
-
-    public void SetAlgorithmScores(QualityAlgorithm algorithm, FrameQualityRecord[] records, bool updateTurbulence = false)
-    {
-        ArgumentNullException.ThrowIfNull(records);
-        _scoresByAlgo[algorithm] = records;
-
-        // Precompute sorted by quality descending
-        var sorted = new FrameQualityRecord[records.Length];
-        Array.Copy(records, sorted, records.Length);
-        Array.Sort(sorted, static (a, b) => b.NormalizedScore.CompareTo(a.NormalizedScore));
-        _sortedScoresByAlgo[algorithm] = sorted;
-
-        // Precompute smoothed seeing curve (moving average window 11)
-        _smoothedScoresByAlgo[algorithm] = QualityTimelineAnalyzer.ComputeMovingAverage(records, windowSize: 11);
-
-        if (algorithm == PrimaryAlgorithm && sorted.Length > 0)
-        {
-            BestFrameIndex = sorted[0].FrameIndex;
-        }
-
-        if (updateTurbulence || algorithm == PrimaryAlgorithm)
-        {
-            _turbulenceZones.Clear();
-            _turbulenceZones.AddRange(QualityTimelineAnalyzer.DetectTurbulenceZones(records));
-        }
-    }
-
-    public bool HasScoresFor(QualityAlgorithm algorithm) => _scoresByAlgo.ContainsKey(algorithm);
-
-    public FrameQualityRecord[]? GetScores(QualityAlgorithm algorithm) =>
-        _scoresByAlgo.TryGetValue(algorithm, out var recs) ? recs : null;
-
-    public FrameQualityRecord[]? GetSortedScores(QualityAlgorithm algorithm) =>
-        _sortedScoresByAlgo.TryGetValue(algorithm, out var recs) ? recs : null;
-
-    public double[]? GetSmoothedScores(QualityAlgorithm algorithm) =>
-        _smoothedScoresByAlgo.TryGetValue(algorithm, out var smoothed) ? smoothed : null;
-
-    public FrameQualityRecord? GetFrameRecord(QualityAlgorithm algorithm, int frameIndex)
-    {
-        if (_scoresByAlgo.TryGetValue(algorithm, out var recs) && frameIndex >= 0 && frameIndex < recs.Length)
-        {
-            return recs[frameIndex];
-        }
-        return null;
-    }
-}
 
 /// <summary>
 /// Domain service providing calculations for score normalization, moving average seeing curves,
@@ -238,4 +140,3 @@ public static class QualityTimelineAnalyzer
         return zones;
     }
 }
-

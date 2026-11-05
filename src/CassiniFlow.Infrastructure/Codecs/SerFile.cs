@@ -1,90 +1,9 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.IO.MemoryMappedFiles;
 using System.Text;
 using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Infrastructure.Codecs;
-
-public enum SerColorId
-{
-    Mono = 0,
-    BayerRggb = 8,
-    BayerGrbg = 9,
-    BayerGbrg = 10,
-    BayerBggr = 11,
-    BayerCmyg = 16,
-    BayerCygm = 17,
-    BayerRgbc = 18,
-    BayerBgrg = 19,
-    Rgb = 100,
-    Bgr = 101
-}
-
-public sealed class SerHeader
-{
-    public const int HeaderSizeBytes = 178;
-    public const string MagicSignature = "LUCAM-RECORDER";
-
-    public string FileId { get; set; } = MagicSignature;
-    public int LuId { get; set; }
-    public SerColorId ColorId { get; set; } = SerColorId.Mono;
-    public int LittleEndian { get; set; } = 0; // Per SER spec quirk, 0 = Little Endian in many cameras, 1 = Big/Little depending on software
-    public int ImageWidth { get; set; }
-    public int ImageHeight { get; set; }
-    public int PixelDepthPerPlane { get; set; } = 8;
-    public int FrameCount { get; set; }
-    public string Observer { get; set; } = "New-CassiniFlow";
-    public string Instrument { get; set; } = "AstroCam";
-    public string Telescope { get; set; } = "Telescope";
-    public long DateTimeTicks { get; set; }
-    public long DateTimeUtcTicks { get; set; }
-    public bool HasTrailerTimestamps { get; set; }
-
-    public int Planes => ColorId is SerColorId.Rgb or SerColorId.Bgr ? 3 : 1;
-    public int BytesPerPixelPlane => PixelDepthPerPlane <= 8 ? 1 : 2;
-    public long BytesPerFrame => (long)ImageWidth * ImageHeight * Planes * BytesPerPixelPlane;
-
-    public bool IsBayer => ColorId is SerColorId.BayerRggb or SerColorId.BayerGrbg or SerColorId.BayerGbrg or SerColorId.BayerBggr;
-
-    public BayerPattern ToBayerPattern() => ColorId switch
-    {
-        SerColorId.BayerGbrg => BayerPattern.Gbrg,
-        SerColorId.BayerBggr => BayerPattern.Bggr,
-        SerColorId.BayerGrbg => BayerPattern.Grbg,
-        _ => BayerPattern.Rggb
-    };
-
-    public string FormatDetailedReport(string filePath, long fileSize)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"SER File Details: {Path.GetFileName(filePath)}");
-        sb.AppendLine($"File Size          : {fileSize:N0} bytes ({fileSize / (1024.0 * 1024.0):F2} MB)");
-        sb.AppendLine($"File ID            : {FileId}");
-        sb.AppendLine($"LuID               : {LuId}");
-        sb.AppendLine($"Color ID           : {ColorId} ({(int)ColorId})");
-        sb.AppendLine($"Little Endian Flag : {LittleEndian}");
-        sb.AppendLine($"Dimensions         : {ImageWidth} x {ImageHeight} px");
-        sb.AppendLine($"Pixel Depth        : {PixelDepthPerPlane}-bit ({BytesPerPixelPlane} byte(s)/sample)");
-        sb.AppendLine($"Frame Count        : {FrameCount:N0}");
-        sb.AppendLine($"Bytes Per Frame    : {BytesPerFrame:N0}");
-        sb.AppendLine($"Observer           : {Observer}");
-        sb.AppendLine($"Instrument         : {Instrument}");
-        sb.AppendLine($"Telescope          : {Telescope}");
-        if (DateTimeTicks > 0)
-            sb.AppendLine($"Start Time (Local) : {SerTimestampToDateTime(DateTimeTicks):yyyy-MM-dd HH:mm:ss.fff}");
-        if (DateTimeUtcTicks > 0)
-            sb.AppendLine($"Start Time (UTC)   : {SerTimestampToDateTime(DateTimeUtcTicks):yyyy-MM-dd HH:mm:ss.fff} UTC");
-        sb.AppendLine($"Timestamps Trailer : {(HasTrailerTimestamps ? "Present (64-bit UTC per frame)" : "Not present")}");
-        return sb.ToString();
-    }
-
-    public static DateTime SerTimestampToDateTime(long serSeptaseconds)
-    {
-        if (serSeptaseconds <= 0 || serSeptaseconds > DateTime.MaxValue.Ticks)
-            return DateTime.MinValue;
-        return new DateTime(serSeptaseconds, DateTimeKind.Utc);
-    }
-}
 
 /// <summary>
 /// High-performance zero-copy SER v3 reader using MemoryMappedFile and direct unsafe pointer access.
@@ -231,9 +150,9 @@ public sealed unsafe class SerFile : IDisposable
     }
 
     /// <summary>
-    /// Lit directement une sous-fenêtre recadrée (cropWidth × cropHeight) centrée sur (centerX, centerY)
-    /// depuis la vue MemoryMappedFile, en préservant la phase de la matrice de Bayer (pas pairs).
-    /// Évite de lire et d'allouer toute la trame plein capteur avant le recadrage en Passe 2.
+    /// Lit directement une sous-fenÃªtre recadrÃ©e (cropWidth Ã— cropHeight) centrÃ©e sur (centerX, centerY)
+    /// depuis la vue MemoryMappedFile, en prÃ©servant la phase de la matrice de Bayer (pas pairs).
+    /// Ã‰vite de lire et d'allouer toute la trame plein capteur avant le recadrage en Passe 2.
     /// </summary>
     public AstroFrame ReadFrameCropped(
         int frameIndex,
@@ -347,9 +266,9 @@ public sealed unsafe class SerFile : IDisposable
     }
 
     /// <summary>
-    /// Analyse ultra-rapide Passe 1 (0 allocation Heap/LOH, 0 copie mémoire, 0 débayérisation complète)
+    /// Analyse ultra-rapide Passe 1 (0 allocation Heap/LOH, 0 copie mÃ©moire, 0 dÃ©bayÃ©risation complÃ¨te)
     /// directement sur la vue MemoryMappedFile.
-    /// Évalue le centroïde de l'objet et la netteté locale dans la boîte de recadrage (ROI).
+    /// Ã‰value le centroÃ¯de de l'objet et la nettetÃ© locale dans la boÃ®te de recadrage (ROI).
     /// </summary>
     public (bool Accepted, int CentroidX, int CentroidY, double QualityScore) AnalyzeFrameZeroAlloc(
         int frameIndex,
@@ -508,9 +427,9 @@ public sealed unsafe class SerFile : IDisposable
             cx = (Math.Abs(geomCenterX - baryX) <= estRadius / 2) ? geomCenterX : baryX;
             cy = (Math.Abs(geomCenterY - baryY) <= estRadius / 2) ? geomCenterY : baryY;
 
-            // Détermination de la ROI d'évaluation de qualité resserrée autour de la planète isolée
-            // pour éviter que le bruit de fond de ciel (95% des pixels en 640x480) ne domine le score de netteté.
-            // Si le recadrage utilisateur est activé, on laisse la priorité au cadre de crop défini par l'utilisateur.
+            // DÃ©termination de la ROI d'Ã©valuation de qualitÃ© resserrÃ©e autour de la planÃ¨te isolÃ©e
+            // pour Ã©viter que le bruit de fond de ciel (95% des pixels en 640x480) ne domine le score de nettetÃ©.
+            // Si le recadrage utilisateur est activÃ©, on laisse la prioritÃ© au cadre de crop dÃ©fini par l'utilisateur.
             int planetSpan = Math.Max(finalMaxX - finalMinX, finalMaxY - finalMinY);
             if (!options.EnableCropping && !spansWholeScene && planetSpan > 8)
             {
@@ -540,7 +459,7 @@ public sealed unsafe class SerFile : IDisposable
             }
         }
 
-        // Détermination de la ROI d'évaluation de qualité (zone recadrée autour de la planète ou image entière)
+        // DÃ©termination de la ROI d'Ã©valuation de qualitÃ© (zone recadrÃ©e autour de la planÃ¨te ou image entiÃ¨re)
         int roiX0 = 0, roiY0 = 0, roiX1 = w, roiY1 = h;
         if (options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly && options.EnableCropping)
         {
@@ -562,7 +481,7 @@ public sealed unsafe class SerFile : IDisposable
             return (true, cx, cy, 0.0);
         }
 
-        // Calcul du score de qualité directement sur le pointeur de la ROI
+        // Calcul du score de qualitÃ© directement sur le pointeur de la ROI
         double score = ComputeRoiQualityZeroAlloc(
             pFrame,
             w,
@@ -653,7 +572,7 @@ public sealed unsafe class SerFile : IDisposable
 
         // GradientSharpness & OriginalNinox :
         // Sur matrice de Bayer brute (1 canal), on force des pas pairs (2, 4, 6) pour comparer uniquement
-        // les pixels de même filtre couleur (G1-G1, G2-G2, R-R, B-B) sans jamais avoir à débayériser !
+        // les pixels de mÃªme filtre couleur (G1-G1, G2-G2, R-R, B-B) sans jamais avoir Ã  dÃ©bayÃ©riser !
         int robustOffset = Math.Clamp(noiseRobust, 1, 8) - 2;
         int minSub = Math.Max(2, 3 + robustOffset);
         int maxSub = Math.Max(minSub, 5 + robustOffset * 2);
@@ -768,17 +687,17 @@ public sealed unsafe class SerFile : IDisposable
     }
 
     /// <summary>
-    /// Métriques de qualité calculées en une seule passe pour la timeline (Gradient, Histogramme crête, Luminance).
+    /// MÃ©triques de qualitÃ© calculÃ©es en une seule passe pour la timeline (Gradient, Histogramme crÃªte, Luminance).
     /// </summary>
     public readonly record struct TimelineFrameMetrics(double Gradient, double PeakHistogram, double TotalBrightness);
 
     /// <summary>
-    /// Analyse ultra-légère dédiée à la timeline de qualité.
-    /// Contrairement à <see cref="AnalyzeFrameZeroAlloc"/>, elle ne lit qu'un nombre borné de lignes
-    /// (détection grossière ≈ 100 lignes + ≈ 128 lignes échantillonnées dans la ROI), ce qui divise par
-    /// 5 à 10 le volume de pages mémoire lues sur disque pour les vidéos 4K, et calcule tous les
-    /// algorithmes (Gradient/Ninox, Histogramme crête, Luminance totale) dans la même passe.
-    /// Le classement relatif des trames est préservé (seul usage de la timeline). Zéro allocation heap.
+    /// Analyse ultra-lÃ©gÃ¨re dÃ©diÃ©e Ã  la timeline de qualitÃ©.
+    /// Contrairement Ã  <see cref="AnalyzeFrameZeroAlloc"/>, elle ne lit qu'un nombre bornÃ© de lignes
+    /// (dÃ©tection grossiÃ¨re â‰ˆ 100 lignes + â‰ˆ 128 lignes Ã©chantillonnÃ©es dans la ROI), ce qui divise par
+    /// 5 Ã  10 le volume de pages mÃ©moire lues sur disque pour les vidÃ©os 4K, et calcule tous les
+    /// algorithmes (Gradient/Ninox, Histogramme crÃªte, Luminance totale) dans la mÃªme passe.
+    /// Le classement relatif des trames est prÃ©servÃ© (seul usage de la timeline). ZÃ©ro allocation heap.
     /// </summary>
     public TimelineFrameMetrics ComputeTimelineMetricsZeroAlloc(
         int frameIndex,
@@ -799,7 +718,7 @@ public sealed unsafe class SerFile : IDisposable
         int chOffset = planes == 3 ? 1 : 0; // canal vert pour RGB/BGR
         bool isBayer = Header.IsBayer;
 
-        // ── 1. Détection grossière de l'objet (≈ 100 lignes lues) ─────────────────────────
+        // â”€â”€ 1. DÃ©tection grossiÃ¨re de l'objet (â‰ˆ 100 lignes lues) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         int dStep = Math.Max(4, Math.Min(w, h) / 100);
         if (isBayer) dStep = (dStep + 1) & ~1;
         int gridW = (w + dStep - 1) / dStep;
@@ -866,7 +785,7 @@ public sealed unsafe class SerFile : IDisposable
             by1 = Math.Min(h, (gy1 + 1) * dStep + margin);
         }
 
-        // ── 2. ROI d'évaluation (recadrage utilisateur prioritaire, sinon boîte de l'objet) ──
+        // â”€â”€ 2. ROI d'Ã©valuation (recadrage utilisateur prioritaire, sinon boÃ®te de l'objet) â”€â”€
         int rx0, ry0, rx1, ry1;
         bool centreObject = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
         if (options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly && options.EnableCropping)
@@ -885,10 +804,10 @@ public sealed unsafe class SerFile : IDisposable
             rx0 = bx0; ry0 = by0; rx1 = bx1; ry1 = by1;
         }
 
-        // ── 3. Passe unique échantillonnée : gradient + histogramme + luminance ──────────
+        // â”€â”€ 3. Passe unique Ã©chantillonnÃ©e : gradient + histogramme + luminance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         int robustOffset = Math.Clamp(options.Stacking.NoiseRobust, 1, 8) - 2;
         int gStep = Math.Max(2, 3 + robustOffset);
-        if (isBayer) gStep = (gStep + 1) & ~1; // même filtre couleur, sans débayérisation
+        if (isBayer) gStep = (gStep + 1) & ~1; // mÃªme filtre couleur, sans dÃ©bayÃ©risation
 
         int roiW = rx1 - rx0 - gStep;
         int roiH = ry1 - ry0 - gStep;
@@ -1004,140 +923,5 @@ public sealed unsafe class SerFile : IDisposable
         _accessor.Dispose();
         _mmf.Dispose();
         _fileStream.Dispose();
-    }
-}
-
-/// <summary>
-/// Streaming SER v3 file writer that writes frames sequentially to disk using a single reused buffer
-/// and patches the final FrameCount and optional UTC timestamp trailer upon Finish().
-/// </summary>
-public sealed class SerStreamWriter : IDisposable
-{
-    private readonly FileStream _fs;
-    private readonly int _width;
-    private readonly int _height;
-    private readonly int _channels;
-    private readonly int _pixelDepth;
-    private readonly byte[] _frameBuffer;
-    private readonly List<long> _timestamps = [];
-    private bool _hasAnyTimestamps;
-    private int _framesWritten;
-    private bool _finished;
-
-    public SerStreamWriter(
-        string outputPath,
-        int width,
-        int height,
-        int channels,
-        int pixelDepthPerPlane = 8,
-        bool isBayerRaw = false,
-        BayerPattern bayerPattern = BayerPattern.Rggb,
-        string observer = "cassiniflow",
-        string instrument = "Camera",
-        string telescope = "Telescope",
-        long dateTimeTicks = 0,
-        long dateTimeUtcTicks = 0)
-    {
-        _width = width;
-        _height = height;
-        _channels = channels;
-        _pixelDepth = pixelDepthPerPlane <= 8 ? 8 : 16;
-
-        int bytesPerSample = _pixelDepth <= 8 ? 1 : 2;
-        _frameBuffer = new byte[width * height * channels * bytesPerSample];
-
-        _fs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 262144);
-
-        SerColorId outColorId = channels == 3
-            ? SerColorId.Rgb
-            : isBayerRaw
-                ? bayerPattern switch
-                {
-                    BayerPattern.Gbrg => SerColorId.BayerGbrg,
-                    BayerPattern.Bggr => SerColorId.BayerBggr,
-                    BayerPattern.Grbg => SerColorId.BayerGrbg,
-                    _ => SerColorId.BayerRggb
-                }
-                : SerColorId.Mono;
-
-        Span<byte> hdr = stackalloc byte[SerHeader.HeaderSizeBytes];
-        hdr.Clear();
-        SerFile.WriteFixedAscii(hdr[..14], SerHeader.MagicSignature);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(14, 4), 0);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(18, 4), (int)outColorId);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(22, 4), 0);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(26, 4), width);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(30, 4), height);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(34, 4), _pixelDepth);
-        BinaryPrimitives.WriteInt32LittleEndian(hdr.Slice(38, 4), 0); // Patched on Finish()
-        SerFile.WriteFixedAscii(hdr.Slice(42, 40), observer);
-        SerFile.WriteFixedAscii(hdr.Slice(82, 40), instrument);
-        SerFile.WriteFixedAscii(hdr.Slice(122, 40), telescope);
-        BinaryPrimitives.WriteInt64LittleEndian(hdr.Slice(162, 8), dateTimeTicks);
-        BinaryPrimitives.WriteInt64LittleEndian(hdr.Slice(170, 8), dateTimeUtcTicks);
-
-        _fs.Write(hdr);
-    }
-
-    public unsafe void WriteFrame(AstroFrame frame)
-    {
-        if (frame.TimestampUtc.HasValue)
-        {
-            _hasAnyTimestamps = true;
-            _timestamps.Add(frame.TimestampUtc.Value.ToUniversalTime().Ticks);
-        }
-        else
-        {
-            _timestamps.Add(0);
-        }
-
-        int count = Math.Min(frame.Data.Length, _width * _height * _channels);
-        fixed (ushort* pSrc = frame.Data)
-        fixed (byte* pDst = _frameBuffer)
-        {
-            if (_pixelDepth <= 8)
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    pDst[i] = (byte)(pSrc[i] >> 8);
-                }
-            }
-            else
-            {
-                Buffer.MemoryCopy(pSrc, pDst, _frameBuffer.Length, count * sizeof(ushort));
-            }
-        }
-
-        _fs.Write(_frameBuffer);
-        _framesWritten++;
-    }
-
-    public void Finish()
-    {
-        if (_finished) return;
-        _finished = true;
-
-        if (_hasAnyTimestamps && _framesWritten > 0)
-        {
-            byte[] tsBuf = new byte[_framesWritten * 8];
-            for (int i = 0; i < _framesWritten; i++)
-            {
-                BinaryPrimitives.WriteInt64LittleEndian(tsBuf.AsSpan(i * 8, 8), _timestamps[i]);
-            }
-            _fs.Write(tsBuf);
-        }
-
-        // Patch FrameCount at offset 38 in SER header
-        Span<byte> fcBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(fcBytes, _framesWritten);
-        _fs.Seek(38, SeekOrigin.Begin);
-        _fs.Write(fcBytes);
-        _fs.Flush();
-    }
-
-    public void Dispose()
-    {
-        Finish();
-        _fs.Dispose();
     }
 }

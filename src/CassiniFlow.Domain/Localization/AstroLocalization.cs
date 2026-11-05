@@ -10,12 +10,6 @@ using CassiniFlow.Domain.Ports.Inbound;
 
 namespace CassiniFlow.Domain.Localization;
 
-public enum DomainLanguage
-{
-    French,
-    English
-}
-
 /// <summary>
 /// Implémentation du service de domaine pour le port <see cref="IAstroLocalization"/>.
 /// Charge les dictionnaires JSON intégrés (fr.json, en.json) et gère la traduction métier universelle.

@@ -9,23 +9,6 @@ using OpenCvSharp;
 
 namespace CassiniFlow.Infrastructure.Adapters;
 
-public sealed record MediaFileSummary(
-    string FilePath,
-    string FormatBadge,
-    int FrameCount,
-    int Width,
-    int Height,
-    double Fps,
-    long FileSizeBytes,
-    string DetailedReport,
-    AstroMediaMetadata? Metadata = null);
-
-public sealed record UniversalPreviewFrame(
-    AstroFrame Frame,
-    int OriginalWidth,
-    int OriginalHeight,
-    double ScaleFactor);
-
 /// <summary>
 /// High-performance universal media reader and writer supporting SER v3, FITS, BMP/PNG/TIFF/JPG,
 /// and all video containers (AVI, MP4, MOV, MKV, WEBM, WMV) via OpenCvSharp4 (FFmpeg).

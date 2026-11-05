@@ -6,41 +6,6 @@ using CassiniFlow.Domain.Models;
 namespace CassiniFlow.Domain.Services;
 
 /// <summary>
-/// Paramètres de configuration pour la détection des satellites naturels (lunes de Jupiter / Saturne).
-/// </summary>
-public sealed record SatelliteDetectionOptions(
-    bool Enabled = true,
-    double Sensitivity = 1.0
-);
-
-/// <summary>
-/// Représente un satellite naturel détecté autour d'un disque planétaire.
-/// </summary>
-public sealed record DetectedSatellite(
-    double RelX,
-    double RelY,
-    double DistanceInRadii,
-    double Snr,
-    int PixelCount,
-    ushort PeakLuminance
-);
-
-/// <summary>
-/// Candidat ponctuel extrait sur une frame individuelle avant filtrage multi-frame et colinéarité.
-/// </summary>
-public sealed record SatelliteSpotCandidate(
-    double X,
-    double Y,
-    double RelX,
-    double RelY,
-    int PixelCount,
-    ushort PeakLuminance,
-    double LocalSnr,
-    double NeighborRatio,
-    int FrameIndex = 0
-);
-
-/// <summary>
 /// Service de domaine dédié à la détection avancée et robuste des satellites naturels
 /// (lunes galiléennes de Jupiter, satellites de Saturne, etc.) sans plafond artificiel sur le nombre de lunes.
 /// Combine :
