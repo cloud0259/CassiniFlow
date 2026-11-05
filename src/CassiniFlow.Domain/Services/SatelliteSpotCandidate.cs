@@ -14,3 +14,4 @@ public sealed record SatelliteSpotCandidate(
     double NeighborRatio,
     int FrameIndex = 0
 );
+

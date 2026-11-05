@@ -6,3 +6,4 @@ public enum AppTheme
     CleanLabLight,
     NightVision
 }
+

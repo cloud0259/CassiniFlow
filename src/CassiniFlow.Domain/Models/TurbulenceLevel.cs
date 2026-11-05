@@ -9,3 +9,4 @@ public enum TurbulenceLevel
     Moderate = 1, // Medium stability (yellow/orange)
     High = 2      // Severe turbulence, blurry or drifting (red)
 }
+

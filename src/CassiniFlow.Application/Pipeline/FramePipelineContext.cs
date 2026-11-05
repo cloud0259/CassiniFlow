@@ -16,3 +16,4 @@ public sealed class FramePipelineContext
         MasterFlat = masterFlat;
     }
 }
+

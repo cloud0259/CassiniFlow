@@ -7,3 +7,4 @@ public sealed record SatelliteDetectionOptions(
     bool Enabled = true,
     double Sensitivity = 1.0
 );
+

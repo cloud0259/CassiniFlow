@@ -33,3 +33,4 @@ public sealed class MediaReaderAdapter : IMediaFrameReader
         _serFile?.Dispose();
     }
 }
+

@@ -7,3 +7,4 @@ public sealed record UniversalPreviewFrame(
     int OriginalWidth,
     int OriginalHeight,
     double ScaleFactor);
+

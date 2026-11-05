@@ -89,3 +89,4 @@ public class InMemoryUserSettingsService : IUserSettingsService
         Save();
     }
 }
+

@@ -37,3 +37,4 @@ public sealed class UserSettings
     public int SharpeningBlendPercent { get; set; } = 10;
     public bool FeatheringEnabled { get; set; } = true;
 }
+

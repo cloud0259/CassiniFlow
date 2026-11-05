@@ -18,3 +18,4 @@ public sealed class CalibrationStep : IFramePipelineStep
         return frame;
     }
 }
+

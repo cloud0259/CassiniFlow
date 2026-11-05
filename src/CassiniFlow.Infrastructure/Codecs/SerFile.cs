@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.IO.MemoryMappedFiles;
 using System.Text;
 using CassiniFlow.Domain.Models;

@@ -9,3 +9,4 @@ public readonly record struct FrameQualityRecord(
     double NormalizedScore, // 0.0 to 100.0%
     int Rank                // 1-based rank (1 = best frame in recording)
 );
+

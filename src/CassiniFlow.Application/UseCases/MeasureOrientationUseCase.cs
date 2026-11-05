@@ -52,3 +52,4 @@ public sealed class MeasureOrientationUseCase : IMeasureOrientationUseCase
         });
     }
 }
+

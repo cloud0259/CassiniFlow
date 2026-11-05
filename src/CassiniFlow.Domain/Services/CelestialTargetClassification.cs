@@ -35,3 +35,4 @@ public sealed record CelestialTargetClassification(
         return name;
     }
 }
+

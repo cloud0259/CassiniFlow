@@ -29,3 +29,4 @@ public sealed class CroppingStep : IFramePipelineStep
             opt.ProtectBayerPattern);
     }
 }
+

@@ -27,3 +27,4 @@ public sealed class DebayerStep : IFramePipelineStep
         return frame;
     }
 }
+

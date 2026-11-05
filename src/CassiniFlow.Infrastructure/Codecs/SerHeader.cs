@@ -70,3 +70,4 @@ public sealed class SerHeader
         return new DateTime(serSeptaseconds, DateTimeKind.Utc);
     }
 }
+

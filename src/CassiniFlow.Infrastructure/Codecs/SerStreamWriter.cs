@@ -140,3 +140,4 @@ public sealed class SerStreamWriter : IDisposable
         _fs.Dispose();
     }
 }
+

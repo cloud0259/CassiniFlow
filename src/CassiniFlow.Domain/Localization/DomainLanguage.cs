@@ -5,3 +5,4 @@ public enum DomainLanguage
     French,
     English
 }
+

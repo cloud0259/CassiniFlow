@@ -6,3 +6,4 @@ public interface IFramePipelineStep
 {
     AstroFrame Execute(AstroFrame frame, FramePipelineContext context);
 }
+

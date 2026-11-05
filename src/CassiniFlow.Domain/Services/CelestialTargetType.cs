@@ -7,3 +7,4 @@ public enum CelestialTargetType
     MoonOrSunSurface = 2,
     MoonOrSunFullDisc = 3
 }
+

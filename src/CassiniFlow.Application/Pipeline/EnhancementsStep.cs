@@ -40,3 +40,4 @@ public sealed class EnhancementsStep : IFramePipelineStep
         return frame;
     }
 }
+

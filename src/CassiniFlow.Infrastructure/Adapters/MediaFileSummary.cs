@@ -12,3 +12,4 @@ public sealed record MediaFileSummary(
     long FileSizeBytes,
     string DetailedReport,
     AstroMediaMetadata? Metadata = null);
+

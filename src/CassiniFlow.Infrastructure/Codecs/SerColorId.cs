@@ -14,3 +14,4 @@ public enum SerColorId
     Rgb = 100,
     Bgr = 101
 }
+

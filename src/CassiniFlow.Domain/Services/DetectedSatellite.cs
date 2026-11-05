@@ -11,3 +11,4 @@ public sealed record DetectedSatellite(
     int PixelCount,
     ushort PeakLuminance
 );
+
