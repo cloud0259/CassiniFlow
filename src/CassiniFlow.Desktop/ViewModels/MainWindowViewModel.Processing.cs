@@ -111,19 +111,33 @@ public partial class MainWindowViewModel
         int available;
         if (activeFiles.Count > 1 && IsJoinMode)
         {
-            available = Math.Max(1, activeFiles.Sum(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Sum(f => GetFileEffectiveFrames(f)));
         }
         else if (SelectedSourceFile is { IsChecked: true })
         {
-            available = Math.Max(1, SelectedSourceFile.Frames);
+            available = Math.Max(1, GetFileEffectiveFrames(SelectedSourceFile));
         }
         else
         {
-            available = Math.Max(1, activeFiles.Max(f => Math.Max(1, f.Frames)));
+            available = Math.Max(1, activeFiles.Max(f => GetFileEffectiveFrames(f)));
         }
 
         MaxAvailableFrames = Math.Max(1, available);
         StackFrameCount = MaxAvailableFrames;
+    }
+
+    private int GetFileEffectiveFrames(SourceFileItem file)
+    {
+        if (file.HasCustomRange)
+        {
+            return file.EffectiveFrames;
+        }
+        if (LimitFrameRange)
+        {
+            int globalCount = Math.Max(1, EndFrame - StartFrame + 1);
+            return Math.Min(file.Frames, globalCount);
+        }
+        return Math.Max(1, file.Frames);
     }
     [ObservableProperty] private int _selectedDrizzleIndex = 0;
     [ObservableProperty] private bool _normalizeBrightness = true;

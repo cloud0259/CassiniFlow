@@ -250,7 +250,21 @@
     "LoadVideoPrompt": "Load a video or images in the '1. Source Files' tab",
     "NoVideoPrompt": "No video file loaded.\nUse 'Add files...' or drag and drop a video here.",
     "QualityPrefix": "Quality: ",
-    "QualityNA": "Quality: -"
+    "QualityNA": "Quality: -",
+    "TimelineChrono": "Chronological Seeing",
+    "TimelineSorted": "Sorted Quality",
+    "SeeingCalm": "Seeing: Calm / Favorable",
+    "SeeingModerate": "Seeing: Moderate",
+    "SeeingTurbulent": "Seeing: High Turbulence",
+    "RankFormatted": "Rank: #{0} / {1} (Top {2}%)",
+    "CutoffKeepBest": "Keep:",
+    "RetainedFrames": "Kept: {0} frames ({1}%)",
+    "ToggleTimelineSize": "Timeline Height",
+    "AnalyzingQuality": "Analyzing seeing...",
+    "AlgoGradient": "Gradient",
+    "AlgoNinox": "Ninox",
+    "AlgoPeakHisto": "Peak Histo",
+    "AlgoTotalLum": "Total Lum"
   },
   "Dialogs": {
     "SelectSourceFilesTitle": "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF)",

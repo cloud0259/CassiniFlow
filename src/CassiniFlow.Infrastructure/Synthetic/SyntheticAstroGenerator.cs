@@ -2,13 +2,6 @@ using CassiniFlow.Domain.Models;
 
 namespace CassiniFlow.Infrastructure.Synthetic;
 
-public enum SyntheticSubject
-{
-    JupiterRggb,
-    LunarClaviusMono,
-    SaturnRingsRgb
-}
-
 /// <summary>
 /// Generates realistic 16-bit synthetic planetary and lunar frames (with simulated atmospheric seeing & drift)
 /// for instant real-time testing in the Frame Viewer and automated unit tests.

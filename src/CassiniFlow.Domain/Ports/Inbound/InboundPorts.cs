@@ -71,3 +71,21 @@ public interface IGenerateAlignmentGridUseCase
 {
     AlignmentGrid GenerateGrid(AstroFrame frame, StackingOptions options);
 }
+
+public interface IQualityTimelineUseCase
+{
+    Task<QualityTimelineDataSet> AnalyzeTimelineAsync(
+        string filePath,
+        QualityAlgorithm algorithm,
+        ProcessingOptions options,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<QualityAlgorithm>? companionAlgorithms = null);
+
+    Task ComputeAdditionalAlgorithmAsync(
+        QualityTimelineDataSet dataset,
+        QualityAlgorithm algorithm,
+        ProcessingOptions options,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+}

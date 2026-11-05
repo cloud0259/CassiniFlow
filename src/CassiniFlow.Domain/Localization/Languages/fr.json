@@ -250,7 +250,21 @@
     "LoadVideoPrompt": "Chargez une vidéo ou des images dans l'onglet '1. Fichiers sources'",
     "NoVideoPrompt": "Aucun fichier vidéo chargé.\nUtilisez 'Ajouter des fichiers...' ou glissez-déposez une vidéo ici.",
     "QualityPrefix": "Qualité : ",
-    "QualityNA": "Qualité : -"
+    "QualityNA": "Qualité : -",
+    "TimelineChrono": "Seeing Temporel",
+    "TimelineSorted": "Distribution Triée",
+    "SeeingCalm": "Seeing : Calme / Favorable",
+    "SeeingModerate": "Seeing : Modéré",
+    "SeeingTurbulent": "Seeing : Forte turbulence",
+    "RankFormatted": "Rang : #{0} / {1} (Top {2}%)",
+    "CutoffKeepBest": "Garder :",
+    "RetainedFrames": "Retenues : {0} trames ({1}%)",
+    "ToggleTimelineSize": "Hauteur timeline",
+    "AnalyzingQuality": "Analyse du seeing...",
+    "AlgoGradient": "Gradient",
+    "AlgoNinox": "Ninox",
+    "AlgoPeakHisto": "Peak Histo",
+    "AlgoTotalLum": "Total Lum"
   },
   "Dialogs": {
     "SelectSourceFilesTitle": "Sélectionner des vidéos ou images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF)",

@@ -67,6 +67,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isJoinMode;
     partial void OnIsJoinModeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private bool _limitFrameRange;
+    partial void OnLimitFrameRangeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
     [ObservableProperty] private int _selectedPresetIndex = 0;
@@ -90,6 +91,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IRunPipelineUseCase _pipelineRunner;
     private readonly ICelestialTargetClassifier _celestialClassifier;
+    private readonly IQualityTimelineUseCase? _qualityTimelineUseCase;
 
     [ObservableProperty] private bool _isUpdateBannerVisible;
     [ObservableProperty] private string _updateBannerText = string.Empty;
@@ -125,13 +127,15 @@ public partial class MainWindowViewModel : ObservableObject
         IRunPipelineUseCase pipelineRunner,
         ICelestialTargetClassifier celestialClassifier,
         TutorialViewModel tutorialVM,
-        IUpdateCheckerService? updateChecker = null)
+        IUpdateCheckerService? updateChecker = null,
+        IQualityTimelineUseCase? qualityTimelineUseCase = null)
     {
         _loc = localization ?? throw new ArgumentNullException(nameof(localization));
         _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _pipelineRunner = pipelineRunner ?? throw new ArgumentNullException(nameof(pipelineRunner));
         _celestialClassifier = celestialClassifier ?? throw new ArgumentNullException(nameof(celestialClassifier));
+        _qualityTimelineUseCase = qualityTimelineUseCase;
 
         _maxCpuUsagePercent = _userSettings.Current.MaxCpuUsagePercent;
         _cpuWarningThresholdPercent = _userSettings.Current.CpuWarningThresholdPercent;

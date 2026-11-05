@@ -1,0 +1,229 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using CassiniFlow.Application.UseCases;
+using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Ports.Outbound;
+
+namespace CassiniFlow.Tests;
+
+public class QualityTimelineTests
+{
+    [Fact]
+    public void NormalizeAndRank_CalculatesRanksAndPercentageCorrectly()
+    {
+        var raw = new List<(int FrameIndex, double RawScore)>
+        {
+            (0, 10.0),
+            (1, 50.0),
+            (2, 20.0),
+            (3, 100.0),
+            (4, 5.0)
+        };
+
+        var records = QualityTimelineAnalyzer.NormalizeAndRank(raw);
+
+        Assert.Equal(5, records.Length);
+
+        // Frame 3 has the highest score (100.0) -> Rank 1, 100% normalized
+        Assert.Equal(1, records[3].Rank);
+        Assert.Equal(100.0, records[3].NormalizedScore, precision: 2);
+
+        // Frame 4 has the lowest score (5.0) -> Rank 5, 0% normalized
+        Assert.Equal(5, records[4].Rank);
+        Assert.Equal(0.0, records[4].NormalizedScore, precision: 2);
+
+        // Frame 1 is second best (50.0) -> Rank 2
+        Assert.Equal(2, records[1].Rank);
+        Assert.True(records[1].NormalizedScore > records[2].NormalizedScore);
+    }
+
+    [Fact]
+    public void ComputeMovingAverage_SmoothsHighFrequencySpikes()
+    {
+        var records = new FrameQualityRecord[10];
+        for (int i = 0; i < 10; i++)
+        {
+            // Alternating scores
+            double score = (i % 2 == 0) ? 80.0 : 20.0;
+            records[i] = new FrameQualityRecord(i, score, score, i + 1);
+        }
+
+        var smoothed = QualityTimelineAnalyzer.ComputeMovingAverage(records, windowSize: 3);
+
+        Assert.Equal(10, smoothed.Length);
+        // Middle values should hover around 50%
+        for (int i = 1; i < 9; i++)
+        {
+            Assert.InRange(smoothed[i], 35.0, 65.0);
+        }
+    }
+
+    [Fact]
+    public void DetectTurbulenceZones_IdentifiesCalmAndTurbulentPeriods()
+    {
+        var records = new FrameQualityRecord[60];
+        // 0..19: Very calm seeing (score 85)
+        for (int i = 0; i < 20; i++) records[i] = new FrameQualityRecord(i, 85, 85, i + 1);
+        // 20..39: Turbulent burst (score 25)
+        for (int i = 20; i < 40; i++) records[i] = new FrameQualityRecord(i, 25, 25, i + 1);
+        // 40..59: Moderate seeing (score 55)
+        for (int i = 40; i < 60; i++) records[i] = new FrameQualityRecord(i, 55, 55, i + 1);
+
+        var zones = QualityTimelineAnalyzer.DetectTurbulenceZones(records, chunkDuration: 10);
+
+        Assert.NotEmpty(zones);
+        Assert.Contains(zones, z => z.Level == TurbulenceLevel.Low);
+        Assert.Contains(zones, z => z.Level == TurbulenceLevel.High);
+    }
+
+    [Fact]
+    public void QualityTimelineDataSet_StoresMultipleAlgorithmsAndSorts()
+    {
+        var dataset = new QualityTimelineDataSet("test.ser", 3, QualityAlgorithm.GradientSharpness);
+
+        var gradRecords = new[]
+        {
+            new FrameQualityRecord(0, 10.0, 20.0, 3),
+            new FrameQualityRecord(1, 50.0, 100.0, 1),
+            new FrameQualityRecord(2, 30.0, 60.0, 2)
+        };
+
+        dataset.SetAlgorithmScores(QualityAlgorithm.GradientSharpness, gradRecords);
+
+        Assert.True(dataset.HasScoresFor(QualityAlgorithm.GradientSharpness));
+        Assert.False(dataset.HasScoresFor(QualityAlgorithm.TotalBrightness));
+        Assert.Equal(1, dataset.BestFrameIndex); // Frame 1 is Rank 1
+
+        var sorted = dataset.GetSortedScores(QualityAlgorithm.GradientSharpness);
+        Assert.NotNull(sorted);
+        Assert.Equal(1, sorted![0].FrameIndex);
+        Assert.Equal(2, sorted[1].FrameIndex);
+        Assert.Equal(0, sorted[2].FrameIndex);
+    }
+
+    private sealed class FakeQualityScanner : IQualityTimelineScanner
+    {
+        public Task<IReadOnlyList<(int FrameIndex, double RawScore)>> ScanFileScoresAsync(
+            string filePath,
+            QualityAlgorithm algorithm,
+            ProcessingOptions options,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<(int, double)> data = algorithm switch
+            {
+                QualityAlgorithm.GradientSharpness => new List<(int, double)> { (0, 10.0), (1, 80.0), (2, 40.0) },
+                _ => new List<(int, double)> { (0, 100.0), (1, 90.0), (2, 85.0) }
+            };
+            progress?.Report(100.0);
+            return Task.FromResult(data);
+        }
+    }
+
+    [Fact]
+    public async Task QualityTimelineUseCase_CachesAndLoadsAdditionalAlgorithms()
+    {
+        var scanner = new FakeQualityScanner();
+        var useCase = new QualityTimelineUseCase(scanner);
+        var options = new ProcessingOptions();
+
+        var dataset = await useCase.AnalyzeTimelineAsync("dummy.ser", QualityAlgorithm.GradientSharpness, options);
+
+        Assert.NotNull(dataset);
+        Assert.True(dataset.HasScoresFor(QualityAlgorithm.GradientSharpness));
+        Assert.False(dataset.HasScoresFor(QualityAlgorithm.PeakHistogram));
+
+        // On-demand computation of additional algorithm
+        await useCase.ComputeAdditionalAlgorithmAsync(dataset, QualityAlgorithm.PeakHistogram, options);
+
+        Assert.True(dataset.HasScoresFor(QualityAlgorithm.PeakHistogram));
+    }
+
+    [Fact]
+    public void ProcessingOptions_FileFrameRanges_ClonesAndStoresIndividually()
+    {
+        var options = new ProcessingOptions();
+        options.FileFrameRanges["video1.mp4"] = (10, 80);
+        options.FileFrameRanges["video2.mp4"] = (50, 200);
+
+        var clone = options.Clone();
+
+        Assert.Equal(2, clone.FileFrameRanges.Count);
+        Assert.Equal((10, 80), clone.FileFrameRanges["video1.mp4"]);
+        Assert.Equal((50, 200), clone.FileFrameRanges["video2.mp4"]);
+
+        // Mutating clone does not affect original
+        clone.FileFrameRanges["video1.mp4"] = (15, 90);
+        Assert.Equal((10, 80), options.FileFrameRanges["video1.mp4"]);
+    }
+
+    [Fact]
+    public void SourceFileItem_CustomRange_ReflectsInSummaryAndHasCustomRange()
+    {
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars.ser",
+            Frames = 500,
+            SelectionIn = 1,
+            SelectionOut = 500
+        };
+
+        Assert.False(item.HasCustomRange);
+        Assert.Equal("500 fr", item.RangeSummaryText);
+
+        item.SelectionIn = 50;
+        item.SelectionOut = 300;
+
+        Assert.True(item.HasCustomRange);
+        Assert.Equal("Plage : 50 – 300 (251 fr)", item.RangeSummaryText);
+    }
+
+    [Fact]
+    public void QualityTimelineDataSet_PeakHistogram_CanBePrimaryAlgorithm()
+    {
+        var rawScores = new List<(int, double)> { (0, 1000.0), (1, 5000.0), (2, 2500.0) };
+        var records = QualityTimelineAnalyzer.NormalizeAndRank(rawScores);
+
+        var dataSet = new QualityTimelineDataSet("moon.ser", 3, QualityAlgorithm.PeakHistogram);
+        dataSet.SetAlgorithmScores(QualityAlgorithm.PeakHistogram, records, updateTurbulence: true);
+
+        Assert.Equal(QualityAlgorithm.PeakHistogram, dataSet.PrimaryAlgorithm);
+        Assert.True(dataSet.HasScoresFor(QualityAlgorithm.PeakHistogram));
+        Assert.Equal(1, dataSet.BestFrameIndex); // index 1 had score 5000.0
+        Assert.NotEmpty(dataSet.TurbulenceZones);
+    }
+
+    [Fact]
+    public async Task Benchmark_LunarSerScanPerformance()
+    {
+        string path = @"D:\Astro\Lune\29072026\pipp_20260731_115534\PXL_20260729_222044402_pipp.ser";
+        if (!File.Exists(path)) return;
+
+        var scanner = new CassiniFlow.Infrastructure.Adapters.QualityTimelineScanner();
+        var options = new ProcessingOptions
+        {
+            EnableCropping = true,
+            CropWidth = 512,
+            CropHeight = 512
+        };
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var results = await scanner.ScanFileMultiScoresAsync(
+            path,
+            new[] { QualityAlgorithm.GradientSharpness, QualityAlgorithm.PeakHistogram },
+            options);
+        sw.Stop();
+
+        Assert.NotNull(results);
+        Assert.True(results.ContainsKey(QualityAlgorithm.GradientSharpness));
+        Assert.True(results.ContainsKey(QualityAlgorithm.PeakHistogram));
+        Assert.Equal(505, results[QualityAlgorithm.GradientSharpness].Count);
+
+        // Affiche la durée en console de test
+        Console.WriteLine($"[BENCHMARK] 505 images (4.18 Go) analysées en : {sw.ElapsedMilliseconds} ms ({sw.ElapsedMilliseconds / 505.0:F1} ms/frame)");
+    }
+}
+

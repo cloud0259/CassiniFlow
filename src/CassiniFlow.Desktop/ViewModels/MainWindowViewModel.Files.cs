@@ -42,11 +42,11 @@ public partial class MainWindowViewModel
             UpdateAvailableFrames();
             FrameDimensionsText = "—";
             PreviewReady?.Invoke(null, null, 1.0);
+            ResetTimeline();
             return;
         }
 
         MaxFrameCount = Math.Max(1, value.Frames);
-        EndFrame = MaxFrameCount;
         CurrentFrameIndex = 1;
         OutputFps = Math.Max(1, (int)Math.Round(value.Fps));
         TargetBoxX = Math.Max(16, value.Width / 2);
@@ -63,6 +63,16 @@ public partial class MainWindowViewModel
         }
 
         UpdateAvailableFrames();
+        int selIn = value.SelectionIn > 0 ? value.SelectionIn : 1;
+        int selOut = value.SelectionOut > 0 ? value.SelectionOut : MaxFrameCount;
+        selIn = Math.Clamp(selIn, 1, MaxFrameCount);
+        selOut = Math.Clamp(selOut, selIn, MaxFrameCount);
+
+        StartFrame = selIn;
+        EndFrame = selOut;
+        TimelineSelectionIn = selIn;
+        TimelineSelectionOut = selOut;
+        TriggerQualityTimelineAnalysis(value.FullPath);
         RequestPreviewUpdate(reloadFromDisk: true);
     }
 
@@ -183,6 +193,8 @@ public partial class MainWindowViewModel
                             FullPath = path,
                             FormatBadge = summary.FormatBadge,
                             Frames = summary.FrameCount,
+                            SelectionIn = 1,
+                            SelectionOut = Math.Max(1, summary.FrameCount),
                             Width = summary.Width,
                             Height = summary.Height,
                             Fps = summary.Fps,
@@ -295,11 +307,14 @@ public partial class MainWindowViewModel
 
     private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+        if (e.PropertyName is nameof(SourceFileItem.IsChecked) or nameof(SourceFileItem.SelectionIn) or nameof(SourceFileItem.SelectionOut))
         {
             UpdateAvailableFrames();
-            OnPropertyChanged(nameof(AreAllFilesChecked));
-            NotifyStartProcessingValidation();
+            if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+            {
+                OnPropertyChanged(nameof(AreAllFilesChecked));
+                NotifyStartProcessingValidation();
+            }
         }
     }
 
@@ -485,7 +500,7 @@ public partial class MainWindowViewModel
 
                 try
                 {
-                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames);
+                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames, samples: 3);
                 }
                 catch { }
 
@@ -675,11 +690,13 @@ public partial class MainWindowViewModel
 
 
     [RelayCommand]
-    public void ClearAllFiles()    {
+    public void ClearAllFiles()
+    {
         UniversalMediaReader.ClosePreviewCache();
         SourceFiles.Clear();
         HasLoadedFiles = false;
         SelectedSourceFile = null;
         UpdateAvailableFrames();
+        ResetTimeline();
     }
 }
