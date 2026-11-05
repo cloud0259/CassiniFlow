@@ -7,8 +7,10 @@ using CassiniFlow.Desktop.Services;
 using CassiniFlow.Desktop.Theme;
 using CassiniFlow.Desktop.ViewModels;
 using CassiniFlow.Desktop.Views;
+using CassiniFlow.Application.UseCases;
 using CassiniFlow.Domain.Localization;
 using CassiniFlow.Domain.Ports.Inbound;
+using CassiniFlow.Domain.Ports.Outbound;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Adapters;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +58,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IRunPipelineUseCase, PipelineRunner>();
         services.AddSingleton<ICelestialTargetClassifier, CelestialTargetClassifierService>();
         services.AddSingleton<IUpdateCheckerService, GitHubReleaseUpdateChecker>();
+        services.AddSingleton<IQualityTimelineScanner, QualityTimelineScanner>();
+        services.AddSingleton<IQualityTimelineUseCase, QualityTimelineUseCase>();
 
         services.AddTransient<TutorialViewModel>();
         services.AddTransient<AlignmentOptionsViewModel>();

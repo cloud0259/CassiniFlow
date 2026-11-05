@@ -40,6 +40,221 @@ public partial class MainWindowViewModel
     [ObservableProperty] private bool _showOverlayBoxes = true;
     [ObservableProperty] private bool _showDetectedPixelsRed;
 
+    // Timeline state (Ticket #61)
+    [ObservableProperty] private QualityTimelineDataSet? _qualityTimelineData;
+    [ObservableProperty] private bool _isTimelineAnalyzing;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TimelineProgressPercentText))]
+    private double _timelineAnalysisProgress;
+    public string TimelineProgressPercentText => $"{Math.Round(TimelineAnalysisProgress)} %";
+    [ObservableProperty] private bool _isTimelineChronological = true;
+    [ObservableProperty] private bool _isTimelineExpanded;
+    [ObservableProperty] private double _timelineHeight = 110;
+    [ObservableProperty] private bool _timelineShowGradient = true;
+    [ObservableProperty] private bool _timelineShowNinox = true;
+    [ObservableProperty] private bool _timelineShowPeakHisto;
+    [ObservableProperty] private bool _timelineShowTotalLum;
+    [ObservableProperty] private int _timelineSelectionIn = 1;
+    [ObservableProperty] private int _timelineSelectionOut = 1;
+    [ObservableProperty] private int _timelineCutoffPercent = 25;
+    [ObservableProperty] private string _currentFrameRankText = "—";
+    [ObservableProperty] private string _currentSeeingText = "—";
+    [ObservableProperty] private string _retainedFramesSummaryText = "—";
+    [ObservableProperty] private int _hoverFrameIndex = -1;
+    [ObservableProperty] private double _hoverScore;
+    [ObservableProperty] private int _hoverRank = -1;
+    [ObservableProperty] private bool _isTimelineHovered;
+
+    private CancellationTokenSource? _timelineCts;
+
+    partial void OnTimelineSelectionInChanged(int value)
+    {
+        StartFrame = value;
+        UpdateRetainedFramesSummary();
+    }
+
+    partial void OnTimelineSelectionOutChanged(int value)
+    {
+        EndFrame = value;
+        UpdateRetainedFramesSummary();
+    }
+
+    partial void OnTimelineCutoffPercentChanged(int value)
+    {
+        QualityKeepValue = value;
+        SelectedQualityLimitModeIndex = 1; // Percentage
+        UpdateRetainedFramesSummary();
+    }
+
+    partial void OnTimelineShowGradientChanged(bool value)
+    {
+        if (value) RequestAdditionalAlgorithmIfNeeded(QualityAlgorithm.GradientSharpness);
+    }
+
+    partial void OnTimelineShowNinoxChanged(bool value)
+    {
+        if (value) RequestAdditionalAlgorithmIfNeeded(QualityAlgorithm.OriginalNinox);
+    }
+
+    partial void OnTimelineShowPeakHistoChanged(bool value)
+    {
+        if (value) RequestAdditionalAlgorithmIfNeeded(QualityAlgorithm.PeakHistogram);
+    }
+
+    partial void OnTimelineShowTotalLumChanged(bool value)
+    {
+        if (value) RequestAdditionalAlgorithmIfNeeded(QualityAlgorithm.TotalBrightness);
+    }
+
+    [RelayCommand]
+    public void ToggleTimelineMode()
+    {
+        IsTimelineChronological = !IsTimelineChronological;
+    }
+
+    [RelayCommand]
+    public void ToggleTimelineExpanded()
+    {
+        IsTimelineExpanded = !IsTimelineExpanded;
+        TimelineHeight = IsTimelineExpanded ? 180 : 110;
+    }
+
+    [RelayCommand]
+    public void GoToBestFrame()
+    {
+        if (QualityTimelineData is { } data && data.BestFrameIndex >= 0)
+        {
+            CurrentFrameIndex = data.BestFrameIndex + 1;
+        }
+    }
+
+    public void TriggerQualityTimelineAnalysis(string filePath)
+    {
+        _timelineCts?.Cancel();
+        _timelineCts?.Dispose();
+        _timelineCts = new CancellationTokenSource();
+        var token = _timelineCts.Token;
+
+        if (_qualityTimelineUseCase == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            QualityTimelineData = null;
+            IsTimelineAnalyzing = false;
+            return;
+        }
+
+        IsTimelineAnalyzing = true;
+        TimelineAnalysisProgress = 0.0;
+
+        var progress = new Progress<double>(p =>
+        {
+            TimelineAnalysisProgress = p;
+        });
+
+        SyncOptionsFromUi();
+        var optionsSnapshot = Options.Clone();
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var dataset = await _qualityTimelineUseCase.AnalyzeTimelineAsync(
+                    filePath,
+                    optionsSnapshot.QualityAlgorithm,
+                    optionsSnapshot,
+                    progress,
+                    token).ConfigureAwait(false);
+
+                if (!token.IsCancellationRequested)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        QualityTimelineData = dataset;
+                        IsTimelineAnalyzing = false;
+                        TimelineAnalysisProgress = 100.0;
+                        TimelineSelectionIn = 1;
+                        TimelineSelectionOut = dataset.TotalFrames;
+                        UpdateTimelineFrameHud(CurrentFrameIndex);
+                        UpdateRetainedFramesSummary();
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Cleanly canceled
+            }
+            catch (Exception ex)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    IsTimelineAnalyzing = false;
+                    ViewerStatusText = Loc.Format("Messages.PreviewError", ex.Message);
+                });
+            }
+        }, token);
+    }
+
+    private void RequestAdditionalAlgorithmIfNeeded(QualityAlgorithm algo)
+    {
+        var data = QualityTimelineData;
+        if (data == null || data.HasScoresFor(algo) || _qualityTimelineUseCase == null) return;
+
+        SyncOptionsFromUi();
+        var optionsSnapshot = Options.Clone();
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _qualityTimelineUseCase.ComputeAdditionalAlgorithmAsync(
+                    data,
+                    algo,
+                    optionsSnapshot,
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    // Trigger UI re-render
+                    QualityTimelineData = null;
+                    QualityTimelineData = data;
+                });
+            }
+            catch
+            {
+                // Silently ignore background comparison failure
+            }
+        });
+    }
+
+    private void UpdateTimelineFrameHud(int frame1Based)
+    {
+        int total = SelectedSourceFile?.Frames ?? MaxFrameCount;
+        if (QualityTimelineData != null)
+        {
+            var rec = QualityTimelineData.GetFrameRecord(QualityTimelineData.PrimaryAlgorithm, frame1Based - 1);
+            if (rec.HasValue)
+            {
+                double pctRank = (rec.Value.Rank * 100.0) / Math.Max(1, total);
+                CurrentFrameRankText = Loc.Format("Viewer.RankFormatted", rec.Value.Rank, total, pctRank.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+                CurrentSeeingText = rec.Value.NormalizedScore switch
+                {
+                    >= 65 => Loc.Get("Viewer.SeeingCalm"),
+                    <= 40 => Loc.Get("Viewer.SeeingTurbulent"),
+                    _ => Loc.Get("Viewer.SeeingModerate")
+                };
+                return;
+            }
+        }
+        CurrentFrameRankText = "—";
+        CurrentSeeingText = "—";
+    }
+
+    private void UpdateRetainedFramesSummary()
+    {
+        int rangeCount = Math.Max(1, TimelineSelectionOut - TimelineSelectionIn + 1);
+        int kept = Math.Clamp((int)Math.Round(rangeCount * (TimelineCutoffPercent / 100.0)), 1, rangeCount);
+        RetainedFramesSummaryText = Loc.Format("Viewer.RetainedFrames", kept, TimelineCutoffPercent);
+    }
+
         public event Action<AstroFrame?, DetectionResult?, double>? PreviewReady;
 
     partial void OnCurrentFrameIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: true);
@@ -166,19 +381,86 @@ public partial class MainWindowViewModel
 
 
     [RelayCommand]
-    public void FirstFrame() => CurrentFrameIndex = 1;
-
-
-    [RelayCommand]
-    public void PreviousFrame() => CurrentFrameIndex = Math.Max(1, CurrentFrameIndex - 1);
-
-
-    [RelayCommand]
-    public void NextFrame() => CurrentFrameIndex = Math.Min(MaxFrameCount, CurrentFrameIndex + 1);
-
+    public void FirstFrame()
+    {
+        StopPlayback();
+        CurrentFrameIndex = 1;
+    }
 
     [RelayCommand]
-    public void LastFrame() => CurrentFrameIndex = MaxFrameCount;
+    public void PreviousFrame()
+    {
+        StopPlayback();
+        CurrentFrameIndex = Math.Max(1, CurrentFrameIndex - 1);
+    }
+
+    [RelayCommand]
+    public void NextFrame()
+    {
+        StopPlayback();
+        CurrentFrameIndex = Math.Min(MaxFrameCount, CurrentFrameIndex + 1);
+    }
+
+    [RelayCommand]
+    public void LastFrame()
+    {
+        StopPlayback();
+        CurrentFrameIndex = MaxFrameCount;
+    }
+
+    [ObservableProperty] private bool _isPlaying;
+    public string PlayPauseIcon => IsPlaying ? "⏸" : "▶";
+
+    private Avalonia.Threading.DispatcherTimer? _playbackTimer;
+
+    [RelayCommand]
+    public void TogglePlay()
+    {
+        if (IsPlaying)
+        {
+            StopPlayback();
+        }
+        else
+        {
+            StartPlayback();
+        }
+    }
+
+    public void StartPlayback()
+    {
+        if (MaxFrameCount <= 1) return;
+        IsPlaying = true;
+        OnPropertyChanged(nameof(PlayPauseIcon));
+
+        _playbackTimer?.Stop();
+        int fps = Math.Clamp(OutputFps > 0 ? OutputFps : 30, 5, 60);
+        _playbackTimer = new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(1000.0 / fps)
+        };
+        _playbackTimer.Tick += (s, e) =>
+        {
+            int next = CurrentFrameIndex + 1;
+            int limitOut = Math.Clamp(TimelineSelectionOut, 1, MaxFrameCount);
+            int limitIn = Math.Clamp(TimelineSelectionIn, 1, limitOut);
+
+            if (next > limitOut)
+            {
+                next = limitIn;
+            }
+            CurrentFrameIndex = next;
+        };
+        _playbackTimer.Start();
+    }
+
+    public void StopPlayback()
+    {
+        if (!IsPlaying && _playbackTimer == null) return;
+        IsPlaying = false;
+        OnPropertyChanged(nameof(PlayPauseIcon));
+        _playbackTimer?.Stop();
+        _playbackTimer = null;
+    }
 
 
 
@@ -233,6 +515,11 @@ public partial class MainWindowViewModel
                 bool applyCrop = PreviewCroppedOutput;
                 SyncOptionsFromUi();
                 var optionsSnapshot = Options;
+                if (IsPlaying && optionsSnapshot.EnableQualityEstimation)
+                {
+                    optionsSnapshot = optionsSnapshot.Clone();
+                    optionsSnapshot.EnableQualityEstimation = false;
+                }
 
                 if (reloadDisk || _cachedPreviewResult is null || _cachedRawFilePath != source.FullPath || _cachedRawFrameIndex != targetFrameIdx)
                 {
@@ -258,12 +545,23 @@ public partial class MainWindowViewModel
                 int outDispW = processed.Width;
                 int outDispH = processed.Height;
 
+                double displayScore = processed.QualityScore;
+                if (QualityTimelineData is { } tlData && targetFrameIdx < tlData.TotalFrames)
+                {
+                    var records = tlData.GetScores(tlData.PrimaryAlgorithm);
+                    if (records != null && targetFrameIdx < records.Length)
+                    {
+                        displayScore = records[targetFrameIdx].RawScore;
+                    }
+                }
+
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     ViewerTitle = Loc.Format("UI.ViewerFrameTitle", source.FileName, targetFrameIdx + 1, source.Frames);
                     FrameDimensionsText = $"{outDispW} × {outDispH} px";
                     MaxPixelStatsText = Loc.Format("Messages.MaxPixelStats", mg, mr, mgreen, mb, det.Threshold8BitUsed);
-                    QualityScoreText = EnableQuality ? Loc.Format("Messages.QualityScoreFormatted", processed.QualityScore) : Loc.Get("Messages.QualityDisabled");
+                    QualityScoreText = EnableQuality ? Loc.Format("Messages.QualityScoreFormatted", displayScore) : Loc.Get("Messages.QualityDisabled");
+                    UpdateTimelineFrameHud(targetFrameIdx + 1);
                     ViewerStatusText = SelectedStabilisationModeIndex switch
                     {
                         1 => det.Accepted
@@ -278,7 +576,7 @@ public partial class MainWindowViewModel
                 _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
 
-                if (!IsWorkflowPreProcessingOnly &&
+                if (!IsWorkflowPreProcessingOnly && !IsPlaying &&
                     (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
                      (EnableCropping && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))))
                 {

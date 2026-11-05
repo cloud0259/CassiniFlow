@@ -63,6 +63,9 @@ public partial class MainWindowViewModel
         }
 
         UpdateAvailableFrames();
+        TimelineSelectionIn = 1;
+        TimelineSelectionOut = MaxFrameCount;
+        TriggerQualityTimelineAnalysis(value.FullPath);
         RequestPreviewUpdate(reloadFromDisk: true);
     }
 
@@ -485,7 +488,7 @@ public partial class MainWindowViewModel
 
                 try
                 {
-                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames);
+                    d = PlanetSizeAnalyzer.MeasureDiameterPixels(it.FullPath, it.Frames, samples: 3);
                 }
                 catch { }
 

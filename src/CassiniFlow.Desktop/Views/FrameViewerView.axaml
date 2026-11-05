@@ -29,16 +29,103 @@
             <controls:AstroViewerControl />
         </Border>
 
-        <!-- Contrôles de navigation temporelle Frame par Frame -->
+        <!-- Contrôles de navigation temporelle et Graphique de Qualité / Seeing (Ticket #61) -->
         <Border Grid.Row="2" Classes="groupbox" Padding="10,6">
             <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                    <Button Grid.Column="0" Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" Margin="0,0,4,0" ToolTip.Tip="{loc:Tr Menu.FirstFrame}"/>
-                    <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3" Margin="0,0,8,0"/>
-                    <Slider Grid.Column="2" Minimum="1" Maximum="{Binding MaxFrameCount}" Value="{Binding CurrentFrameIndex}" VerticalAlignment="Center"/>
-                    <Button Grid.Column="3" Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3" Margin="8,0,4,0"/>
-                    <Button Grid.Column="4" Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.LastFrame}"/>
+                <!-- Barre d'outils Timeline : Modes, Navigation, Hauteur -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Bascule Mode Chrono vs Trié + Bouton Meilleure trame -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                        <Button Content="{loc:Tr Viewer.TimelineChrono}"
+                                Command="{Binding ToggleTimelineModeCommand}"
+                                IsVisible="{Binding !IsTimelineChronological}"
+                                Padding="8,3" FontSize="11" />
+                        <Button Content="{loc:Tr Viewer.TimelineSorted}"
+                                Command="{Binding ToggleTimelineModeCommand}"
+                                IsVisible="{Binding IsTimelineChronological}"
+                                Padding="8,3" FontSize="11" />
+                        
+                        <!-- Bouton Meilleure Trame -->
+                        <Button Content="★ Best" Command="{Binding GoToBestFrameCommand}" Padding="6,3" FontSize="11"
+                                ToolTip.Tip="Aller directement à la trame ayant le meilleur score"/>
+                    </StackPanel>
+
+                    <!-- Indicateur discret de l'algorithme actif -->
+                    <TextBlock Grid.Column="1" Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#38bdf8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                    <!-- Bouton Agrandir / Réduire Timeline -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                        <Button Content="↕" Command="{Binding ToggleTimelineExpandedCommand}" Padding="6,3" FontSize="11"
+                                ToolTip.Tip="{loc:Tr Viewer.ToggleTimelineSize}"/>
+                    </StackPanel>
                 </Grid>
+
+                <!-- Zone Timeline avec AstroQualityTimelineControl et Loader élégant -->
+                <Grid Height="{Binding TimelineHeight}">
+                    <controls:AstroQualityTimelineControl
+                        TimelineData="{Binding QualityTimelineData}"
+                        CurrentFrameIndex="{Binding CurrentFrameIndex}"
+                        MaxFrameCount="{Binding MaxFrameCount}"
+                        SelectionStart="{Binding TimelineSelectionIn}"
+                        SelectionEnd="{Binding TimelineSelectionOut}"
+                        CutoffPercent="{Binding TimelineCutoffPercent}"
+                        IsChronologicalMode="{Binding IsTimelineChronological}"
+                        ShowGradientSharpness="True"
+                        ShowNinox="False"
+                        ShowPeakHistogram="False"
+                        ShowTotalBrightness="False"
+                        IsAnalyzing="{Binding IsTimelineAnalyzing}"
+                        AnalysisProgress="{Binding TimelineAnalysisProgress}"
+                        HoverFrameIndex="{Binding HoverFrameIndex, Mode=TwoWay}"
+                        HoverScore="{Binding HoverScore, Mode=TwoWay}"
+                        HoverRank="{Binding HoverRank, Mode=TwoWay}"
+                        IsHovered="{Binding IsTimelineHovered, Mode=TwoWay}" />
+
+                    <!-- Overlay Loader visible pendant l'analyse en arrière-plan -->
+                    <Border Background="#B8090d16"
+                            CornerRadius="4"
+                            IsVisible="{Binding IsTimelineAnalyzing}"
+                            IsHitTestVisible="False"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                                <ProgressBar Value="{Binding TimelineAnalysisProgress}" Minimum="0" Maximum="100"
+                                             Width="180" Height="6"
+                                             Foreground="#38bdf8" Background="#1e293b" />
+                                <TextBlock Text="{Binding TimelineProgressPercentText}"
+                                           Foreground="#38bdf8" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Tr Viewer.AnalyzingQuality}" 
+                                       Foreground="#94a3b8" FontSize="11" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Barre de Transport VCR & Informations de sélection -->
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <Button Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.FirstFrame}"/>
+                        <Button Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3"/>
+                        <Button Content="{Binding PlayPauseIcon}" Command="{Binding TogglePlayCommand}" Padding="10,3" ToolTip.Tip="Lecture / Pause" FontWeight="SemiBold"/>
+                        <Button Content="&gt;" Command="{Binding NextFrameCommand}" Padding="8,3"/>
+                        <Button Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.LastFrame}"/>
+                    </StackPanel>
+
+                    <!-- Seuil de sélection / Accordéon -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="{loc:Tr Viewer.CutoffKeepBest}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                        <Slider Minimum="5" Maximum="100" Value="{Binding TimelineCutoffPercent}" Width="110" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding RetainedFramesSummaryText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentSeeingText}" FontSize="11" Foreground="{DynamicResource AppAccentColor}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding CurrentFrameRankText}" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Ligne de statut HUD (Frame X/Y, Pixels, Score) -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <TextBlock Text="{loc:Tr UI.FrameLabel}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>

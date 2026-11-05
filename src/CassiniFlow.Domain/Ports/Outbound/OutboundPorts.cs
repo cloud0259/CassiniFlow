@@ -1,4 +1,4 @@
-﻿using CassiniFlow.Domain.Models;
+using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Models.ValueObjects;
 
 namespace CassiniFlow.Domain.Ports.Outbound;
@@ -50,4 +50,14 @@ public interface IProfileSerializer
     string SerializeToPof(ProcessingOptions options);
     ProcessingOptions ParseFromPof(string pofText);
     List<string> GenerateCommandLineArguments(ProcessingOptions options);
+}
+
+public interface IQualityTimelineScanner
+{
+    Task<IReadOnlyList<(int FrameIndex, double RawScore)>> ScanFileScoresAsync(
+        string filePath,
+        QualityAlgorithm algorithm,
+        ProcessingOptions options,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
 }

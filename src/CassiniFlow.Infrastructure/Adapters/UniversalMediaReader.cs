@@ -80,6 +80,19 @@ public static class UniversalMediaReader
         };
     }
 
+    public static VideoCapture OpenVideoCapture(string filePath)
+    {
+        try
+        {
+            var cap = new VideoCapture(filePath, VideoCaptureAPIs.FFMPEG);
+            if (cap.IsOpened()) return cap;
+            cap.Dispose();
+        }
+        catch { }
+
+        return new VideoCapture(filePath, VideoCaptureAPIs.ANY);
+    }
+
     public static void ClosePreviewCache()
     {
         lock (PreviewCapLock)
@@ -142,7 +155,7 @@ public static class UniversalMediaReader
                 return FfmpegCliBackend.InspectVideo(filePath) with { Metadata = astroMeta };
             }
 
-            using var cap = new VideoCapture(filePath);
+            using var cap = OpenVideoCapture(filePath);
             if (!cap.IsOpened())
                 return FfmpegCliBackend.InspectVideo(filePath) with { Metadata = astroMeta };
 
@@ -279,7 +292,7 @@ public static class UniversalMediaReader
                     _cachedPreviewCapture?.Dispose();
                     try
                     {
-                        _cachedPreviewCapture = new VideoCapture(filePath);
+                        _cachedPreviewCapture = OpenVideoCapture(filePath);
                     }
                     catch
                     {
@@ -304,9 +317,9 @@ public static class UniversalMediaReader
                 int total = Math.Max(1, _cachedPreviewCapture.FrameCount);
                 int target = Math.Clamp(frameIndex, 0, total - 1);
 
-                // Optimization for MP4/H.264 scrubbing: if target is just a few frames ahead, Grab() without full keyframe seek
+                // Optimization for MP4/H.264 scrubbing & playback: forward Grab() avoids costly keyframe re-decoding
                 int delta = target - _cachedNextFrameIndex;
-                if (delta > 0 && delta <= 10)
+                if (delta > 0 && delta <= 30)
                 {
                     for (int g = 0; g < delta; g++)
                     {
@@ -405,7 +418,7 @@ public static class UniversalMediaReader
                     _cachedPreviewCapture?.Dispose();
                     try
                     {
-                        _cachedPreviewCapture = new VideoCapture(filePath);
+                        _cachedPreviewCapture = OpenVideoCapture(filePath);
                     }
                     catch
                     {
@@ -1146,7 +1159,7 @@ public static class UniversalMediaReader
             VideoCapture? cap = null;
             try
             {
-                cap = new VideoCapture(filePath);
+                cap = OpenVideoCapture(filePath);
             }
             catch
             {

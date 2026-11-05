@@ -133,8 +133,8 @@ public static class CelestialTargetClassifier
                 DetailsEn: enDictErr["Celestial.CannotReadFrame"]);
         }
 
-        // Échantillonnage de plusieurs frames réparties dans la vidéo (jusqu'à 9 frames de 5% à 95%)
-        int samples = Math.Clamp(frameCount, 2, 9);
+        // Échantillonnage rapide de quelques frames réparties dans la vidéo (3 à 4 frames max pour réactivité instantanée)
+        int samples = Math.Clamp(frameCount, 2, 4);
         var loadedFrames = new List<(AstroFrame Frame, int OrigW, int OrigH, int FrameIndex)>();
 
         for (int i = 0; i < samples; i++)

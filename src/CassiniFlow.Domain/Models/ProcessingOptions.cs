@@ -327,4 +327,15 @@ public sealed class ProcessingOptions
                 break;
         }
     }
+
+    public ProcessingOptions Clone()
+    {
+        var clone = (ProcessingOptions)MemberwiseClone();
+        clone.ImageFiles = [.. ImageFiles];
+        clone.DarkFiles = [.. DarkFiles];
+        clone.FlatFiles = [.. FlatFiles];
+        clone.FlatDarkFiles = [.. FlatDarkFiles];
+        clone.Stacking = Stacking.Clone();
+        return clone;
+    }
 }
