@@ -10,6 +10,16 @@
                 <ColorPaletteResources x:Key="Light" Accent="#2563EB" />
             </FluentTheme.Palettes>
         </FluentTheme>
+        <!-- Polices système multiplateformes et fallback d'icônes/emojis pour Linux -->
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Ubuntu, Cantarell, Noto Sans, DejaVu Sans, Noto Color Emoji, Apple Color Emoji, Segoe UI Emoji, sans-serif"/>
+        </Style>
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Ubuntu, Cantarell, Noto Sans, DejaVu Sans, Noto Color Emoji, Apple Color Emoji, Segoe UI Emoji, sans-serif"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="FontFamily" Value="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Ubuntu, Cantarell, Noto Sans, DejaVu Sans, Noto Color Emoji, Apple Color Emoji, Segoe UI Emoji, sans-serif"/>
+        </Style>
         <Style Selector="Border.groupbox">
             <Setter Property="Background" Value="{DynamicResource AppPanelBackground}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
