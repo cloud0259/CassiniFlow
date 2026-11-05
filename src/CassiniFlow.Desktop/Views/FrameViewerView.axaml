@@ -50,11 +50,17 @@
                                 ToolTip.Tip="Aller directement à la trame ayant le meilleur score"/>
                     </StackPanel>
 
-                    <!-- Indicateur discret de l'algorithme actif et diagnostic Seeing de l'atmosphère -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ActiveQualityAlgorithmName}" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="#38bdf8" VerticalAlignment="Center" />
-                        <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center" />
+                    <!-- Indicateur des algorithmes actifs (Gradient cyan + Histogramme ambre par défaut) et Seeing -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border Background="#38bdf8" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center" IsVisible="{Binding TimelineShowGradient}"/>
+                        <TextBlock Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#38bdf8" VerticalAlignment="Center" IsVisible="{Binding TimelineShowGradient}"/>
+
+                        <Border Background="#fbbf24" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center" Margin="4,0,0,0" IsVisible="{Binding TimelineShowPeakHisto}"/>
+                        <TextBlock Text="Histogramme" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#fbbf24" VerticalAlignment="Center" IsVisible="{Binding TimelineShowPeakHisto}"/>
+
+                        <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center" Margin="2,0"/>
                         <TextBlock Text="{Binding CurrentSeeingText}" FontSize="11" Foreground="{DynamicResource AppAccentColor}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
 
@@ -75,10 +81,10 @@
                         SelectionEnd="{Binding TimelineSelectionOut}"
                         CutoffPercent="{Binding TimelineCutoffPercent}"
                         IsChronologicalMode="{Binding IsTimelineChronological}"
-                        ShowGradientSharpness="True"
-                        ShowNinox="False"
-                        ShowPeakHistogram="False"
-                        ShowTotalBrightness="False"
+                        ShowGradientSharpness="{Binding TimelineShowGradient}"
+                        ShowNinox="{Binding TimelineShowNinox}"
+                        ShowPeakHistogram="{Binding TimelineShowPeakHisto}"
+                        ShowTotalBrightness="{Binding TimelineShowTotalLum}"
                         IsAnalyzing="{Binding IsTimelineAnalyzing}"
                         AnalysisProgress="{Binding TimelineAnalysisProgress}"
                         HoverFrameIndex="{Binding HoverFrameIndex, Mode=TwoWay}"

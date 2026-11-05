@@ -25,29 +25,51 @@ public sealed class QualityTimelineUseCase : IQualityTimelineUseCase
         QualityAlgorithm algorithm,
         ProcessingOptions options,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<QualityAlgorithm>? companionAlgorithms = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(options);
 
         string cacheKey = BuildCacheKey(filePath);
-        if (_cache.TryGetValue(cacheKey, out var cachedSet))
+        _cache.TryGetValue(cacheKey, out var cachedSet);
+
+        // Algorithmes manquants (principal + compagnons) à calculer en une seule lecture du fichier
+        var missing = new List<QualityAlgorithm>();
+        if (cachedSet == null || !cachedSet.HasScoresFor(algorithm)) missing.Add(algorithm);
+        if (companionAlgorithms != null)
         {
-            if (cachedSet.HasScoresFor(algorithm))
+            foreach (var algo in companionAlgorithms)
             {
-                progress?.Report(100.0);
-                return cachedSet;
+                if (!missing.Contains(algo) && (cachedSet == null || !cachedSet.HasScoresFor(algo))) missing.Add(algo);
             }
         }
 
-        var rawScores = await _scanner.ScanFileScoresAsync(filePath, algorithm, options, progress, cancellationToken).ConfigureAwait(false);
-        int totalFrames = rawScores.Count;
+        if (missing.Count == 0 && cachedSet != null)
+        {
+            cachedSet.PrimaryAlgorithm = algorithm;
+            cachedSet.SetAlgorithmScores(algorithm, cachedSet.GetScores(algorithm)!, updateTurbulence: true);
+            progress?.Report(100.0);
+            return cachedSet;
+        }
 
-        var rankedRecords = QualityTimelineAnalyzer.NormalizeAndRank(rawScores);
+        var scans = await _scanner.ScanFileMultiScoresAsync(filePath, missing, options, progress, cancellationToken).ConfigureAwait(false);
 
+        int totalFrames = scans.TryGetValue(algorithm, out var primaryRaw) ? primaryRaw.Count : cachedSet?.TotalFrames ?? 0;
         var dataSet = cachedSet ?? new QualityTimelineDataSet(filePath, totalFrames, algorithm);
         dataSet.PrimaryAlgorithm = algorithm;
-        dataSet.SetAlgorithmScores(algorithm, rankedRecords, updateTurbulence: true);
+
+        foreach (var (algo, raw) in scans)
+        {
+            if (algo == algorithm) continue;
+            dataSet.SetAlgorithmScores(algo, QualityTimelineAnalyzer.NormalizeAndRank(raw), updateTurbulence: false);
+        }
+
+        // L'algorithme principal en dernier : il détermine meilleure trame et zones de turbulence
+        var primaryRecords = primaryRaw != null
+            ? QualityTimelineAnalyzer.NormalizeAndRank(primaryRaw)
+            : dataSet.GetScores(algorithm) ?? Array.Empty<FrameQualityRecord>();
+        dataSet.SetAlgorithmScores(algorithm, primaryRecords, updateTurbulence: true);
 
         _cache[cacheKey] = dataSet;
         progress?.Report(100.0);

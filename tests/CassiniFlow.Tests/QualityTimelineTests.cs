@@ -195,5 +195,35 @@ public class QualityTimelineTests
         Assert.Equal(1, dataSet.BestFrameIndex); // index 1 had score 5000.0
         Assert.NotEmpty(dataSet.TurbulenceZones);
     }
+
+    [Fact]
+    public async Task Benchmark_LunarSerScanPerformance()
+    {
+        string path = @"D:\Astro\Lune\29072026\pipp_20260731_115534\PXL_20260729_222044402_pipp.ser";
+        if (!File.Exists(path)) return;
+
+        var scanner = new CassiniFlow.Infrastructure.Adapters.QualityTimelineScanner();
+        var options = new ProcessingOptions
+        {
+            EnableCropping = true,
+            CropWidth = 512,
+            CropHeight = 512
+        };
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var results = await scanner.ScanFileMultiScoresAsync(
+            path,
+            new[] { QualityAlgorithm.GradientSharpness, QualityAlgorithm.PeakHistogram },
+            options);
+        sw.Stop();
+
+        Assert.NotNull(results);
+        Assert.True(results.ContainsKey(QualityAlgorithm.GradientSharpness));
+        Assert.True(results.ContainsKey(QualityAlgorithm.PeakHistogram));
+        Assert.Equal(505, results[QualityAlgorithm.GradientSharpness].Count);
+
+        // Affiche la durée en console de test
+        Console.WriteLine($"[BENCHMARK] 505 images (4.18 Go) analysées en : {sw.ElapsedMilliseconds} ms ({sw.ElapsedMilliseconds / 505.0:F1} ms/frame)");
+    }
 }
 

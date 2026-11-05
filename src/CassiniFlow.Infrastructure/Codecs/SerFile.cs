@@ -767,6 +767,195 @@ public sealed unsafe class SerFile : IDisposable
         return totalGrad / (roiW * roiH);
     }
 
+    /// <summary>
+    /// Métriques de qualité calculées en une seule passe pour la timeline (Gradient, Histogramme crête, Luminance).
+    /// </summary>
+    public readonly record struct TimelineFrameMetrics(double Gradient, double PeakHistogram, double TotalBrightness);
+
+    /// <summary>
+    /// Analyse ultra-légère dédiée à la timeline de qualité.
+    /// Contrairement à <see cref="AnalyzeFrameZeroAlloc"/>, elle ne lit qu'un nombre borné de lignes
+    /// (détection grossière ≈ 100 lignes + ≈ 128 lignes échantillonnées dans la ROI), ce qui divise par
+    /// 5 à 10 le volume de pages mémoire lues sur disque pour les vidéos 4K, et calcule tous les
+    /// algorithmes (Gradient/Ninox, Histogramme crête, Luminance totale) dans la même passe.
+    /// Le classement relatif des trames est préservé (seul usage de la timeline). Zéro allocation heap.
+    /// </summary>
+    public TimelineFrameMetrics ComputeTimelineMetricsZeroAlloc(
+        int frameIndex,
+        ProcessingOptions options,
+        int serBitDepthOverride = 0)
+    {
+        if (frameIndex < 0 || frameIndex >= Header.FrameCount) return default;
+
+        int w = Header.ImageWidth;
+        int h = Header.ImageHeight;
+        if (w < 16 || h < 16) return default;
+
+        byte* pFrame = _basePtr + SerHeader.HeaderSizeBytes + frameIndex * Header.BytesPerFrame;
+        int planes = Header.Planes;
+        bool is8Bit = Header.BytesPerPixelPlane == 1;
+        int effectiveBitDepth = serBitDepthOverride is >= 8 and <= 16 ? serBitDepthOverride : Header.PixelDepthPerPlane;
+        int shift16 = is8Bit ? 0 : Math.Clamp(16 - effectiveBitDepth, 0, 8);
+        int chOffset = planes == 3 ? 1 : 0; // canal vert pour RGB/BGR
+        bool isBayer = Header.IsBayer;
+
+        // ── 1. Détection grossière de l'objet (≈ 100 lignes lues) ─────────────────────────
+        int dStep = Math.Max(4, Math.Min(w, h) / 100);
+        if (isBayer) dStep = (dStep + 1) & ~1;
+        int gridW = (w + dStep - 1) / dStep;
+        int gridH = (h + dStep - 1) / dStep;
+
+        Span<int> hist = stackalloc int[256];
+        hist.Clear();
+        Span<int> rowCounts = gridH <= 2048 ? stackalloc int[gridH] : new int[gridH];
+        Span<int> colCounts = gridW <= 2048 ? stackalloc int[gridW] : new int[gridW];
+        rowCounts.Clear();
+        colCounts.Clear();
+
+        int samples = 0;
+        for (int y = 0; y < h; y += dStep)
+        {
+            int rowBase = y * w;
+            for (int x = 0; x < w; x += dStep)
+            {
+                hist[SampleLum16(pFrame, (rowBase + x) * planes + chOffset, is8Bit, shift16) >> 8]++;
+                samples++;
+            }
+        }
+
+        // Fond de ciel = 10e percentile, maximum = 99.8e percentile (robuste aux pixels chauds)
+        int sky8 = PercentileFromHistogram(hist, samples, 0.10);
+        int max8 = PercentileFromHistogram(hist, samples, 0.998);
+        int thresh8 = options.AutoDetectionThreshold
+            ? Math.Clamp(sky8 + Math.Max(6, (int)((max8 - sky8) * 0.14)), 4, 230)
+            : Math.Clamp(options.ManualDetectionThreshold, 1, 254);
+
+        long sumX = 0, sumY = 0;
+        int hits = 0;
+        for (int gy = 0, y = 0; y < h; y += dStep, gy++)
+        {
+            int rowBase = y * w;
+            for (int gx = 0, x = 0; x < w; x += dStep, gx++)
+            {
+                if ((SampleLum16(pFrame, (rowBase + x) * planes + chOffset, is8Bit, shift16) >> 8) >= thresh8)
+                {
+                    rowCounts[gy]++;
+                    colCounts[gx]++;
+                    sumX += x;
+                    sumY += y;
+                    hits++;
+                }
+            }
+        }
+
+        int cx = w / 2, cy = h / 2;
+        int bx0 = 0, by0 = 0, bx1 = w, by1 = h;
+        bool objectFound = hits >= 4;
+        if (objectFound)
+        {
+            cx = (int)(sumX / hits);
+            cy = (int)(sumY / hits);
+            int gx0 = 0; while (gx0 < gridW - 1 && colCounts[gx0] < 2) gx0++;
+            int gx1 = gridW - 1; while (gx1 > gx0 && colCounts[gx1] < 2) gx1--;
+            int gy0 = 0; while (gy0 < gridH - 1 && rowCounts[gy0] < 2) gy0++;
+            int gy1 = gridH - 1; while (gy1 > gy0 && rowCounts[gy1] < 2) gy1--;
+            int margin = dStep * 2;
+            bx0 = Math.Max(0, gx0 * dStep - margin);
+            bx1 = Math.Min(w, (gx1 + 1) * dStep + margin);
+            by0 = Math.Max(0, gy0 * dStep - margin);
+            by1 = Math.Min(h, (gy1 + 1) * dStep + margin);
+        }
+
+        // ── 2. ROI d'évaluation (recadrage utilisateur prioritaire, sinon boîte de l'objet) ──
+        int rx0, ry0, rx1, ry1;
+        bool centreObject = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        if (options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly && options.EnableCropping)
+        {
+            int cropW = Math.Clamp(options.CropWidth, 16, w);
+            int cropH = Math.Clamp(options.CropHeight, 16, h);
+            int tx = (centreObject && objectFound ? cx : w / 2) - options.CropOffsetX;
+            int ty = (centreObject && objectFound ? cy : h / 2) - options.CropOffsetY;
+            rx0 = Math.Clamp(tx - cropW / 2, 0, Math.Max(0, w - cropW));
+            ry0 = Math.Clamp(ty - cropH / 2, 0, Math.Max(0, h - cropH));
+            rx1 = Math.Min(w, rx0 + cropW);
+            ry1 = Math.Min(h, ry0 + cropH);
+        }
+        else
+        {
+            rx0 = bx0; ry0 = by0; rx1 = bx1; ry1 = by1;
+        }
+
+        // ── 3. Passe unique échantillonnée : gradient + histogramme + luminance ──────────
+        int robustOffset = Math.Clamp(options.Stacking.NoiseRobust, 1, 8) - 2;
+        int gStep = Math.Max(2, 3 + robustOffset);
+        if (isBayer) gStep = (gStep + 1) & ~1; // même filtre couleur, sans débayérisation
+
+        int roiW = rx1 - rx0 - gStep;
+        int roiH = ry1 - ry0 - gStep;
+        if (roiW < 8 || roiH < 8) return default;
+
+        const int TargetRows = 128;
+        const int TargetCols = 512;
+        int rowStride = Math.Max(gStep, roiH / TargetRows);
+        int colStride = Math.Max(1, roiW / TargetCols);
+        if (isBayer) { rowStride = (rowStride + 1) & ~1; colStride = (colStride + 1) & ~1; }
+
+        int noiseFloor16 = objectFound ? Math.Max(sky8 + 3, thresh8 / 2) * 257 : 0;
+        long gradSum = 0;
+        long lumSum = 0;
+        double peakSum = 0;
+        int count = 0;
+        int yEnd = ry0 + roiH;
+        int xEnd = rx0 + roiW;
+
+        for (int y = ry0; y < yEnd; y += rowStride)
+        {
+            int rowBase = y * w;
+            int downBase = (y + gStep) * w;
+            for (int x = rx0; x < xEnd; x += colStride)
+            {
+                int c = SampleLum16(pFrame, (rowBase + x) * planes + chOffset, is8Bit, shift16);
+                int v8 = c >> 8;
+                lumSum += c;
+                if (v8 >= 16) peakSum += v8 * v8;
+                count++;
+
+                if (c < noiseFloor16) continue;
+                int right = SampleLum16(pFrame, (rowBase + x + gStep) * planes + chOffset, is8Bit, shift16);
+                int down = SampleLum16(pFrame, (downBase + x) * planes + chOffset, is8Bit, shift16);
+                int dx = c - right; if (dx < 0) dx = -dx;
+                int dy = c - down; if (dy < 0) dy = -dy;
+                gradSum += dx + dy;
+            }
+        }
+
+        if (count == 0) return default;
+        return new TimelineFrameMetrics(
+            Gradient: (double)gradSum / count,
+            PeakHistogram: peakSum / count,
+            TotalBrightness: (double)lumSum / count);
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static int SampleLum16(byte* pFrame, int idx, bool is8Bit, int shift16)
+    {
+        if (is8Bit) return pFrame[idx] * 257;
+        int v = ((ushort*)pFrame)[idx] << shift16;
+        return v > 65535 ? 65535 : v;
+    }
+
+    private static int PercentileFromHistogram(ReadOnlySpan<int> hist, int total, double fraction)
+    {
+        int target = Math.Max(1, (int)(total * fraction));
+        int acc = 0;
+        for (int i = 0; i < hist.Length; i++)
+        {
+            acc += hist[i];
+            if (acc >= target) return i;
+        }
+        return hist.Length - 1;
+    }
+
     public long GetRawTimestamp(int frameIndex) =>
         (frameIndex >= 0 && frameIndex < _frameTimestamps.Length) ? _frameTimestamps[frameIndex] : 0;
 

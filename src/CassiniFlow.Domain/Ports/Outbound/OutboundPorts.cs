@@ -60,4 +60,23 @@ public interface IQualityTimelineScanner
         ProcessingOptions options,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Calcule plusieurs algorithmes de qualité en une seule lecture du fichier.
+    /// L'implémentation par défaut enchaîne les scans individuels (adaptateurs simples / tests).
+    /// </summary>
+    async Task<IReadOnlyDictionary<QualityAlgorithm, IReadOnlyList<(int FrameIndex, double RawScore)>>> ScanFileMultiScoresAsync(
+        string filePath,
+        IReadOnlyList<QualityAlgorithm> algorithms,
+        ProcessingOptions options,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new Dictionary<QualityAlgorithm, IReadOnlyList<(int FrameIndex, double RawScore)>>();
+        foreach (var algo in algorithms.Distinct())
+        {
+            result[algo] = await ScanFileScoresAsync(filePath, algo, options, progress, cancellationToken).ConfigureAwait(false);
+        }
+        return result;
+    }
 }

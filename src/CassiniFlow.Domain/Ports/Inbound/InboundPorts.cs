@@ -79,7 +79,8 @@ public interface IQualityTimelineUseCase
         QualityAlgorithm algorithm,
         ProcessingOptions options,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<QualityAlgorithm>? companionAlgorithms = null);
 
     Task ComputeAdditionalAlgorithmAsync(
         QualityTimelineDataSet dataset,

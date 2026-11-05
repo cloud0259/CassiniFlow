@@ -54,8 +54,8 @@ public partial class MainWindowViewModel
     public string TimelineExpandIcon => IsTimelineExpanded ? "▼" : "▲";
     [ObservableProperty] private double _timelineHeight = 110;
     [ObservableProperty] private bool _timelineShowGradient = true;
-    [ObservableProperty] private bool _timelineShowNinox = true;
-    [ObservableProperty] private bool _timelineShowPeakHisto;
+    [ObservableProperty] private bool _timelineShowPeakHisto = true;
+    [ObservableProperty] private bool _timelineShowNinox;
     [ObservableProperty] private bool _timelineShowTotalLum;
     [ObservableProperty] private int _timelineSelectionIn = 1;
     [ObservableProperty] private int _timelineSelectionOut = 1;
@@ -238,7 +238,8 @@ public partial class MainWindowViewModel
                     optionsSnapshot.QualityAlgorithm,
                     optionsSnapshot,
                     progress,
-                    token).ConfigureAwait(false);
+                    token,
+                    companionAlgorithms: new[] { QualityAlgorithm.GradientSharpness, QualityAlgorithm.PeakHistogram }).ConfigureAwait(false);
 
                 if (!token.IsCancellationRequested)
                 {
