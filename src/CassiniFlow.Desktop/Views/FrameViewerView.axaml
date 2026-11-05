@@ -32,10 +32,10 @@
         <!-- Contrôles de navigation temporelle et Graphique de Qualité / Seeing (Ticket #61) -->
         <Border Grid.Row="2" Classes="groupbox" Padding="10,6">
             <StackPanel Spacing="6">
-                <!-- Barre d'outils Timeline : Modes, Navigation, Bornes IN/OUT, Hauteur -->
+                <!-- Barre d'outils Timeline : Modes, Navigation, Hauteur -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <!-- Bascule Mode Chrono vs Trié + Bouton Meilleure trame + Raccourcis IN/OUT -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                    <!-- Bascule Mode Chrono vs Trié + Bouton Meilleure trame -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
                         <Button Content="{loc:Tr Viewer.TimelineChrono}"
                                 Command="{Binding ToggleTimelineModeCommand}"
                                 IsVisible="{Binding !IsTimelineChronological}"
@@ -48,14 +48,6 @@
                         <!-- Bouton Meilleure Trame -->
                         <Button Content="★ Best" Command="{Binding GoToBestFrameCommand}" Padding="6,3" FontSize="11"
                                 ToolTip.Tip="Aller directement à la trame ayant le meilleur score"/>
-
-                        <!-- Définition rapide des bornes IN et OUT pour la vidéo courante -->
-                        <Button Content="[ IN" Command="{Binding SetSelectionInToCurrentFrameCommand}" Padding="6,3" FontSize="11" Margin="4,0,0,0"
-                                ToolTip.Tip="Définir le début (IN) sur l'image courante"/>
-                        <Button Content="OUT ]" Command="{Binding SetSelectionOutToCurrentFrameCommand}" Padding="6,3" FontSize="11"
-                                ToolTip.Tip="Définir la fin (OUT) sur l'image courante"/>
-                        <Button Content="↺" Command="{Binding ResetSelectionCommand}" Padding="6,3" FontSize="11"
-                                ToolTip.Tip="Réinitialiser les bornes IN / OUT de cette vidéo"/>
                     </StackPanel>
 
                     <!-- Indicateur discret de l'algorithme actif et diagnostic Seeing de l'atmosphère -->

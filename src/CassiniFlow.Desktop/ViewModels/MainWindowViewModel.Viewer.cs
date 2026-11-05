@@ -114,35 +114,6 @@ public partial class MainWindowViewModel
         UpdateRetainedFramesSummary();
     }
 
-    [RelayCommand]
-    public void SetSelectionInToCurrentFrame()
-    {
-        int cur = CurrentFrameIndex;
-        if (cur >= TimelineSelectionOut)
-        {
-            TimelineSelectionOut = Math.Min(MaxFrameCount, cur + 1);
-        }
-        TimelineSelectionIn = cur;
-    }
-
-    [RelayCommand]
-    public void SetSelectionOutToCurrentFrame()
-    {
-        int cur = CurrentFrameIndex;
-        if (cur <= TimelineSelectionIn)
-        {
-            TimelineSelectionIn = Math.Max(1, cur - 1);
-        }
-        TimelineSelectionOut = cur;
-    }
-
-    [RelayCommand]
-    public void ResetSelection()
-    {
-        TimelineSelectionIn = 1;
-        TimelineSelectionOut = MaxFrameCount;
-    }
-
     partial void OnTimelineCutoffPercentChanged(int value)
     {
         QualityKeepValue = value;
