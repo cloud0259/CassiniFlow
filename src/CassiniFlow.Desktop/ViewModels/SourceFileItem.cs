@@ -61,14 +61,26 @@ public sealed partial class SourceFileItem : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomRange))]
     [NotifyPropertyChangedFor(nameof(RangeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(EffectiveFrames))]
     private int _selectionIn = 1;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCustomRange))]
-    [NotifyPropertyChangedFor(nameof(RangeSummaryText))]
-    private int _selectionOut = 1;
+    private int _selectionOut;
+    public int SelectionOut
+    {
+        get => _selectionOut > 0 ? _selectionOut : Math.Max(1, Frames);
+        set
+        {
+            if (SetProperty(ref _selectionOut, value))
+            {
+                OnPropertyChanged(nameof(HasCustomRange));
+                OnPropertyChanged(nameof(RangeSummaryText));
+                OnPropertyChanged(nameof(EffectiveFrames));
+            }
+        }
+    }
 
-    public bool HasCustomRange => SelectionIn > 1 || SelectionOut < Frames;
+    public bool HasCustomRange => SelectionIn > 1 || (SelectionOut > 0 && SelectionOut < Frames);
+    public int EffectiveFrames => HasCustomRange ? Math.Max(0, SelectionOut - SelectionIn + 1) : Math.Max(1, Frames);
     public string RangeSummaryText => HasCustomRange
         ? $"Plage : {SelectionIn} – {SelectionOut} ({Math.Max(0, SelectionOut - SelectionIn + 1)} fr)"
         : $"{Frames} fr";

@@ -67,6 +67,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isJoinMode;
     partial void OnIsJoinModeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private bool _limitFrameRange;
+    partial void OnLimitFrameRangeChanged(bool value) => UpdateAvailableFrames();
     [ObservableProperty] private int _startFrame = 1;
     [ObservableProperty] private int _endFrame = 1000;
     [ObservableProperty] private int _selectedPresetIndex = 0;

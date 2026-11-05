@@ -60,7 +60,20 @@ public static class ExecutionLogGenerator
         {
             foreach (var f in sourceFiles)
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"  - {f}");
+                if (options.FileFrameRanges != null && options.FileFrameRanges.TryGetValue(f, out var customRange))
+                {
+                    int count = Math.Max(0, customRange.EndFrame - customRange.StartFrame + 1);
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  - {f} [Frames: {customRange.StartFrame}–{customRange.EndFrame} ({count} fr)]");
+                }
+                else if (options.LimitFrameRange)
+                {
+                    int count = Math.Max(0, options.EndFrame - options.StartFrame + 1);
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  - {f} [Frames: {options.StartFrame}–{options.EndFrame} ({count} fr)]");
+                }
+                else
+                {
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  - {f}");
+                }
             }
         }
         sb.AppendLine();

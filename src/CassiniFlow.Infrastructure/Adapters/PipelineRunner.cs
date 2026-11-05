@@ -451,9 +451,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             firstWidth = info.Width;
             firstHeight = info.Height;
 
-            int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
-            int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
-            totalInputFrames += Math.Max(0, endIdx - startIdx + 1);
+            var (_, _, effectiveCount) = options.GetEffectiveFrameRange(path, info.FrameCount);
+            totalInputFrames += effectiveCount;
         }
 
         double outFps = options.AviFpsSameAsInput ? Math.Max(1.0, sourceFps) : Math.Max(1.0, options.AviFpsValue);
@@ -542,8 +541,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 {
                     string path = groupFiles[fIdx];
                     var info = fileSummaries[fIdx];
-                    int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
-                    int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
+                    var (fStart, fEnd, _) = options.GetEffectiveFrameRange(path, info.FrameCount);
+                    int startIdx = fStart - 1;
+                    int endIdx = fEnd - 1;
 
                     StreamFramesThroughProcessor(
                         path,
@@ -584,8 +584,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     {
                         string path = groupFiles[fIdx];
                         var info = fileSummaries[fIdx];
-                        int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
-                        int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
+                        var (fStart, fEnd, _) = options.GetEffectiveFrameRange(path, info.FrameCount);
+                        int startIdx = fStart - 1;
+                        int endIdx = fEnd - 1;
 
                         StreamFramesThroughProcessor(
                             path,
@@ -996,9 +997,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         {
             string path = groupFiles[fIdx];
             var info = fileSummaries[fIdx];
-            int startIdx = options.LimitFrameRange ? Math.Max(0, options.StartFrame - 1) : 0;
-            int endIdx = options.LimitFrameRange ? Math.Min(info.FrameCount - 1, options.EndFrame - 1) : info.FrameCount - 1;
-            int fileTotal = Math.Max(0, endIdx - startIdx + 1);
+            var (fStart, fEnd, fileTotal) = options.GetEffectiveFrameRange(path, info.FrameCount);
+            int startIdx = fStart - 1;
+            int endIdx = fEnd - 1;
             if (fileTotal == 0) continue;
 
             string ext = Path.GetExtension(path).ToLowerInvariant();

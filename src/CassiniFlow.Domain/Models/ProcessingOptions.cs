@@ -42,6 +42,39 @@ public sealed class ProcessingOptions
     /// </summary>
     public Dictionary<string, (int StartFrame, int EndFrame)> FileFrameRanges { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Calcule la plage d'images effective [StartFrame, EndFrame] (1-basée) et le nombre total d'images
+    /// à traiter pour un fichier donné, en appliquant les plages personnalisées par fichier (FileFrameRanges)
+    /// ou la limitation globale (LimitFrameRange).
+    /// </summary>
+    public (int StartFrame, int EndFrame, int EffectiveCount) GetEffectiveFrameRange(string filePath, int rawFrameCount)
+    {
+        if (rawFrameCount <= 0)
+        {
+            return (1, 1, 0);
+        }
+
+        int fileStart = 1;
+        int fileEnd = rawFrameCount;
+
+        if (FileFrameRanges != null && FileFrameRanges.TryGetValue(filePath, out var customRange))
+        {
+            fileStart = customRange.StartFrame;
+            fileEnd = customRange.EndFrame;
+        }
+        else if (LimitFrameRange)
+        {
+            fileStart = StartFrame;
+            fileEnd = EndFrame;
+        }
+
+        int startIdx = Math.Clamp(fileStart - 1, 0, rawFrameCount - 1);
+        int endIdx = Math.Clamp(fileEnd - 1, startIdx, rawFrameCount - 1);
+        int count = Math.Max(0, endIdx - startIdx + 1);
+
+        return (startIdx + 1, endIdx + 1, count);
+    }
+
     public BinningMode Binning { get; set; } = BinningMode.Disabled;
     public BinningCalculation BinCalculation { get; set; } = BinningCalculation.Average;
 

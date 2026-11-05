@@ -307,11 +307,14 @@ public partial class MainWindowViewModel
 
     private void OnSourceFileItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+        if (e.PropertyName is nameof(SourceFileItem.IsChecked) or nameof(SourceFileItem.SelectionIn) or nameof(SourceFileItem.SelectionOut))
         {
             UpdateAvailableFrames();
-            OnPropertyChanged(nameof(AreAllFilesChecked));
-            NotifyStartProcessingValidation();
+            if (e.PropertyName == nameof(SourceFileItem.IsChecked))
+            {
+                OnPropertyChanged(nameof(AreAllFilesChecked));
+                NotifyStartProcessingValidation();
+            }
         }
     }
 

@@ -80,6 +80,10 @@ public partial class MainWindowViewModel
         {
             file.SelectionIn = value;
         }
+        if (LimitFrameRange)
+        {
+            UpdateAvailableFrames();
+        }
     }
 
     partial void OnEndFrameChanged(int value)
@@ -91,6 +95,10 @@ public partial class MainWindowViewModel
         if (SelectedSourceFile is { } file && file.SelectionOut != value)
         {
             file.SelectionOut = value;
+        }
+        if (LimitFrameRange)
+        {
+            UpdateAvailableFrames();
         }
     }
 

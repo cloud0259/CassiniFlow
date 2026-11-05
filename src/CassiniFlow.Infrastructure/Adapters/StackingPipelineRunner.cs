@@ -88,7 +88,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             string baseStem = Path.GetFileNameWithoutExtension(file);
 
             var summary = UniversalMediaReader.InspectFile(file);
-            int expectedTotalFrames = Math.Max(1, summary.FrameCount);
+            var (fileStart, fileEnd, framesToAnalyze) = options.GetEffectiveFrameRange(file, summary.FrameCount);
+            int expectedTotalFrames = Math.Max(1, framesToAnalyze);
             string ext = Path.GetExtension(file).ToLowerInvariant();
 
             progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), 1, fileName, 0, expectedTotalFrames, _loc.Format("Progress.FastSharpnessEval", expectedTotalFrames)));
@@ -105,21 +106,10 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             {
                 using var ser = new SerFile(file);
                 int totalFrames = ser.Header.FrameCount;
-                int fileStart = 1;
-                int fileEnd = totalFrames;
-                if (options.FileFrameRanges != null && options.FileFrameRanges.TryGetValue(file, out var customRange))
-                {
-                    fileStart = customRange.StartFrame;
-                    fileEnd = customRange.EndFrame;
-                }
-                else if (options.LimitFrameRange)
-                {
-                    fileStart = options.StartFrame;
-                    fileEnd = options.EndFrame;
-                }
-                int startIdx = Math.Clamp(fileStart - 1, 0, Math.Max(0, totalFrames - 1));
-                int endIdx = Math.Clamp(fileEnd - 1, startIdx, Math.Max(0, totalFrames - 1));
-                int framesToAnalyze = Math.Max(0, endIdx - startIdx + 1);
+                var (serStart, serEnd, serFramesToAnalyze) = options.GetEffectiveFrameRange(file, totalFrames);
+                int startIdx = serStart - 1;
+                int endIdx = serEnd - 1;
+                framesToAnalyze = Math.Max(0, endIdx - startIdx + 1);
 
                 var records = new FrameScoreRecord?[totalFrames];
                 int processedCount = 0;
@@ -234,18 +224,23 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             }
             else
             {
-                scoreRecords = new List<FrameScoreRecord>(expectedTotalFrames);
+                int startIdx = fileStart - 1;
+                int endIdx = fileEnd - 1;
+                scoreRecords = new List<FrameScoreRecord>(framesToAnalyze);
                 double bestQuality = double.MinValue;
                 int pass1Processed = 0;
-                int reportStep = Math.Max(10, expectedTotalFrames / 40);
+                int reportStep = Math.Max(10, framesToAnalyze / 40);
 
                 foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (raw.FrameIndex < startIdx) continue;
+                    if (raw.FrameIndex > endIdx) break;
+
                     totalInputFrames++;
                     pass1Processed++;
 
-                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat, expectedTotalFrames);
+                    var workFrame = PrepareFrame(raw, options, out int cx, out int cy, out bool accepted, masterDark, masterFlat, framesToAnalyze);
                     if (!accepted)
                     {
                         discardedNoPlanet++;
@@ -265,10 +260,10 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                         bestRefFrame = workFrame.Clone();
                     }
 
-                    if (pass1Processed % reportStep == 0 || pass1Processed == expectedTotalFrames)
+                    if (pass1Processed % reportStep == 0 || pass1Processed == framesToAnalyze)
                     {
-                        int pct = Math.Clamp((int)Math.Round((double)pass1Processed / expectedTotalFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, expectedTotalFrames, _loc.Format("Progress.QualityEvalProgress", pass1Processed, expectedTotalFrames, pct)));
+                        int pct = Math.Clamp((int)Math.Round((double)pass1Processed / framesToAnalyze * 45.0), 1, 45);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", pass1Processed, framesToAnalyze, pct)));
                     }
                 }
             }
@@ -474,7 +469,11 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         var allTierSummaries = new List<StackedTierSummary>();
         int maxWorkers = PipelineRunner.GetSafeWorkerThreadCount(options);
 
-        int totalExpectedFrames = validFiles.Sum(f => Math.Max(1, UniversalMediaReader.InspectFile(f).FrameCount));
+        int totalExpectedFrames = validFiles.Sum(f =>
+        {
+            var summary = UniversalMediaReader.InspectFile(f);
+            return Math.Max(1, options.GetEffectiveFrameRange(f, summary.FrameCount).EffectiveCount);
+        });
         int globalPass1Count = 0;
 
         var allScoreRecords = new List<FrameScoreRecord>(totalExpectedFrames);
@@ -596,11 +595,15 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             {
                 using var ser = new SerFile(file);
                 int totalFrames = ser.Header.FrameCount;
+                var (serStart, serEnd, framesToAnalyze) = options.GetEffectiveFrameRange(file, totalFrames);
+                int startIdx = serStart - 1;
+                int endIdx = serEnd - 1;
+
                 var records = new FrameScoreRecord?[totalFrames];
                 int fileBestIdx = -1;
                 double fileBestScore = double.MinValue;
 
-                Parallel.For(0, totalFrames, new ParallelOptions
+                Parallel.For(startIdx, endIdx + 1, new ParallelOptions
                 {
                     MaxDegreeOfParallelism = maxWorkers,
                     CancellationToken = cancellationToken
@@ -651,8 +654,14 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     }
                 });
 
-                totalInputFrames += totalFrames;
-                allScoreRecords.AddRange(records.Where(r => r.HasValue).Select(r => r!.Value));
+                totalInputFrames += framesToAnalyze;
+                for (int i = startIdx; i <= endIdx; i++)
+                {
+                    if (records[i].HasValue)
+                    {
+                        allScoreRecords.Add(records[i]!.Value);
+                    }
+                }
 
                 if (fileBestIdx >= 0 && fileBestScore > bestQuality)
                 {
@@ -676,7 +685,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                          options,
                          maxWorkers,
                          progress,
-                         _loc.Get("Progress.QualityAnalysisMerge"),
+                         _loc.Get("Progress.QualityAnalysisJoin"),
                          ref discardedNoPlanet,
                          ref totalInputFrames,
                          cancellationToken,
@@ -698,9 +707,17 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             }
             else
             {
+                var fileInfo = UniversalMediaReader.InspectFile(file);
+                var (fileStart, fileEnd, _) = options.GetEffectiveFrameRange(file, fileInfo.FrameCount);
+                int startIdx = fileStart - 1;
+                int endIdx = fileEnd - 1;
+
                 foreach (var raw in UniversalMediaReader.EnumerateFrames(file))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (raw.FrameIndex < startIdx) continue;
+                    if (raw.FrameIndex > endIdx) break;
+
                     totalInputFrames++;
                     int done = Interlocked.Increment(ref globalPass1Count);
 
@@ -1276,21 +1293,10 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         int rawCount = Math.Max(expectedTotalFrames, testCap.FrameCount);
         testCap.Dispose();
 
-        int fileStart = 1;
-        int fileEnd = rawCount;
-        if (options.FileFrameRanges != null && options.FileFrameRanges.TryGetValue(filePath, out var customRange))
-        {
-            fileStart = customRange.StartFrame;
-            fileEnd = customRange.EndFrame;
-        }
-        else if (options.LimitFrameRange)
-        {
-            fileStart = options.StartFrame;
-            fileEnd = options.EndFrame;
-        }
-        int startIdx = Math.Clamp(fileStart - 1, 0, Math.Max(0, rawCount - 1));
-        int endIdx = Math.Clamp(fileEnd - 1, startIdx, Math.Max(0, rawCount - 1));
-        int framesToAnalyze = Math.Max(1, endIdx - startIdx + 1);
+        var (fileStart, fileEnd, framesToAnalyze) = options.GetEffectiveFrameRange(filePath, rawCount);
+        int startIdx = fileStart - 1;
+        int endIdx = fileEnd - 1;
+        framesToAnalyze = Math.Max(1, framesToAnalyze);
 
         var records = new ConcurrentBag<FrameScoreRecord>();
         int localProcessed = 0;
