@@ -680,7 +680,7 @@ public partial class MainWindowViewModel
 
                 if (!IsWorkflowPreProcessingOnly && !IsPlaying &&
                     (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
-                     (EnableCropping && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))))
+                     CurrentAlignmentGrid.FrameWidth != processed.Width || CurrentAlignmentGrid.FrameHeight != processed.Height))
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
                 }

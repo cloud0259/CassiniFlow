@@ -911,38 +911,73 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
 
     private AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions)
     {
-        if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom &&
-            custom.FrameWidth == bestRefFrame.Width &&
-            custom.FrameHeight == bestRefFrame.Height)
+        if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom)
         {
-            int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : bestRefFrame.Width / 2;
-            int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : bestRefFrame.Height / 2;
-            int dxAnchor = custom.AnchorPoint.X > 0 ? (targetAnchorX - custom.AnchorPoint.X) : 0;
-            int dyAnchor = custom.AnchorPoint.Y > 0 ? (targetAnchorY - custom.AnchorPoint.Y) : 0;
-
-            int w = bestRefFrame.Width;
-            int h = bestRefFrame.Height;
-
-            var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
-            foreach (var p in custom.Points)
+            if (custom.FrameWidth == bestRefFrame.Width && custom.FrameHeight == bestRefFrame.Height)
             {
-                int half = Math.Max(8, p.Size / 2);
-                int nx = Math.Clamp(p.X + dxAnchor, half, Math.Max(half, w - half));
-                int ny = Math.Clamp(p.Y + dyAnchor, half, Math.Max(half, h - half));
-                clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, p.Size, p.IsActive)
-                {
-                    Brightness = p.Brightness,
-                    Contrast = p.Contrast
-                });
-            }
+                int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : bestRefFrame.Width / 2;
+                int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : bestRefFrame.Height / 2;
+                int dxAnchor = custom.AnchorPoint.X > 0 ? (targetAnchorX - custom.AnchorPoint.X) : 0;
+                int dyAnchor = custom.AnchorPoint.Y > 0 ? (targetAnchorY - custom.AnchorPoint.Y) : 0;
 
-            return new AlignmentGrid(
-                custom.TileSize,
-                custom.MinBrightness,
-                clonedPoints,
-                (targetAnchorX, targetAnchorY),
-                custom.FrameWidth,
-                custom.FrameHeight);
+                int w = bestRefFrame.Width;
+                int h = bestRefFrame.Height;
+
+                var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
+                foreach (var p in custom.Points)
+                {
+                    int half = Math.Max(8, p.Size / 2);
+                    int nx = Math.Clamp(p.X + dxAnchor, half, Math.Max(half, w - half));
+                    int ny = Math.Clamp(p.Y + dyAnchor, half, Math.Max(half, h - half));
+                    clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, p.Size, p.IsActive)
+                    {
+                        Brightness = p.Brightness,
+                        Contrast = p.Contrast
+                    });
+                }
+
+                return new AlignmentGrid(
+                    custom.TileSize,
+                    custom.MinBrightness,
+                    clonedPoints,
+                    (targetAnchorX, targetAnchorY),
+                    custom.FrameWidth,
+                    custom.FrameHeight);
+            }
+            else if (custom.FrameWidth > 0 && custom.FrameHeight > 0 && bestRefFrame.Width > 0 && bestRefFrame.Height > 0)
+            {
+                // Adaptation proportionnelle de la grille personnalisée si la dimension du fichier diffère
+                double scaleX = (double)bestRefFrame.Width / custom.FrameWidth;
+                double scaleY = (double)bestRefFrame.Height / custom.FrameHeight;
+                double scale = Math.Min(scaleX, scaleY);
+                int scaledTile = Math.Clamp((int)Math.Round(custom.TileSize * scale), 16, Math.Max(16, Math.Min(bestRefFrame.Width, bestRefFrame.Height) / 2));
+
+                int w = bestRefFrame.Width;
+                int h = bestRefFrame.Height;
+                int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : (int)Math.Round(custom.AnchorPoint.X * scaleX);
+                int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : (int)Math.Round(custom.AnchorPoint.Y * scaleY);
+
+                var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
+                foreach (var p in custom.Points)
+                {
+                    int half = Math.Max(8, scaledTile / 2);
+                    int nx = Math.Clamp((int)Math.Round(p.X * scaleX), half, Math.Max(half, w - half));
+                    int ny = Math.Clamp((int)Math.Round(p.Y * scaleY), half, Math.Max(half, h - half));
+                    clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, scaledTile, p.IsActive)
+                    {
+                        Brightness = p.Brightness,
+                        Contrast = p.Contrast
+                    });
+                }
+
+                return new AlignmentGrid(
+                    scaledTile,
+                    custom.MinBrightness,
+                    clonedPoints,
+                    (targetAnchorX, targetAnchorY),
+                    w,
+                    h);
+            }
         }
 
         return AlignmentGridGenerator.GenerateGrid(bestRefFrame, stackingOptions);
