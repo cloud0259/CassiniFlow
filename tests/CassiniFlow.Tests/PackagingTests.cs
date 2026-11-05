@@ -83,6 +83,8 @@ public class PackagingTests
         string debContent = File.ReadAllText(buildDebSh);
         Assert.Contains("dpkg-deb --build", debContent);
         Assert.Contains("cassiniflow", debContent);
+        Assert.Contains("pixmaps", debContent);
+        Assert.Contains("pixmaps", installContent);
     }
 
     [Fact]
@@ -108,4 +110,3 @@ public class PackagingTests
         Assert.Contains($"{ver?.Major}.{ver?.Minor}.{ver?.Build}", versionText);
     }
 }
-

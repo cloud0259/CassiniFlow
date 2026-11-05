@@ -29,6 +29,9 @@ mkdir -p "$DEB_PACKAGE_DIR/opt/cassiniflow/cli"
 mkdir -p "$DEB_PACKAGE_DIR/usr/local/bin"
 mkdir -p "$DEB_PACKAGE_DIR/usr/share/applications"
 mkdir -p "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/64x64/apps"
+mkdir -p "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/32x32/apps"
+mkdir -p "$DEB_PACKAGE_DIR/usr/share/pixmaps"
 mkdir -p "$OUTPUT_DIR"
 
 # 1. Copie des fichiers publiés Desktop et CLI
@@ -82,6 +85,9 @@ chmod +x "$DEB_PACKAGE_DIR/usr/local/bin/cassiniflow-cli"
 # 3. Fichier Desktop et icône
 cp "$SCRIPT_DIR/cassiniflow.desktop" "$DEB_PACKAGE_DIR/usr/share/applications/cassiniflow.desktop"
 cp "$ROOT_DIR/src/CassiniFlow.Desktop/Assets/icon_256x256.png" "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/256x256/apps/cassiniflow.png"
+cp "$ROOT_DIR/src/CassiniFlow.Desktop/Assets/icon_64x64.png" "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/64x64/apps/cassiniflow.png"
+cp "$ROOT_DIR/src/CassiniFlow.Desktop/Assets/icon_32x32.png" "$DEB_PACKAGE_DIR/usr/share/icons/hicolor/32x32/apps/cassiniflow.png"
+cp "$ROOT_DIR/src/CassiniFlow.Desktop/Assets/icon_256x256.png" "$DEB_PACKAGE_DIR/usr/share/pixmaps/cassiniflow.png"
 
 # 4. Fichier de contrôle DEBIAN/control
 INSTALLED_SIZE=$(du -sk "$DEB_PACKAGE_DIR" | cut -f1)
@@ -121,4 +127,3 @@ dpkg-deb --build --root-owner-group "$DEB_PACKAGE_DIR" "$OUTPUT_DIR/cassiniflow_
 cp "$OUTPUT_DIR/cassiniflow_${VERSION}_amd64.deb" "$OUTPUT_DIR/cassiniflow-linux-x64.deb"
 
 echo "✓ Paquet Debian généré : $OUTPUT_DIR/cassiniflow_${VERSION}_amd64.deb"
-

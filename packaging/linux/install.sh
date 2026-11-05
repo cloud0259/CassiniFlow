@@ -25,7 +25,13 @@ else
     echo "=== Installation utilisateur de $DISPLAY_NAME dans $TARGET_DIR ==="
 fi
 
-mkdir -p "$TARGET_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR"
+if [ "$EUID" -eq 0 ]; then
+    PIXMAP_DIR="/usr/share/pixmaps"
+else
+    PIXMAP_DIR="$HOME/.local/share/pixmaps"
+fi
+
+mkdir -p "$TARGET_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$PIXMAP_DIR"
 
 echo "Copie des fichiers de l'application..."
 if [ -d "$SCRIPT_DIR/Desktop" ]; then
@@ -72,8 +78,10 @@ fi
 # Icône
 if [ -f "$TARGET_DIR/Assets/icon_256x256.png" ]; then
     cp "$TARGET_DIR/Assets/icon_256x256.png" "$ICON_DIR/$APP_NAME.png"
+    cp "$TARGET_DIR/Assets/icon_256x256.png" "$PIXMAP_DIR/$APP_NAME.png"
 elif [ -f "$SCRIPT_DIR/icon_256x256.png" ]; then
     cp "$SCRIPT_DIR/icon_256x256.png" "$ICON_DIR/$APP_NAME.png"
+    cp "$SCRIPT_DIR/icon_256x256.png" "$PIXMAP_DIR/$APP_NAME.png"
 fi
 
 # Fichier .desktop
@@ -90,4 +98,3 @@ fi
 
 echo "✓ Installation de $DISPLAY_NAME terminée avec succès !"
 echo "Vous pouvez lancer l'application avec la commande : $APP_NAME"
-
