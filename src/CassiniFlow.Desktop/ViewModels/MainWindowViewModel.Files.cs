@@ -260,7 +260,7 @@ public partial class MainWindowViewModel
         ConsoleLogText = Loc.Format("Messages.FilesLoaded", SourceFiles.Count, firstNew.FileName, firstNew.Resolution, firstNew.Frames, firstNew.FpsInfo);
 
         UpdateAvailableFrames();
-        await AnalyzePlanetSizes();
+        await AnalyzePlanetSizes(validItems);
     }
 
 
@@ -479,7 +479,19 @@ public partial class MainWindowViewModel
     [RelayCommand]
     public async Task AnalyzePlanetSizes()
     {
-        var items = SourceFiles.ToList();
+        var unmeasured = SourceFiles.Where(f => !f.PlanetDiameterPx.HasValue).ToList();
+        var targets = unmeasured.Count > 0 ? unmeasured : SourceFiles.ToList();
+        await AnalyzePlanetSizesInternal(targets);
+    }
+
+    public async Task AnalyzePlanetSizes(IEnumerable<SourceFileItem>? targetItems)
+    {
+        var items = (targetItems ?? SourceFiles).ToList();
+        await AnalyzePlanetSizesInternal(items);
+    }
+
+    private async Task AnalyzePlanetSizesInternal(List<SourceFileItem> items)
+    {
         if (items.Count == 0) return;
 
         IsMeasuringPlanetSizes = true;
