@@ -32,10 +32,10 @@
         <!-- Contrôles de navigation temporelle et Graphique de Qualité / Seeing (Ticket #61) -->
         <Border Grid.Row="2" Classes="groupbox" Padding="10,6">
             <StackPanel Spacing="6">
-                <!-- Barre d'outils Timeline : Modes, Navigation, Hauteur -->
+                <!-- Barre d'outils Timeline : Modes, Navigation, Bornes IN/OUT, Hauteur -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <!-- Bascule Mode Chrono vs Trié + Bouton Meilleure trame -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <!-- Bascule Mode Chrono vs Trié + Bouton Meilleure trame + Raccourcis IN/OUT -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
                         <Button Content="{loc:Tr Viewer.TimelineChrono}"
                                 Command="{Binding ToggleTimelineModeCommand}"
                                 IsVisible="{Binding !IsTimelineChronological}"
@@ -48,15 +48,27 @@
                         <!-- Bouton Meilleure Trame -->
                         <Button Content="★ Best" Command="{Binding GoToBestFrameCommand}" Padding="6,3" FontSize="11"
                                 ToolTip.Tip="Aller directement à la trame ayant le meilleur score"/>
+
+                        <!-- Définition rapide des bornes IN et OUT pour la vidéo courante -->
+                        <Button Content="[ IN" Command="{Binding SetSelectionInToCurrentFrameCommand}" Padding="6,3" FontSize="11" Margin="4,0,0,0"
+                                ToolTip.Tip="Définir le début (IN) sur l'image courante"/>
+                        <Button Content="OUT ]" Command="{Binding SetSelectionOutToCurrentFrameCommand}" Padding="6,3" FontSize="11"
+                                ToolTip.Tip="Définir la fin (OUT) sur l'image courante"/>
+                        <Button Content="↺" Command="{Binding ResetSelectionCommand}" Padding="6,3" FontSize="11"
+                                ToolTip.Tip="Réinitialiser les bornes IN / OUT de cette vidéo"/>
                     </StackPanel>
 
-                    <!-- Indicateur discret de l'algorithme actif -->
-                    <TextBlock Grid.Column="1" Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
-                               Foreground="#38bdf8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <!-- Indicateur discret de l'algorithme actif et diagnostic Seeing de l'atmosphère -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#38bdf8" VerticalAlignment="Center" />
+                        <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CurrentSeeingText}" FontSize="11" Foreground="{DynamicResource AppAccentColor}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
 
-                    <!-- Bouton Agrandir / Réduire Timeline -->
+                    <!-- Bouton Agrandir / Réduire Timeline (icône dynamique) -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                        <Button Content="↕" Command="{Binding ToggleTimelineExpandedCommand}" Padding="6,3" FontSize="11"
+                        <Button Content="{Binding TimelineExpandIcon}" Command="{Binding ToggleTimelineExpandedCommand}" Padding="8,3" FontSize="11"
                                 ToolTip.Tip="{loc:Tr Viewer.ToggleTimelineSize}"/>
                     </StackPanel>
                 </Grid>
@@ -102,9 +114,9 @@
                     </Border>
                 </Grid>
 
-                <!-- Barre de Transport VCR & Informations de sélection -->
-                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                <!-- Ligne 1 : Barre de Transport VCR & Curseur 'Garder' centré -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <Button Content="|&lt;" Command="{Binding FirstFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.FirstFrame}"/>
                         <Button Content="&lt;" Command="{Binding PreviousFrameCommand}" Padding="8,3"/>
                         <Button Content="{Binding PlayPauseIcon}" Command="{Binding TogglePlayCommand}" Padding="10,3" ToolTip.Tip="Lecture / Pause" FontWeight="SemiBold"/>
@@ -112,28 +124,31 @@
                         <Button Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.LastFrame}"/>
                     </StackPanel>
 
-                    <!-- Seuil de sélection / Accordéon -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <!-- Seuil de sélection 'Garder' centré sans aucun élément qui déborde -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="{loc:Tr Viewer.CutoffKeepBest}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                        <Slider Minimum="5" Maximum="100" Value="{Binding TimelineCutoffPercent}" Width="110" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding RetainedFramesSummaryText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center"/>
+                        <Slider Minimum="5" Maximum="100" Value="{Binding TimelineCutoffPercent}" Width="120" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding RetainedFramesSummaryText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppAccentColor}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding CurrentSeeingText}" FontSize="11" Foreground="{DynamicResource AppAccentColor}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding CurrentFrameRankText}" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
-                    </StackPanel>
+                    <!-- Espace équilibré à droite -->
+                    <Border Grid.Column="2" Width="10" />
                 </Grid>
 
-                <!-- Ligne de statut HUD (Frame X/Y, Pixels, Score) -->
-                <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Ligne 2 : Statut HUD aéré (Image & Rang à gauche, Capteur au centre, Score Qualité à droite) -->
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <TextBlock Text="{loc:Tr UI.FrameLabel}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock Text="{Binding CurrentFrameIndex}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
                         <TextBlock Text="/" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"/>
                         <TextBlock Text="{Binding MaxFrameCount}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="4,0"/>
+                        <TextBlock Text="{Binding CurrentFrameRankText}" FontSize="11" Foreground="{DynamicResource AppTextPrimary}"/>
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12,0"/>
+
+                    <TextBlock Grid.Column="1" Text="{Binding MaxPixelStatsText}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
+
                     <TextBlock Grid.Column="2" Text="{Binding QualityScoreText}" FontSize="11" Foreground="#22c55e" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </StackPanel>

@@ -48,7 +48,10 @@ public partial class MainWindowViewModel
     private double _timelineAnalysisProgress;
     public string TimelineProgressPercentText => $"{Math.Round(TimelineAnalysisProgress)} %";
     [ObservableProperty] private bool _isTimelineChronological = true;
-    [ObservableProperty] private bool _isTimelineExpanded;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TimelineExpandIcon))]
+    private bool _isTimelineExpanded;
+    public string TimelineExpandIcon => IsTimelineExpanded ? "▼" : "▲";
     [ObservableProperty] private double _timelineHeight = 110;
     [ObservableProperty] private bool _timelineShowGradient = true;
     [ObservableProperty] private bool _timelineShowNinox = true;
@@ -67,16 +70,77 @@ public partial class MainWindowViewModel
 
     private CancellationTokenSource? _timelineCts;
 
+    partial void OnStartFrameChanged(int value)
+    {
+        if (TimelineSelectionIn != value)
+        {
+            TimelineSelectionIn = value;
+        }
+        if (SelectedSourceFile is { } file && file.SelectionIn != value)
+        {
+            file.SelectionIn = value;
+        }
+    }
+
+    partial void OnEndFrameChanged(int value)
+    {
+        if (TimelineSelectionOut != value)
+        {
+            TimelineSelectionOut = value;
+        }
+        if (SelectedSourceFile is { } file && file.SelectionOut != value)
+        {
+            file.SelectionOut = value;
+        }
+    }
+
     partial void OnTimelineSelectionInChanged(int value)
     {
-        StartFrame = value;
+        if (StartFrame != value) StartFrame = value;
+        if (SelectedSourceFile is { } file && file.SelectionIn != value)
+        {
+            file.SelectionIn = value;
+        }
         UpdateRetainedFramesSummary();
     }
 
     partial void OnTimelineSelectionOutChanged(int value)
     {
-        EndFrame = value;
+        if (EndFrame != value) EndFrame = value;
+        if (SelectedSourceFile is { } file && file.SelectionOut != value)
+        {
+            file.SelectionOut = value;
+        }
         UpdateRetainedFramesSummary();
+    }
+
+    [RelayCommand]
+    public void SetSelectionInToCurrentFrame()
+    {
+        int cur = CurrentFrameIndex;
+        if (cur >= TimelineSelectionOut)
+        {
+            TimelineSelectionOut = Math.Min(MaxFrameCount, cur + 1);
+        }
+        TimelineSelectionIn = cur;
+    }
+
+    [RelayCommand]
+    public void SetSelectionOutToCurrentFrame()
+    {
+        int cur = CurrentFrameIndex;
+        if (cur <= TimelineSelectionIn)
+        {
+            TimelineSelectionIn = Math.Max(1, cur - 1);
+        }
+        TimelineSelectionOut = cur;
+    }
+
+    [RelayCommand]
+    public void ResetSelection()
+    {
+        TimelineSelectionIn = 1;
+        TimelineSelectionOut = MaxFrameCount;
     }
 
     partial void OnTimelineCutoffPercentChanged(int value)
@@ -171,8 +235,16 @@ public partial class MainWindowViewModel
                         QualityTimelineData = dataset;
                         IsTimelineAnalyzing = false;
                         TimelineAnalysisProgress = 100.0;
-                        TimelineSelectionIn = 1;
-                        TimelineSelectionOut = dataset.TotalFrames;
+
+                        // Conserver le découpage temporel propre à chaque fichier
+                        if (SelectedSourceFile is { } curFile && string.Equals(curFile.FullPath, filePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            int selIn = curFile.SelectionIn > 0 ? curFile.SelectionIn : 1;
+                            int selOut = curFile.SelectionOut > 0 ? curFile.SelectionOut : dataset.TotalFrames;
+                            TimelineSelectionIn = Math.Clamp(selIn, 1, dataset.TotalFrames);
+                            TimelineSelectionOut = Math.Clamp(selOut, TimelineSelectionIn, dataset.TotalFrames);
+                        }
+
                         UpdateTimelineFrameHud(CurrentFrameIndex);
                         UpdateRetainedFramesSummary();
                     });

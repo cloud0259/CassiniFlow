@@ -141,5 +141,44 @@ public class QualityTimelineTests
 
         Assert.True(dataset.HasScoresFor(QualityAlgorithm.PeakHistogram));
     }
+
+    [Fact]
+    public void ProcessingOptions_FileFrameRanges_ClonesAndStoresIndividually()
+    {
+        var options = new ProcessingOptions();
+        options.FileFrameRanges["video1.mp4"] = (10, 80);
+        options.FileFrameRanges["video2.mp4"] = (50, 200);
+
+        var clone = options.Clone();
+
+        Assert.Equal(2, clone.FileFrameRanges.Count);
+        Assert.Equal((10, 80), clone.FileFrameRanges["video1.mp4"]);
+        Assert.Equal((50, 200), clone.FileFrameRanges["video2.mp4"]);
+
+        // Mutating clone does not affect original
+        clone.FileFrameRanges["video1.mp4"] = (15, 90);
+        Assert.Equal((10, 80), options.FileFrameRanges["video1.mp4"]);
+    }
+
+    [Fact]
+    public void SourceFileItem_CustomRange_ReflectsInSummaryAndHasCustomRange()
+    {
+        var item = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars.ser",
+            Frames = 500,
+            SelectionIn = 1,
+            SelectionOut = 500
+        };
+
+        Assert.False(item.HasCustomRange);
+        Assert.Equal("500 fr", item.RangeSummaryText);
+
+        item.SelectionIn = 50;
+        item.SelectionOut = 300;
+
+        Assert.True(item.HasCustomRange);
+        Assert.Equal("Plage : 50 – 300 (251 fr)", item.RangeSummaryText);
+    }
 }
 

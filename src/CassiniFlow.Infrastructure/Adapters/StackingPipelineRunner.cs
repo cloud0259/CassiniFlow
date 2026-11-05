@@ -105,8 +105,20 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             {
                 using var ser = new SerFile(file);
                 int totalFrames = ser.Header.FrameCount;
-                int startIdx = options.LimitFrameRange ? Math.Clamp(options.StartFrame - 1, 0, Math.Max(0, totalFrames - 1)) : 0;
-                int endIdx = options.LimitFrameRange ? Math.Clamp(options.EndFrame - 1, startIdx, Math.Max(0, totalFrames - 1)) : totalFrames - 1;
+                int fileStart = 1;
+                int fileEnd = totalFrames;
+                if (options.FileFrameRanges != null && options.FileFrameRanges.TryGetValue(file, out var customRange))
+                {
+                    fileStart = customRange.StartFrame;
+                    fileEnd = customRange.EndFrame;
+                }
+                else if (options.LimitFrameRange)
+                {
+                    fileStart = options.StartFrame;
+                    fileEnd = options.EndFrame;
+                }
+                int startIdx = Math.Clamp(fileStart - 1, 0, Math.Max(0, totalFrames - 1));
+                int endIdx = Math.Clamp(fileEnd - 1, startIdx, Math.Max(0, totalFrames - 1));
                 int framesToAnalyze = Math.Max(0, endIdx - startIdx + 1);
 
                 var records = new FrameScoreRecord?[totalFrames];
@@ -1264,8 +1276,20 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         int rawCount = Math.Max(expectedTotalFrames, testCap.FrameCount);
         testCap.Dispose();
 
-        int startIdx = options.LimitFrameRange ? Math.Clamp(options.StartFrame - 1, 0, Math.Max(0, rawCount - 1)) : 0;
-        int endIdx = options.LimitFrameRange ? Math.Clamp(options.EndFrame - 1, startIdx, Math.Max(0, rawCount - 1)) : Math.Max(0, rawCount - 1);
+        int fileStart = 1;
+        int fileEnd = rawCount;
+        if (options.FileFrameRanges != null && options.FileFrameRanges.TryGetValue(filePath, out var customRange))
+        {
+            fileStart = customRange.StartFrame;
+            fileEnd = customRange.EndFrame;
+        }
+        else if (options.LimitFrameRange)
+        {
+            fileStart = options.StartFrame;
+            fileEnd = options.EndFrame;
+        }
+        int startIdx = Math.Clamp(fileStart - 1, 0, Math.Max(0, rawCount - 1));
+        int endIdx = Math.Clamp(fileEnd - 1, startIdx, Math.Max(0, rawCount - 1));
         int framesToAnalyze = Math.Max(1, endIdx - startIdx + 1);
 
         var records = new ConcurrentBag<FrameScoreRecord>();

@@ -313,15 +313,7 @@ public sealed class AstroQualityTimelineControl : Control
             if (ShowGradientSharpness) DrawAlgorithmCurve(context, data, QualityAlgorithm.GradientSharpness, GradPen, w, h, total);
         }
 
-        // 5. If analyzing in background, draw sleek glowing progress bar along the bottom
-        if (IsAnalyzing)
-        {
-            double progW = Math.Clamp(AnalysisProgress / 100.0 * w, 2, w);
-            var progBrush = new SolidColorBrush(Color.FromArgb(180, 56, 189, 248));
-            context.DrawRectangle(progBrush, null, new Rect(0, h - 3, progW, 3));
-        }
-
-        // 6. Draw IN and OUT handles (in Chronological mode)
+        // 5. Draw IN and OUT handles (in Chronological mode)
         if (IsChronologicalMode)
         {
             int selIn = Math.Clamp(SelectionStart, 1, total);
@@ -511,6 +503,18 @@ public sealed class AstroQualityTimelineControl : Control
         double w = Bounds.Width;
         int total = Math.Max(1, MaxFrameCount);
 
+        // 1. Priorité au curseur de l'image (Scrubber)
+        double scrubX = GetScrubberX(w, total, TimelineData);
+        if (Math.Abs(x - scrubX) <= 6)
+        {
+            _activeDrag = DragMode.Scrubber;
+            Cursor = SizeWeCursor;
+            e.Pointer.Capture(this);
+            CurrentFrameIndex = GetFrameIndexFromX(x);
+            return;
+        }
+
+        // 2. Poignées de sélection temporelle IN et OUT (mode chronologique)
         if (IsChronologicalMode)
         {
             double xIn = ((double)(SelectionStart - 1) / total) * w;
@@ -532,8 +536,9 @@ public sealed class AstroQualityTimelineControl : Control
             }
         }
 
+        // 3. Clic direct ailleurs : déplace la frame courante
         _activeDrag = DragMode.Scrubber;
-        Cursor = DragCursor;
+        Cursor = SizeWeCursor;
         e.Pointer.Capture(this);
         CurrentFrameIndex = GetFrameIndexFromX(x);
     }
@@ -549,7 +554,7 @@ public sealed class AstroQualityTimelineControl : Control
         switch (_activeDrag)
         {
             case DragMode.Scrubber:
-                Cursor = DragCursor;
+                Cursor = SizeWeCursor;
                 CurrentFrameIndex = GetFrameIndexFromX(x);
                 break;
             case DragMode.HandleIn:
@@ -590,14 +595,17 @@ public sealed class AstroQualityTimelineControl : Control
             IsHovered = false;
         }
 
-        // Update cursor icon when approaching handles or hovering over timeline
+        // Update cursor icon when approaching handles or the current frame scrubber
         if (_activeDrag == DragMode.None)
         {
+            double scrubX = GetScrubberX(w, total, TimelineData);
+            bool overScrubber = Math.Abs(x - scrubX) <= 6;
+
             if (IsChronologicalMode)
             {
                 double xIn = ((double)(SelectionStart - 1) / total) * w;
                 double xOut = ((double)SelectionEnd / total) * w;
-                if (Math.Abs(x - xIn) <= 6 || Math.Abs(x - xOut) <= 6)
+                if (Math.Abs(x - xIn) <= 6 || Math.Abs(x - xOut) <= 6 || overScrubber)
                 {
                     Cursor = SizeWeCursor;
                 }
@@ -608,7 +616,7 @@ public sealed class AstroQualityTimelineControl : Control
             }
             else
             {
-                Cursor = HandCursor;
+                Cursor = overScrubber ? SizeWeCursor : HandCursor;
             }
         }
     }

@@ -144,9 +144,12 @@
                                                     <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
                                                 </Border>
                                             </Grid>
-                                            <!-- Ligne 2 : Frames • Taille • Résolution • Diamètre • Expo/Gain -->
+                                            <!-- Ligne 2 : Frames (ou Plage personnalisée IN/OUT) • Taille • Résolution • Diamètre • Expo/Gain -->
                                             <WrapPanel Grid.Row="1" Margin="24,3,0,0" Orientation="Horizontal">
-                                                <TextBlock Text="{Binding Frames, StringFormat='{}{0} fr'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding Frames, StringFormat='{}{0} fr'}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0" IsVisible="{Binding !HasCustomRange}"/>
+                                                <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="#38bdf8" BorderThickness="1" CornerRadius="3" Padding="4,1" Margin="0,0,8,0" IsVisible="{Binding HasCustomRange}" ToolTip.Tip="Plage temporelle IN / OUT spécifique à cette vidéo">
+                                                    <TextBlock Text="{Binding RangeSummaryText}" FontSize="10" FontWeight="SemiBold" Foreground="#38bdf8"/>
+                                                </Border>
                                                 <TextBlock Text="{Binding FileSize}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,8,0"/>
                                                 <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" Margin="0,0,8,0"/>
                                                 <TextBlock Text="{Binding PlanetSizeText, StringFormat='{}⌀ {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppBadgeAccent}" Margin="0,0,8,0"/>

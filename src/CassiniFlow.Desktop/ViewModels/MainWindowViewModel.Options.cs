@@ -496,6 +496,15 @@ public partial class MainWindowViewModel
         Options.StartFrame = Math.Max(1, StartFrame);
         Options.EndFrame = Math.Max(Options.StartFrame, EndFrame);
 
+        Options.FileFrameRanges.Clear();
+        foreach (var file in SourceFiles)
+        {
+            if (file.SelectionIn > 1 || file.SelectionOut < file.Frames)
+            {
+                Options.FileFrameRanges[file.FullPath] = (file.SelectionIn, file.SelectionOut);
+            }
+        }
+
         Options.DarkFiles = DarkFiles.ToList();
         Options.FlatFiles = FlatFiles.ToList();
         Options.FlatDarkFiles = FlatDarkFiles.ToList();

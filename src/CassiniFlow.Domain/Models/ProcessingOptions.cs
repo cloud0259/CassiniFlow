@@ -36,6 +36,12 @@ public sealed class ProcessingOptions
     public int EndFrame { get; set; } = 999999;
     public int NumFramesFromCentre { get; set; } = 1000;
 
+    /// <summary>
+    /// Découpage temporel individuel par fichier [IN, OUT] (1-basé : StartFrame, EndFrame).
+    /// Permet de respecter les sélections personnalisées de chaque vidéo en mode Multi-fichiers.
+    /// </summary>
+    public Dictionary<string, (int StartFrame, int EndFrame)> FileFrameRanges { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public BinningMode Binning { get; set; } = BinningMode.Disabled;
     public BinningCalculation BinCalculation { get; set; } = BinningCalculation.Average;
 
@@ -335,6 +341,7 @@ public sealed class ProcessingOptions
         clone.DarkFiles = [.. DarkFiles];
         clone.FlatFiles = [.. FlatFiles];
         clone.FlatDarkFiles = [.. FlatDarkFiles];
+        clone.FileFrameRanges = new Dictionary<string, (int, int)>(FileFrameRanges, StringComparer.OrdinalIgnoreCase);
         clone.Stacking = Stacking.Clone();
         return clone;
     }

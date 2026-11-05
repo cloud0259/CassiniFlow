@@ -56,5 +56,21 @@ public sealed partial class SourceFileItem : ObservableObject
     public bool HasCameraInfo => !string.IsNullOrEmpty(Metadata.Camera);
     public bool HasTelescopeInfo => !string.IsNullOrEmpty(Metadata.Telescope);
     public bool HasAstroDetails => Metadata.ExposureTimeSeconds.HasValue || Metadata.Iso.HasValue || Metadata.Gain.HasValue;
+
+    // Découpage temporel individuel par vidéo (IN et OUT)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomRange))]
+    [NotifyPropertyChangedFor(nameof(RangeSummaryText))]
+    private int _selectionIn = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomRange))]
+    [NotifyPropertyChangedFor(nameof(RangeSummaryText))]
+    private int _selectionOut = 1;
+
+    public bool HasCustomRange => SelectionIn > 1 || SelectionOut < Frames;
+    public string RangeSummaryText => HasCustomRange
+        ? $"Plage : {SelectionIn} – {SelectionOut} ({Math.Max(0, SelectionOut - SelectionIn + 1)} fr)"
+        : $"{Frames} fr";
 }
 

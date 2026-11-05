@@ -46,7 +46,6 @@ public partial class MainWindowViewModel
         }
 
         MaxFrameCount = Math.Max(1, value.Frames);
-        EndFrame = MaxFrameCount;
         CurrentFrameIndex = 1;
         OutputFps = Math.Max(1, (int)Math.Round(value.Fps));
         TargetBoxX = Math.Max(16, value.Width / 2);
@@ -63,8 +62,15 @@ public partial class MainWindowViewModel
         }
 
         UpdateAvailableFrames();
-        TimelineSelectionIn = 1;
-        TimelineSelectionOut = MaxFrameCount;
+        int selIn = value.SelectionIn > 0 ? value.SelectionIn : 1;
+        int selOut = value.SelectionOut > 0 ? value.SelectionOut : MaxFrameCount;
+        selIn = Math.Clamp(selIn, 1, MaxFrameCount);
+        selOut = Math.Clamp(selOut, selIn, MaxFrameCount);
+
+        StartFrame = selIn;
+        EndFrame = selOut;
+        TimelineSelectionIn = selIn;
+        TimelineSelectionOut = selOut;
         TriggerQualityTimelineAnalysis(value.FullPath);
         RequestPreviewUpdate(reloadFromDisk: true);
     }
@@ -186,6 +192,8 @@ public partial class MainWindowViewModel
                             FullPath = path,
                             FormatBadge = summary.FormatBadge,
                             Frames = summary.FrameCount,
+                            SelectionIn = 1,
+                            SelectionOut = Math.Max(1, summary.FrameCount),
                             Width = summary.Width,
                             Height = summary.Height,
                             Fps = summary.Fps,
