@@ -50,15 +50,27 @@
                                 ToolTip.Tip="Aller directement à la trame ayant le meilleur score"/>
                     </StackPanel>
 
-                    <!-- Indicateur des algorithmes actifs (Gradient cyan + Histogramme ambre par défaut) et Seeing -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Border Background="#38bdf8" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center" IsVisible="{Binding TimelineShowGradient}"/>
-                        <TextBlock Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="#38bdf8" VerticalAlignment="Center" IsVisible="{Binding TimelineShowGradient}"/>
+                    <!-- Choix interactif des courbes actives (Gradient par défaut + Histogramme optionnel) & Seeing -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- Checkbox Gradient (cyan) -->
+                        <CheckBox IsChecked="{Binding TimelineShowGradient}" Margin="0" Padding="4,0,0,0" VerticalAlignment="Center"
+                                  ToolTip.Tip="Afficher la courbe de netteté par gradient">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Border Background="#38bdf8" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center"/>
+                                <TextBlock Text="{loc:Tr Viewer.AlgoGradient}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#38bdf8" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </CheckBox>
 
-                        <Border Background="#fbbf24" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center" Margin="4,0,0,0" IsVisible="{Binding TimelineShowPeakHisto}"/>
-                        <TextBlock Text="Histogramme" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="#fbbf24" VerticalAlignment="Center" IsVisible="{Binding TimelineShowPeakHisto}"/>
+                        <!-- Checkbox Histogramme (ambre) -->
+                        <CheckBox IsChecked="{Binding TimelineShowPeakHisto}" Margin="4,0,0,0" Padding="4,0,0,0" VerticalAlignment="Center"
+                                  ToolTip.Tip="Afficher la courbe de qualité par histogramme de crête">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Border Background="#fbbf24" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center"/>
+                                <TextBlock Text="Histogramme" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#fbbf24" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </CheckBox>
 
                         <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" VerticalAlignment="Center" Margin="2,0"/>
                         <TextBlock Text="{Binding CurrentSeeingText}" FontSize="11" Foreground="{DynamicResource AppAccentColor}" FontWeight="SemiBold" VerticalAlignment="Center" />

@@ -54,7 +54,7 @@ public partial class MainWindowViewModel
     public string TimelineExpandIcon => IsTimelineExpanded ? "▼" : "▲";
     [ObservableProperty] private double _timelineHeight = 110;
     [ObservableProperty] private bool _timelineShowGradient = true;
-    [ObservableProperty] private bool _timelineShowPeakHisto = true;
+    [ObservableProperty] private bool _timelineShowPeakHisto;
     [ObservableProperty] private bool _timelineShowNinox;
     [ObservableProperty] private bool _timelineShowTotalLum;
     [ObservableProperty] private int _timelineSelectionIn = 1;

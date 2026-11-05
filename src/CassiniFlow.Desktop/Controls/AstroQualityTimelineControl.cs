@@ -307,25 +307,44 @@ public sealed class AstroQualityTimelineControl : Control
         // 4. Draw Curves for algorithms
         if (data != null)
         {
-            // Dessine toujours obligatoirement l'algorithme principal actif du dataset
-            var primaryPen = data.PrimaryAlgorithm switch
-            {
-                QualityAlgorithm.OriginalNinox => NinoxPen,
-                QualityAlgorithm.PeakHistogram => HistoPen,
-                QualityAlgorithm.TotalBrightness => TotalPen,
-                _ => GradPen
-            };
-            DrawAlgorithmCurve(context, data, data.PrimaryAlgorithm, primaryPen, w, h, total);
+            bool anyDrawn = false;
 
-            // Dessine les courbes optionnelles activées si elles existent et diffèrent de l'algorithme principal
-            if (ShowGradientSharpness && data.PrimaryAlgorithm != QualityAlgorithm.GradientSharpness && data.HasScoresFor(QualityAlgorithm.GradientSharpness))
+            if (ShowGradientSharpness && data.HasScoresFor(QualityAlgorithm.GradientSharpness))
+            {
                 DrawAlgorithmCurve(context, data, QualityAlgorithm.GradientSharpness, GradPen, w, h, total);
-            if (ShowNinox && data.PrimaryAlgorithm != QualityAlgorithm.OriginalNinox && data.HasScoresFor(QualityAlgorithm.OriginalNinox))
-                DrawAlgorithmCurve(context, data, QualityAlgorithm.OriginalNinox, NinoxPen, w, h, total);
-            if (ShowPeakHistogram && data.PrimaryAlgorithm != QualityAlgorithm.PeakHistogram && data.HasScoresFor(QualityAlgorithm.PeakHistogram))
+                anyDrawn = true;
+            }
+
+            if (ShowPeakHistogram && data.HasScoresFor(QualityAlgorithm.PeakHistogram))
+            {
                 DrawAlgorithmCurve(context, data, QualityAlgorithm.PeakHistogram, HistoPen, w, h, total);
-            if (ShowTotalBrightness && data.PrimaryAlgorithm != QualityAlgorithm.TotalBrightness && data.HasScoresFor(QualityAlgorithm.TotalBrightness))
+                anyDrawn = true;
+            }
+
+            if (ShowNinox && data.HasScoresFor(QualityAlgorithm.OriginalNinox))
+            {
+                DrawAlgorithmCurve(context, data, QualityAlgorithm.OriginalNinox, NinoxPen, w, h, total);
+                anyDrawn = true;
+            }
+
+            if (ShowTotalBrightness && data.HasScoresFor(QualityAlgorithm.TotalBrightness))
+            {
                 DrawAlgorithmCurve(context, data, QualityAlgorithm.TotalBrightness, TotalPen, w, h, total);
+                anyDrawn = true;
+            }
+
+            // Fallback : si aucune courbe n'est cochée mais que des données existent, tracer l'algorithme principal
+            if (!anyDrawn && data.HasScoresFor(data.PrimaryAlgorithm))
+            {
+                var pen = data.PrimaryAlgorithm switch
+                {
+                    QualityAlgorithm.PeakHistogram => HistoPen,
+                    QualityAlgorithm.OriginalNinox => NinoxPen,
+                    QualityAlgorithm.TotalBrightness => TotalPen,
+                    _ => GradPen
+                };
+                DrawAlgorithmCurve(context, data, data.PrimaryAlgorithm, pen, w, h, total);
+            }
         }
 
         // 5. Draw IN and OUT handles (in Chronological mode, seulement si des données sont présentes)
