@@ -147,6 +147,47 @@ public partial class MainWindowViewModel
         IsTimelineChronological = !IsTimelineChronological;
     }
 
+    public string ActiveQualityAlgorithmName
+    {
+        get
+        {
+            var algo = QualityTimelineData?.PrimaryAlgorithm ?? (QualityAlgorithm)Math.Clamp(SelectedQualityAlgoIndex, 0, 3);
+            return algo switch
+            {
+                QualityAlgorithm.GradientSharpness => Loc.Get("Viewer.AlgoGradient"),
+                QualityAlgorithm.OriginalNinox => "Ninox",
+                QualityAlgorithm.PeakHistogram => "Histogramme Crête",
+                QualityAlgorithm.TotalBrightness => "Luminance Totale",
+                _ => Loc.Get("Viewer.AlgoGradient")
+            };
+        }
+    }
+
+    public void ResetTimeline()
+    {
+        _timelineCts?.Cancel();
+        _timelineCts?.Dispose();
+        _timelineCts = null;
+
+        QualityTimelineData = null;
+        IsTimelineAnalyzing = false;
+        TimelineAnalysisProgress = 0.0;
+        CurrentFrameIndex = 1;
+        MaxFrameCount = 1;
+        TimelineSelectionIn = 1;
+        TimelineSelectionOut = 1;
+        CurrentFrameRankText = "—";
+        CurrentSeeingText = "—";
+        RetainedFramesSummaryText = "—";
+        QualityScoreText = "—";
+        MaxPixelStatsText = "—";
+        HoverFrameIndex = -1;
+        HoverScore = 0.0;
+        HoverRank = -1;
+        IsTimelineHovered = false;
+        OnPropertyChanged(nameof(ActiveQualityAlgorithmName));
+    }
+
     [RelayCommand]
     public void ToggleTimelineExpanded()
     {
@@ -218,6 +259,7 @@ public partial class MainWindowViewModel
 
                         UpdateTimelineFrameHud(CurrentFrameIndex);
                         UpdateRetainedFramesSummary();
+                        OnPropertyChanged(nameof(ActiveQualityAlgorithmName));
                     });
                 }
             }
@@ -397,7 +439,15 @@ public partial class MainWindowViewModel
         }
         NotifyStartProcessingValidation();
     }
-    partial void OnSelectedQualityAlgoIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: false);
+    partial void OnSelectedQualityAlgoIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(ActiveQualityAlgorithmName));
+        if (SelectedSourceFile is { } file && File.Exists(file.FullPath))
+        {
+            TriggerQualityTimelineAnalysis(file.FullPath);
+        }
+        RequestPreviewUpdate(reloadFromDisk: false);
+    }
     partial void OnObserverLatitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnTargetAltitudeDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);
     partial void OnTargetAzimuthDegreesChanged(double value) => RequestPreviewUpdate(reloadFromDisk: false);

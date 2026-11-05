@@ -46,6 +46,7 @@ public sealed class QualityTimelineUseCase : IQualityTimelineUseCase
         var rankedRecords = QualityTimelineAnalyzer.NormalizeAndRank(rawScores);
 
         var dataSet = cachedSet ?? new QualityTimelineDataSet(filePath, totalFrames, algorithm);
+        dataSet.PrimaryAlgorithm = algorithm;
         dataSet.SetAlgorithmScores(algorithm, rankedRecords, updateTurbulence: true);
 
         _cache[cacheKey] = dataSet;

@@ -180,5 +180,20 @@ public class QualityTimelineTests
         Assert.True(item.HasCustomRange);
         Assert.Equal("Plage : 50 – 300 (251 fr)", item.RangeSummaryText);
     }
+
+    [Fact]
+    public void QualityTimelineDataSet_PeakHistogram_CanBePrimaryAlgorithm()
+    {
+        var rawScores = new List<(int, double)> { (0, 1000.0), (1, 5000.0), (2, 2500.0) };
+        var records = QualityTimelineAnalyzer.NormalizeAndRank(rawScores);
+
+        var dataSet = new QualityTimelineDataSet("moon.ser", 3, QualityAlgorithm.PeakHistogram);
+        dataSet.SetAlgorithmScores(QualityAlgorithm.PeakHistogram, records, updateTurbulence: true);
+
+        Assert.Equal(QualityAlgorithm.PeakHistogram, dataSet.PrimaryAlgorithm);
+        Assert.True(dataSet.HasScoresFor(QualityAlgorithm.PeakHistogram));
+        Assert.Equal(1, dataSet.BestFrameIndex); // index 1 had score 5000.0
+        Assert.NotEmpty(dataSet.TurbulenceZones);
+    }
 }
 

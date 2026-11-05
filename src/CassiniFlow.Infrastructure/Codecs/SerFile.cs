@@ -510,8 +510,9 @@ public sealed unsafe class SerFile : IDisposable
 
             // Détermination de la ROI d'évaluation de qualité resserrée autour de la planète isolée
             // pour éviter que le bruit de fond de ciel (95% des pixels en 640x480) ne domine le score de netteté.
+            // Si le recadrage utilisateur est activé, on laisse la priorité au cadre de crop défini par l'utilisateur.
             int planetSpan = Math.Max(finalMaxX - finalMinX, finalMaxY - finalMinY);
-            if (!spansWholeScene && planetSpan > 8)
+            if (!options.EnableCropping && !spansWholeScene && planetSpan > 8)
             {
                 int boxSize = Math.Clamp(planetSpan + 32, 48, Math.Min(w, h));
                 int qx0 = Math.Clamp(cx - boxSize / 2, 0, Math.Max(0, w - boxSize));

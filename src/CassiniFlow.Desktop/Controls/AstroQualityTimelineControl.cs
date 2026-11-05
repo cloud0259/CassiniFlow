@@ -304,17 +304,32 @@ public sealed class AstroQualityTimelineControl : Control
             }
         }
 
-        // 4. Draw Curves for selected algorithms
+        // 4. Draw Curves for algorithms
         if (data != null)
         {
-            if (ShowTotalBrightness) DrawAlgorithmCurve(context, data, QualityAlgorithm.TotalBrightness, TotalPen, w, h, total);
-            if (ShowPeakHistogram) DrawAlgorithmCurve(context, data, QualityAlgorithm.PeakHistogram, HistoPen, w, h, total);
-            if (ShowNinox) DrawAlgorithmCurve(context, data, QualityAlgorithm.OriginalNinox, NinoxPen, w, h, total);
-            if (ShowGradientSharpness) DrawAlgorithmCurve(context, data, QualityAlgorithm.GradientSharpness, GradPen, w, h, total);
+            // Dessine toujours obligatoirement l'algorithme principal actif du dataset
+            var primaryPen = data.PrimaryAlgorithm switch
+            {
+                QualityAlgorithm.OriginalNinox => NinoxPen,
+                QualityAlgorithm.PeakHistogram => HistoPen,
+                QualityAlgorithm.TotalBrightness => TotalPen,
+                _ => GradPen
+            };
+            DrawAlgorithmCurve(context, data, data.PrimaryAlgorithm, primaryPen, w, h, total);
+
+            // Dessine les courbes optionnelles activées si elles existent et diffèrent de l'algorithme principal
+            if (ShowGradientSharpness && data.PrimaryAlgorithm != QualityAlgorithm.GradientSharpness && data.HasScoresFor(QualityAlgorithm.GradientSharpness))
+                DrawAlgorithmCurve(context, data, QualityAlgorithm.GradientSharpness, GradPen, w, h, total);
+            if (ShowNinox && data.PrimaryAlgorithm != QualityAlgorithm.OriginalNinox && data.HasScoresFor(QualityAlgorithm.OriginalNinox))
+                DrawAlgorithmCurve(context, data, QualityAlgorithm.OriginalNinox, NinoxPen, w, h, total);
+            if (ShowPeakHistogram && data.PrimaryAlgorithm != QualityAlgorithm.PeakHistogram && data.HasScoresFor(QualityAlgorithm.PeakHistogram))
+                DrawAlgorithmCurve(context, data, QualityAlgorithm.PeakHistogram, HistoPen, w, h, total);
+            if (ShowTotalBrightness && data.PrimaryAlgorithm != QualityAlgorithm.TotalBrightness && data.HasScoresFor(QualityAlgorithm.TotalBrightness))
+                DrawAlgorithmCurve(context, data, QualityAlgorithm.TotalBrightness, TotalPen, w, h, total);
         }
 
-        // 5. Draw IN and OUT handles (in Chronological mode)
-        if (IsChronologicalMode)
+        // 5. Draw IN and OUT handles (in Chronological mode, seulement si des données sont présentes)
+        if (IsChronologicalMode && data != null)
         {
             int selIn = Math.Clamp(SelectionStart, 1, total);
             int selOut = Math.Clamp(SelectionEnd, selIn, total);
@@ -330,18 +345,17 @@ public sealed class AstroQualityTimelineControl : Control
             DrawHandleBracket(context, xOut, isLeft: false, OutHandlePen.Brush);
         }
 
-        // 7. Draw Current Frame Scrubber Line
-        double scrubX = GetScrubberX(w, total, data);
-        context.DrawLine(ScrubberPen, new Point(scrubX, 0), new Point(scrubX, h));
-        DrawScrubberHead(context, scrubX, ScrubberPen.Brush);
+        // 7. Draw Current Frame Scrubber Line (seulement si des données sont présentes)
+        if (data != null)
+        {
+            double scrubX = GetScrubberX(w, total, data);
+            context.DrawLine(ScrubberPen, new Point(scrubX, 0), new Point(scrubX, h));
+            DrawScrubberHead(context, scrubX, ScrubberPen.Brush);
+        }
     }
 
-    private StreamGeometry? _cachedCurveGeometry;
-    private QualityAlgorithm _cachedCurveAlgo;
-    private bool _cachedCurveChronoMode;
-    private double _cachedCurveW;
-    private double _cachedCurveH;
-    private QualityTimelineDataSet? _cachedCurveData;
+    private readonly Dictionary<(QualityAlgorithm Algo, bool Chrono, int W, int H), StreamGeometry> _cachedGeometries = new();
+    private QualityTimelineDataSet? _cachedData;
 
     private void DrawAlgorithmCurve(
         DrawingContext context,
@@ -352,14 +366,16 @@ public sealed class AstroQualityTimelineControl : Control
         double height,
         int totalFrames)
     {
-        if (_cachedCurveGeometry != null &&
-            _cachedCurveAlgo == algo &&
-            _cachedCurveChronoMode == IsChronologicalMode &&
-            Math.Abs(_cachedCurveW - width) < 0.5 &&
-            Math.Abs(_cachedCurveH - height) < 0.5 &&
-            ReferenceEquals(_cachedCurveData, data))
+        if (!ReferenceEquals(_cachedData, data))
         {
-            context.DrawGeometry(null, pen, _cachedCurveGeometry);
+            _cachedGeometries.Clear();
+            _cachedData = data;
+        }
+
+        var key = (algo, IsChronologicalMode, (int)Math.Round(width), (int)Math.Round(height));
+        if (_cachedGeometries.TryGetValue(key, out var cachedGeom))
+        {
+            context.DrawGeometry(null, pen, cachedGeom);
             return;
         }
 
@@ -400,13 +416,7 @@ public sealed class AstroQualityTimelineControl : Control
             }
         }
 
-        _cachedCurveGeometry = geometry;
-        _cachedCurveAlgo = algo;
-        _cachedCurveChronoMode = IsChronologicalMode;
-        _cachedCurveW = width;
-        _cachedCurveH = height;
-        _cachedCurveData = data;
-
+        _cachedGeometries[key] = geometry;
         context.DrawGeometry(null, pen, geometry);
     }
 

@@ -42,6 +42,7 @@ public partial class MainWindowViewModel
             UpdateAvailableFrames();
             FrameDimensionsText = "—";
             PreviewReady?.Invoke(null, null, 1.0);
+            ResetTimeline();
             return;
         }
 
@@ -686,11 +687,13 @@ public partial class MainWindowViewModel
 
 
     [RelayCommand]
-    public void ClearAllFiles()    {
+    public void ClearAllFiles()
+    {
         UniversalMediaReader.ClosePreviewCache();
         SourceFiles.Clear();
         HasLoadedFiles = false;
         SelectedSourceFile = null;
         UpdateAvailableFrames();
+        ResetTimeline();
     }
 }
