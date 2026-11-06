@@ -18,6 +18,8 @@
     "CancelProcessing": "Annuler le traitement",
     "Settings": "_Paramètres",
     "OpenSettings": "Préférences...",
+    "ImportSettings": "Importer des paramètres...",
+    "ExportSettings": "Exporter les paramètres...",
     "Language": "Langue",
     "French": "Français",
     "English": "English",
@@ -272,9 +274,14 @@
     "SelectOutputFolderTitle": "Choisir le dossier de sortie",
     "SelectDarkFiles": "Sélectionner des trames Dark (SER, FITS, TIFF, PNG)",
     "SelectFlatFiles": "Sélectionner des trames Flat (SER, FITS, TIFF, PNG)",
-    "SelectFlatDarkFiles": "Sélectionner des trames Flat-Dark (SER, FITS, TIFF, PNG)"
+    "SelectFlatDarkFiles": "Sélectionner des trames Flat-Dark (SER, FITS, TIFF, PNG)",
+    "ImportSettingsTitle": "Importer des paramètres de traitement (Preset)",
+    "ExportSettingsTitle": "Exporter les paramètres de traitement (Preset)",
+    "FilterSettingsFiles": "Fichiers de paramètres (*.cfset, *.json, *.pof)"
   },
   "Messages": {
+    "SettingsImportedSuccess": "Paramètres importés avec succès depuis '{0}'.",
+    "SettingsExportedSuccess": "Paramètres exportés avec succès dans '{0}'.",
     "Ready": "Prêt",
     "NoProcessingRun": "Aucun traitement exécuté.",
     "AddFilesToStart": "Ajoutez un ou plusieurs fichiers vidéos/images dans l'onglet '1. Fichiers sources' pour commencer.",
@@ -408,6 +415,10 @@
     "LanguageGroupDesc": "Sélectionnez la langue de l'interface graphique. La modification est immédiate.",
     "SaveSettings": "Enregistrer les préférences",
     "AutoSaveNote": "✓ Vos préférences sont automatiquement sauvegardées dans votre profil utilisateur.",
+    "ProfilesTitle": "Profils & Paramètres de Session",
+    "ProfilesDesc": "Sauvegardez ou chargez la configuration des paramètres pour optimiser vos sessions d'imagerie sur une même cible (Jupiter, Saturne, Lune, etc.).",
+    "ImportSettingsButton": "Importer des paramètres...",
+    "ExportSettingsButton": "Exporter les paramètres...",
     "TotalCoresDetected": "Processeur détecté : {0} cœurs logiques"
   },
   "Tutorial": {

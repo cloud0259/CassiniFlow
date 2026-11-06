@@ -49,6 +49,10 @@ public interface IProfileSerializer
 {
     string SerializeToPof(ProcessingOptions options);
     ProcessingOptions ParseFromPof(string pofText);
+    string SerializeToJson(ProcessingOptions options);
+    ProcessingOptions ParseFromJson(string jsonText);
+    ProcessingOptions LoadFromFile(string filePath);
+    void SaveToFile(ProcessingOptions options, string filePath);
     List<string> GenerateCommandLineArguments(ProcessingOptions options);
 }
 

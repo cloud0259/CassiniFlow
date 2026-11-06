@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Outbound;
 
@@ -7,15 +10,69 @@ namespace CassiniFlow.Infrastructure.Serialization;
 
 /// <summary>
 /// Reads and writes legacy CassiniFlow Options Files (.pof) with "[CassiniFlow OPTIONS FILE]" header,
-/// as well as generating CLI argument lists compatible with CassiniFlow_core.exe.
+/// modern JSON configuration presets (.cfset / .json), and CLI argument lists compatible with CassiniFlow_core.exe.
 /// </summary>
 public sealed class ProfileSerializer : IProfileSerializer
 {
     public const string Header = "[CassiniFlow OPTIONS FILE]";
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+        PropertyNameCaseInsensitive = true,
+        IncludeFields = true
+    };
+
     string IProfileSerializer.SerializeToPof(ProcessingOptions options) => SerializeToPof(options);
     ProcessingOptions IProfileSerializer.ParseFromPof(string pofText) => ParseFromPof(pofText);
+    string IProfileSerializer.SerializeToJson(ProcessingOptions options) => SerializeToJson(options);
+    ProcessingOptions IProfileSerializer.ParseFromJson(string jsonText) => ParseFromJson(jsonText);
+    ProcessingOptions IProfileSerializer.LoadFromFile(string filePath) => LoadFromFile(filePath);
+    void IProfileSerializer.SaveToFile(ProcessingOptions options, string filePath) => SaveToFile(options, filePath);
     List<string> IProfileSerializer.GenerateCommandLineArguments(ProcessingOptions options) => GenerateCommandLineArguments(options);
+
+    public static string SerializeToJson(ProcessingOptions options)
+    {
+        return JsonSerializer.Serialize(options, JsonOptions);
+    }
+
+    public static ProcessingOptions ParseFromJson(string jsonText)
+    {
+        return JsonSerializer.Deserialize<ProcessingOptions>(jsonText, JsonOptions)
+            ?? new ProcessingOptions();
+    }
+
+    public static ProcessingOptions LoadFromFile(string filePath)
+    {
+        string text = File.ReadAllText(filePath);
+        if (filePath.EndsWith(".pof", StringComparison.OrdinalIgnoreCase) ||
+            text.TrimStart().StartsWith(Header, StringComparison.Ordinal))
+        {
+            return ParseFromPof(text);
+        }
+        return ParseFromJson(text);
+    }
+
+    public static void SaveToFile(ProcessingOptions options, string filePath)
+    {
+        string dir = Path.GetDirectoryName(filePath) ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        if (filePath.EndsWith(".pof", StringComparison.OrdinalIgnoreCase))
+        {
+            string pof = SerializeToPof(options);
+            File.WriteAllText(filePath, pof, Encoding.UTF8);
+        }
+        else
+        {
+            string json = SerializeToJson(options);
+            File.WriteAllText(filePath, json, Encoding.UTF8);
+        }
+    }
 
     public static string SerializeToPof(ProcessingOptions o)
     {
