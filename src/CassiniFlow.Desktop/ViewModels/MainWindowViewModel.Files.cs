@@ -72,6 +72,36 @@ public partial class MainWindowViewModel
         EndFrame = selOut;
         TimelineSelectionIn = selIn;
         TimelineSelectionOut = selOut;
+
+        // Adapte automatiquement la taille de tuile AP et réinitialise la grille si la résolution change
+        int frameW = EnableCropping ? CropWidth : value.Width;
+        int frameH = EnableCropping ? CropHeight : value.Height;
+        var targetType = CelestialTargetType.Unknown;
+        if (!string.IsNullOrEmpty(value.IdentifiedObjectText))
+        {
+            if (value.IdentifiedObjectText.Contains("Lune", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Soleil", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Moon", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Sun", StringComparison.OrdinalIgnoreCase))
+            {
+                targetType = CelestialTargetType.MoonOrSunSurface;
+            }
+            else
+            {
+                targetType = CelestialTargetType.Planet;
+            }
+        }
+        AlignmentTileSize = AlignmentGridGenerator.RecommendOptimalTileSize(
+            value.PlanetDiameterPx,
+            targetType,
+            frameW,
+            frameH);
+
+        if (CurrentAlignmentGrid is not null && (CurrentAlignmentGrid.FrameWidth != frameW || CurrentAlignmentGrid.FrameHeight != frameH))
+        {
+            CurrentAlignmentGrid = AlignmentGrid.Empty;
+        }
+
         TriggerQualityTimelineAnalysis(value.FullPath);
         RequestPreviewUpdate(reloadFromDisk: true);
     }

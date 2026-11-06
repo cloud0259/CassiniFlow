@@ -908,4 +908,65 @@ public class MultiZoneStackingEngineTests
             if (Directory.Exists(tempOutDir)) Directory.Delete(tempOutDir, true);
         }
     }
+
+    [Fact]
+    public void AlignmentGridGenerator_GenerateGrid_Handles8BitDynamicRangeProperly()
+    {
+        // Image 8-bit native (valeurs réelles 0..255)
+        var frame = new AstroFrame(120, 120, 1, originalBitDepth: 8);
+        for (int y = 30; y < 90; y++)
+        {
+            for (int x = 30; x < 90; x++)
+            {
+                // Disque brillant 8-bit (valeur 180 sur 255)
+                frame.Data[y * 120 + x] = 180;
+            }
+        }
+
+        var options = new StackingOptions
+        {
+            AlignmentTileSize = 32,
+            MinBrightnessThreshold = 20,
+            EnablePruning = true
+        };
+
+        var grid = AlignmentGridGenerator.GenerateGrid(frame, options);
+
+        Assert.NotEmpty(grid.Points);
+        Assert.True(grid.ActiveCount > 0, "Les données 8-bit doivent générer des points AP actifs sans être élaguées à 0");
+    }
+
+    [Fact]
+    public void AlignmentGridGenerator_GenerateGrid_ClampsTileSizeOnSmallFrames()
+    {
+        // Petite trame 64x64 avec une taille de tuile demandée de 140 (issue d'un fichier 4K précédent)
+        var frame = new AstroFrame(64, 64, 3, 16);
+        for (int y = 16; y < 48; y++)
+        {
+            for (int x = 16; x < 48; x++)
+            {
+                int idx = (y * 64 + x) * 3;
+                frame.Data[idx] = 40000;
+                frame.Data[idx + 1] = 40000;
+                frame.Data[idx + 2] = 40000;
+            }
+        }
+
+        var options = new StackingOptions
+        {
+            AlignmentTileSize = 140, // Très grande taille par rapport à la trame
+            MinBrightnessThreshold = 10,
+            EnablePruning = false
+        };
+
+        var grid = AlignmentGridGenerator.GenerateGrid(frame, options);
+
+        Assert.NotEmpty(grid.Points);
+        Assert.True(grid.TileSize <= 32, "La taille de tuile doit être bornée par rapport à la taille de la petite trame");
+        foreach (var p in grid.Points)
+        {
+            Assert.True(p.X >= 0 && p.X < 64);
+            Assert.True(p.Y >= 0 && p.Y < 64);
+        }
+    }
 }

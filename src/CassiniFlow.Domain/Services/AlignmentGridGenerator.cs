@@ -42,17 +42,29 @@ public static class AlignmentGridGenerator
             return AlignmentGrid.Empty;
         }
 
-        int tileSize = Math.Clamp(options.AlignmentTileSize, 16, 512);
+        int width = frame.Width;
+        int height = frame.Height;
+        int maxAllowedTile = Math.Max(16, Math.Min(width, height) / 2);
+        int tileSize = Math.Clamp(options.AlignmentTileSize, 16, Math.Max(16, maxAllowedTile));
         int step = options.EnableMultiScaleGrid ? Math.Max(8, tileSize / 2) : tileSize;
         int minBright = options.MinBrightnessThreshold;
 
         var points = new List<AlignmentPoint>();
         int id = 1;
 
-        int width = frame.Width;
-        int height = frame.Height;
         int channels = frame.Channels;
         ReadOnlySpan<ushort> data = frame.Data;
+
+        // Détection automatique de la profondeur dynamique réelle (16-bit 0..65535 vs 8-bit 0..255)
+        bool is16Bit = frame.OriginalBitDepth > 8;
+        if (!is16Bit && data.Length > 0)
+        {
+            int checkLen = Math.Min(500, data.Length);
+            for (int i = 0; i < checkLen; i++)
+            {
+                if (data[i] > 255) { is16Bit = true; break; }
+            }
+        }
 
         // Détection de l'ancre globale (CoG ou point de contraste maximal)
         int anchorX = frame.DetectedCentroidX > 0 ? frame.DetectedCentroidX : width / 2;
@@ -68,7 +80,7 @@ public static class AlignmentGridGenerator
             foreach (int x in xCoords)
             {
                 // Évaluation de la brillance moyenne (sur échelle 8-bit 0..255) et de la variance locale
-                (double avgBright8Bit, double variance) = ComputeTileMetrics(data, width, height, channels, x, y, halfTile);
+                (double avgBright8Bit, double variance) = ComputeTileMetrics(data, width, height, channels, x, y, halfTile, is16Bit);
 
                 bool isActive = true;
                 if (options.EnablePruning)
@@ -101,7 +113,17 @@ public static class AlignmentGridGenerator
 
         if (frame is not null && frame.Data.Length > 0 && frame.Width > 0 && frame.Height > 0)
         {
-            (avgBright, variance) = ComputeTileMetrics(frame.Data, frame.Width, frame.Height, frame.Channels, x, y, halfTile);
+            bool is16Bit = frame.OriginalBitDepth > 8;
+            if (!is16Bit)
+            {
+                int checkLen = Math.Min(500, frame.Data.Length);
+                for (int i = 0; i < checkLen; i++)
+                {
+                    if (frame.Data[i] > 255) { is16Bit = true; break; }
+                }
+            }
+
+            (avgBright, variance) = ComputeTileMetrics(frame.Data, frame.Width, frame.Height, frame.Channels, x, y, halfTile, is16Bit);
         }
 
         return new AlignmentPoint(id, x, y, tileSize, isActive: true)
@@ -158,7 +180,8 @@ public static class AlignmentGridGenerator
         int channels,
         int centerX,
         int centerY,
-        int radius)
+        int radius,
+        bool is16Bit = true)
     {
         int x0 = Math.Max(0, centerX - radius);
         int x1 = Math.Min(width - 1, centerX + radius);
@@ -176,9 +199,9 @@ public static class AlignmentGridGenerator
             {
                 // Si couleur, prendre luma approchée : (R + 2G + B) / 4
                 int lum;
-                if (channels == 3)
+                if (channels >= 3)
                 {
-                    int idx = rowOffset + x * 3;
+                    int idx = rowOffset + x * channels;
                     lum = (data[idx] + (data[idx + 1] << 1) + data[idx + 2]) >> 2;
                 }
                 else
@@ -186,8 +209,11 @@ public static class AlignmentGridGenerator
                     lum = data[rowOffset + x];
                 }
 
-                // Normalisation 8-bit pour comparaison avec MinBright (0..255)
-                lum >>= 8;
+                // Normalisation 8-bit (0..255)
+                if (is16Bit)
+                {
+                    lum >>= 8;
+                }
 
                 sum += lum;
                 sumSq += (long)lum * lum;
