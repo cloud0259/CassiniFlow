@@ -844,12 +844,17 @@ public partial class MainWindowViewModel
 
         AstroFrame? frame = null;
 
+        int expectedCropW = CropWidth;
+        int expectedCropH = CropHeight;
+        if (SelectedRotationIndex is 1 or 2) (expectedCropW, expectedCropH) = (expectedCropH, expectedCropW);
+
         if (EnableCropping)
         {
             if (PreviewCroppedOutput && _lastProcessedPreviewFrame is not null && 
-                _lastProcessedPreviewFrame.Width == CropWidth && _lastProcessedPreviewFrame.Height == CropHeight)
+                Math.Abs(_lastProcessedPreviewFrame.Width - expectedCropW) <= 2 && 
+                Math.Abs(_lastProcessedPreviewFrame.Height - expectedCropH) <= 2)
             {
-                // La trame déjà prévisualisée est déjà parfaitement recadrée et centrée
+                // La trame déjà prévisualisée est déjà parfaitement recadrée, centrée et tournée
                 frame = _lastProcessedPreviewFrame;
             }
             else if ((_cachedPreviewResult?.Frame ?? _lastProcessedPreviewFrame) is { } baseFrame)
@@ -870,11 +875,20 @@ public partial class MainWindowViewModel
                     CropOffsetX,
                     CropOffsetY,
                     protectBayerEvenSteps: Options.ProtectBayerPattern);
+
+                if (SelectedRotationIndex > 0 || FlipHorizontal || FlipVertical)
+                {
+                    frame = ImageProcessor.ApplyFlipAndRotation(frame, FlipHorizontal, FlipVertical, (RotationAngle)SelectedRotationIndex);
+                }
             }
         }
         else
         {
             frame = _lastProcessedPreviewFrame ?? _cachedPreviewResult?.Frame;
+            if (frame != null && frame == _cachedPreviewResult?.Frame && (SelectedRotationIndex > 0 || FlipHorizontal || FlipVertical))
+            {
+                frame = ImageProcessor.ApplyFlipAndRotation(frame, FlipHorizontal, FlipVertical, (RotationAngle)SelectedRotationIndex);
+            }
         }
 
         if (frame is null) return;

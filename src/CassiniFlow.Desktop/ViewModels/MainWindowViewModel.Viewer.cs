@@ -411,22 +411,26 @@ public partial class MainWindowViewModel
     partial void OnSelectedRotationIndexChanged(int value)
     {
         if (value > 0) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
     partial void OnFlipHorizontalChanged(bool value)
     {
         if (value) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
     partial void OnFlipVerticalChanged(bool value)
     {
         if (value) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
-        partial void OnAutoRotateAlignChanged(bool value)
+    partial void OnAutoRotateAlignChanged(bool value)
     {
         _userSettings.Current.AutoRotateAlign = value;
         _userSettings.Save();
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
 
