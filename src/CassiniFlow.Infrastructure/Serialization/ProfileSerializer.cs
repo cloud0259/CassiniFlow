@@ -94,11 +94,12 @@ public sealed class ProfileSerializer : IProfileSerializer
         WriteBool("ISS_MODE", o.ActivePreset == OptimisationPreset.Iss);
         WriteBool("AVI_ARCHIVE_MODE", o.ActivePreset == OptimisationPreset.AviArchive);
 
-        WriteBool("FRAME_LIMIT", o.LimitFrameRange);
-        WriteInt("FRAME_RANGE_TYPE", (int)o.FrameRangeMode);
-        WriteInt("START_FRAME_VALUE", o.StartFrame);
-        WriteInt("END_FRAME_VALUE", o.EndFrame);
-        WriteInt("NUM_FRAMES_VALUE", o.NumFramesFromCentre);
+        // Les sélections de frames et plages spécifiques à un fichier ne sont pas exportées dans les profils
+        WriteBool("FRAME_LIMIT", false);
+        WriteInt("FRAME_RANGE_TYPE", 0);
+        WriteInt("START_FRAME_VALUE", 1);
+        WriteInt("END_FRAME_VALUE", 999999);
+        WriteInt("NUM_FRAMES_VALUE", 1000);
 
         WriteBool("DARK_FRAME_SUBTRACT", o.DarkFrameSubtract);
         WriteBool("SAVE_MASTER_DARK", o.SaveMasterDark);
@@ -284,11 +285,13 @@ public sealed class ProfileSerializer : IProfileSerializer
                 case "PLANETARY_ANNIMATION_GIF_MODE": if (AsBool()) o.ActivePreset = OptimisationPreset.PlanetaryAnimationGif; break;
                 case "AVI_ARCHIVE_MODE": if (AsBool()) o.ActivePreset = OptimisationPreset.AviArchive; break;
 
-                case "FRAME_LIMIT": o.LimitFrameRange = AsBool(); break;
-                case "FRAME_RANGE_TYPE": o.FrameRangeMode = (FrameRangeType)AsInt(); break;
-                case "START_FRAME_VALUE": o.StartFrame = AsInt(1); break;
-                case "END_FRAME_VALUE": o.EndFrame = AsInt(999999); break;
-                case "NUM_FRAMES_VALUE": o.NumFramesFromCentre = AsInt(1000); break;
+                // Les sélections de frames, plages et fichiers spécifiques à une vidéo ne sont pas importés pour ne pas écraser la session
+                case "FRAME_LIMIT":
+                case "FRAME_RANGE_TYPE":
+                case "START_FRAME_VALUE":
+                case "END_FRAME_VALUE":
+                case "NUM_FRAMES_VALUE":
+                    break;
 
                 case "DARK_FRAME_SUBTRACT": o.DarkFrameSubtract = AsBool(); break;
                 case "SAVE_MASTER_DARK": o.SaveMasterDark = AsBool(); break;

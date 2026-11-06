@@ -639,9 +639,8 @@ public partial class MainWindowViewModel
         IsJoinMode = o.RunMode == ProcessingRunMode.JoinMode;
         IsBatchMode = !IsJoinMode;
 
-        LimitFrameRange = o.LimitFrameRange;
-        StartFrame = Math.Max(1, o.StartFrame);
-        EndFrame = Math.Max(StartFrame, o.EndFrame);
+        // Le nombre de frames, les images, darks, flats et plages de frames par fichier (FileFrameRanges)
+        // sont spécifiques à la session vidéo active et ne sont pas écrasés lors du chargement d'un profil.
 
         DarkSubtractEnabled = o.DarkFrameSubtract;
         HotPixelThreshold = Math.Clamp(o.HotPixelThreshold, 1, 255);

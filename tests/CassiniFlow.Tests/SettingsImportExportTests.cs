@@ -131,4 +131,44 @@ public class SettingsImportExportTests
             }
         }
     }
+
+    [Fact]
+    public void Serialization_Excludes_FilesAndFrameRanges_FromExport()
+    {
+        var options = new ProcessingOptions
+        {
+            StartFrame = 45,
+            EndFrame = 850,
+            LimitFrameRange = true,
+            NumFramesFromCentre = 300,
+            ImageFiles = ["C:\\Data\\video1.ser", "C:\\Data\\video2.avi"],
+            DarkFiles = ["C:\\Data\\master_dark.fit"],
+            FlatFiles = ["C:\\Data\\master_flat.fit"],
+            FlatDarkFiles = ["C:\\Data\\flatdark.fit"]
+        };
+        options.FileFrameRanges["C:\\Data\\video1.ser"] = (10, 200);
+        options.Stacking.StackFrameCounts = [100, 250];
+
+        string json = ProfileSerializer.SerializeToJson(options);
+
+        // Aucun chemin de fichier ne doit fuiter
+        Assert.DoesNotContain("video1.ser", json);
+        Assert.DoesNotContain("video2.avi", json);
+        Assert.DoesNotContain("master_dark.fit", json);
+        Assert.DoesNotContain("master_flat.fit", json);
+        Assert.DoesNotContain("flatdark.fit", json);
+        Assert.DoesNotContain("FileFrameRanges", json);
+        Assert.DoesNotContain("StartFrame", json);
+        Assert.DoesNotContain("EndFrame", json);
+        Assert.DoesNotContain("LimitFrameRange", json);
+        Assert.DoesNotContain("StackFrameCounts", json);
+
+        var restored = ProfileSerializer.ParseFromJson(json);
+        Assert.Empty(restored.ImageFiles);
+        Assert.Empty(restored.DarkFiles);
+        Assert.Empty(restored.FlatFiles);
+        Assert.Empty(restored.FlatDarkFiles);
+        Assert.Empty(restored.FileFrameRanges);
+        Assert.False(restored.LimitFrameRange);
+    }
 }

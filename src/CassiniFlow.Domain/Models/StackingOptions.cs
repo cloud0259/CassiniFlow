@@ -36,6 +36,9 @@ public sealed class StackingOptions
 
     // Paliers d'empilement
     public List<double> StackPercentages { get; set; } = [25.0];
+
+    [JsonIgnore]
+    [XmlIgnore]
     public List<int> StackFrameCounts { get; set; } = [200, 500];
 
     // Restauration & Rendu
