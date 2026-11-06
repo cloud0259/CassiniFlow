@@ -235,6 +235,7 @@ public class PlanetDiskMeasurementTests
 
         int callCount = 0;
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) =>
@@ -268,11 +269,13 @@ public class PlanetDiskMeasurementTests
 
             // item2 should have been measured
             Assert.NotNull(item2.PlanetDiameterPx);
-            Assert.Equal(3, callCount); // exactly 1 file was measured (sampled 3 times)
+            // Exactly 1 file was analyzed: 3 samples for diameter measurement + 4 samples for target classification = 7 total calls
+            Assert.Equal(7, callCount);
         }
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
         }
     }
 }
