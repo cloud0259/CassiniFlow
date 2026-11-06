@@ -16,6 +16,9 @@ public static class CelestialTargetClassifier
     }
     private static Func<string, int, int, (AstroFrame Frame, int OriginalWidth, int OriginalHeight)>? _previewFrameLoader;
 
+    public static bool HasCustomPreviewFrameLoader => _previewFrameLoader != null;
+    public static void ResetPreviewFrameLoader() => _previewFrameLoader = null;
+
     /// <summary>
     /// Active ou désactive par défaut la détection des satellites naturels lors de la classification.
     /// </summary>

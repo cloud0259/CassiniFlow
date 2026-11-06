@@ -247,4 +247,41 @@ public class AutoStakkertFeaturesTests
         Assert.Equal(300, vm.CurrentAlignmentGrid.FrameWidth);
         Assert.Equal(300, vm.CurrentAlignmentGrid.FrameHeight);
     }
+
+    [Fact]
+    public void ImageProcessor_ApplyFlipAndRotation_TransformsCentroidCoordinatesCorrectly()
+    {
+        int w = 100, h = 200;
+        var frame = new AstroFrame(w, h, 1, 16)
+        {
+            DetectedCentroidX = 30,
+            DetectedCentroidY = 40
+        };
+
+        // 90° Clockwise : (srcH - 1 - y, x) -> (200 - 1 - 40, 30) = (159, 30)
+        var rot90 = ImageProcessor.ApplyFlipAndRotation(frame, false, false, RotationAngle.Rotate90Clockwise);
+        Assert.Equal(h, rot90.Width);
+        Assert.Equal(w, rot90.Height);
+        Assert.Equal(159, rot90.DetectedCentroidX);
+        Assert.Equal(30, rot90.DetectedCentroidY);
+
+        // 180° : (srcW - 1 - x, srcH - 1 - y) -> (100 - 1 - 30, 200 - 1 - 40) = (69, 159)
+        var rot180 = ImageProcessor.ApplyFlipAndRotation(frame, false, false, RotationAngle.Rotate180);
+        Assert.Equal(w, rot180.Width);
+        Assert.Equal(h, rot180.Height);
+        Assert.Equal(69, rot180.DetectedCentroidX);
+        Assert.Equal(159, rot180.DetectedCentroidY);
+    }
+
+    [Fact]
+    public void AlignmentGrid_IsClearedAndRecalculated_WhenRotationChanges()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        vm.CurrentAlignmentGrid = new AlignmentGrid(32, 15, [new AlignmentPoint(1, 50, 50, 32, true)], (50, 50), 100, 100);
+        Assert.Equal(1, vm.CurrentAlignmentGrid.ActiveCount);
+
+        // Modifier la rotation doit réinitialiser la grille d'alignement pour recalcul sur la nouvelle orientation
+        vm.SelectedRotationIndex = 1;
+        Assert.Equal(0, vm.CurrentAlignmentGrid.ActiveCount);
+    }
 }

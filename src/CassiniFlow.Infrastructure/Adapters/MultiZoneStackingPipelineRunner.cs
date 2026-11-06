@@ -165,7 +165,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % reportStep == 0 || done == framesToAnalyze)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, framesToAnalyze) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, done, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", done, framesToAnalyze, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, framesToAnalyze) * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, done, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", done, framesToAnalyze, stepPct)));
                     }
                 });
 
@@ -263,7 +264,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (pass1Processed % reportStep == 0 || pass1Processed == framesToAnalyze)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)pass1Processed / framesToAnalyze * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", pass1Processed, framesToAnalyze, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)pass1Processed / framesToAnalyze * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", pass1Processed, framesToAnalyze, stepPct)));
                     }
                 }
             }
@@ -469,11 +471,11 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         var allTierSummaries = new List<StackedTierSummary>();
         int maxWorkers = PipelineRunner.GetSafeWorkerThreadCount(options);
 
-        int totalExpectedFrames = validFiles.Sum(f =>
+        int totalExpectedFrames = Math.Max(1, validFiles.Sum(f =>
         {
             var summary = UniversalMediaReader.InspectFile(f);
-            return Math.Max(1, options.GetEffectiveFrameRange(f, summary.FrameCount).EffectiveCount);
-        });
+            return options.GetEffectiveFrameRange(f, summary.FrameCount).EffectiveCount;
+        }));
         int globalPass1Count = 0;
 
         var allScoreRecords = new List<FrameScoreRecord>(totalExpectedFrames);
@@ -561,7 +563,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                 if (done % reportStep == 0 || done == totalExpectedFrames)
                 {
                     int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, Path.GetFileName(imgFile), done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                    int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, Path.GetFileName(imgFile), done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                 }
             });
 
@@ -650,7 +653,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % 50 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                     }
                 });
 
@@ -681,7 +685,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                      UniversalMediaReader.VideoExtensions.Contains(ext) &&
                      TryAnalyzeVideoPass1ZeroAlloc(
                          file,
-                         Math.Max(1, UniversalMediaReader.InspectFile(file).FrameCount),
+                         Math.Max(1, options.GetEffectiveFrameRange(file, UniversalMediaReader.InspectFile(file).FrameCount).EffectiveCount),
                          options,
                          maxWorkers,
                          progress,
@@ -744,10 +748,22 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % 10 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                     }
                 }
             }
+        }
+
+        if (allScoreRecords.Count > 0)
+        {
+            progress?.Report(new PipelineProgressReport(
+                _loc.Get("Progress.QualityAnalysisJoin"),
+                45,
+                Path.GetFileName(validFiles[0]),
+                allScoreRecords.Count,
+                totalExpectedFrames,
+                _loc.Format("Progress.GlobalEvalProgress", allScoreRecords.Count, totalExpectedFrames, 100)));
         }
 
         if (allScoreRecords.Count == 0 || bestRefFrame is null)
@@ -911,38 +927,73 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
 
     private AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions)
     {
-        if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom &&
-            custom.FrameWidth == bestRefFrame.Width &&
-            custom.FrameHeight == bestRefFrame.Height)
+        if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom)
         {
-            int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : bestRefFrame.Width / 2;
-            int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : bestRefFrame.Height / 2;
-            int dxAnchor = custom.AnchorPoint.X > 0 ? (targetAnchorX - custom.AnchorPoint.X) : 0;
-            int dyAnchor = custom.AnchorPoint.Y > 0 ? (targetAnchorY - custom.AnchorPoint.Y) : 0;
-
-            int w = bestRefFrame.Width;
-            int h = bestRefFrame.Height;
-
-            var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
-            foreach (var p in custom.Points)
+            if (custom.FrameWidth == bestRefFrame.Width && custom.FrameHeight == bestRefFrame.Height)
             {
-                int half = Math.Max(8, p.Size / 2);
-                int nx = Math.Clamp(p.X + dxAnchor, half, Math.Max(half, w - half));
-                int ny = Math.Clamp(p.Y + dyAnchor, half, Math.Max(half, h - half));
-                clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, p.Size, p.IsActive)
-                {
-                    Brightness = p.Brightness,
-                    Contrast = p.Contrast
-                });
-            }
+                int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : bestRefFrame.Width / 2;
+                int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : bestRefFrame.Height / 2;
+                int dxAnchor = custom.AnchorPoint.X > 0 ? (targetAnchorX - custom.AnchorPoint.X) : 0;
+                int dyAnchor = custom.AnchorPoint.Y > 0 ? (targetAnchorY - custom.AnchorPoint.Y) : 0;
 
-            return new AlignmentGrid(
-                custom.TileSize,
-                custom.MinBrightness,
-                clonedPoints,
-                (targetAnchorX, targetAnchorY),
-                custom.FrameWidth,
-                custom.FrameHeight);
+                int w = bestRefFrame.Width;
+                int h = bestRefFrame.Height;
+
+                var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
+                foreach (var p in custom.Points)
+                {
+                    int half = Math.Max(8, p.Size / 2);
+                    int nx = Math.Clamp(p.X + dxAnchor, half, Math.Max(half, w - half));
+                    int ny = Math.Clamp(p.Y + dyAnchor, half, Math.Max(half, h - half));
+                    clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, p.Size, p.IsActive)
+                    {
+                        Brightness = p.Brightness,
+                        Contrast = p.Contrast
+                    });
+                }
+
+                return new AlignmentGrid(
+                    custom.TileSize,
+                    custom.MinBrightness,
+                    clonedPoints,
+                    (targetAnchorX, targetAnchorY),
+                    custom.FrameWidth,
+                    custom.FrameHeight);
+            }
+            else if (custom.FrameWidth > 0 && custom.FrameHeight > 0 && bestRefFrame.Width > 0 && bestRefFrame.Height > 0)
+            {
+                // Adaptation proportionnelle de la grille personnalisée si la dimension du fichier diffère
+                double scaleX = (double)bestRefFrame.Width / custom.FrameWidth;
+                double scaleY = (double)bestRefFrame.Height / custom.FrameHeight;
+                double scale = Math.Min(scaleX, scaleY);
+                int scaledTile = Math.Clamp((int)Math.Round(custom.TileSize * scale), 16, Math.Max(16, Math.Min(bestRefFrame.Width, bestRefFrame.Height) / 2));
+
+                int w = bestRefFrame.Width;
+                int h = bestRefFrame.Height;
+                int targetAnchorX = bestRefFrame.DetectedCentroidX > 0 ? bestRefFrame.DetectedCentroidX : (int)Math.Round(custom.AnchorPoint.X * scaleX);
+                int targetAnchorY = bestRefFrame.DetectedCentroidY > 0 ? bestRefFrame.DetectedCentroidY : (int)Math.Round(custom.AnchorPoint.Y * scaleY);
+
+                var clonedPoints = new List<AlignmentPoint>(custom.Points.Count);
+                foreach (var p in custom.Points)
+                {
+                    int half = Math.Max(8, scaledTile / 2);
+                    int nx = Math.Clamp((int)Math.Round(p.X * scaleX), half, Math.Max(half, w - half));
+                    int ny = Math.Clamp((int)Math.Round(p.Y * scaleY), half, Math.Max(half, h - half));
+                    clonedPoints.Add(new AlignmentPoint(p.Id, nx, ny, scaledTile, p.IsActive)
+                    {
+                        Brightness = p.Brightness,
+                        Contrast = p.Contrast
+                    });
+                }
+
+                return new AlignmentGrid(
+                    scaledTile,
+                    custom.MinBrightness,
+                    clonedPoints,
+                    (targetAnchorX, targetAnchorY),
+                    w,
+                    h);
+            }
         }
 
         return AlignmentGridGenerator.GenerateGrid(bestRefFrame, stackingOptions);
@@ -1075,7 +1126,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                             if (done % 25 == 0 || done == maxFramesToStack)
                             {
                                 int pct = 50 + Math.Clamp((int)Math.Round((double)done / maxFramesToStack * 46.0), 0, 46);
-                                progress?.Report(new PipelineProgressReport(progressStageName, pct, progressFileName, done, maxFramesToStack, _loc.Format("Progress.StackingFramesProgress", done, maxFramesToStack, pct)));
+                                int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, maxFramesToStack) * 100.0), 1, 100);
+                                progress?.Report(new PipelineProgressReport(progressStageName, pct, progressFileName, done, maxFramesToStack, _loc.Format("Progress.StackingFramesProgress", done, maxFramesToStack, stepPct)));
                             }
 
                             return local;
@@ -1371,7 +1423,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % reportStep == 0 || done == reportTotal)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, reportTotal) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(stageName, pct, fileName, done, reportTotal, _loc.Format("Progress.QualityEvalProgress", done, reportTotal, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, reportTotal) * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(stageName, pct, fileName, done, reportTotal, _loc.Format("Progress.QualityEvalProgress", done, reportTotal, stepPct)));
                     }
 
                     idx++;

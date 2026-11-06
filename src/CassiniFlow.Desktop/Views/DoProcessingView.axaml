@@ -94,6 +94,17 @@
                                 HorizontalContentAlignment="Center"
                                 Padding="8,8"/>
                     </Grid>
+
+                    <!-- Bouton Comparateur de Paliers Empilés -->
+                    <Button Content="{Binding FrameComparatorButtonText}"
+                            Command="{Binding OpenFrameComparatorCommand}"
+                            IsVisible="{Binding HasMultipleStackedTiers}"
+                            Background="#854d0e"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Padding="8,8"/>
                 </StackPanel>
             </Border>
 

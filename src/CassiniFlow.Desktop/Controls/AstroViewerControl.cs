@@ -319,8 +319,11 @@ public sealed class AstroViewerControl : Control
         int gridW = grid?.FrameWidth ?? 0;
         int gridH = grid?.FrameHeight ?? 0;
 
-        // Une grille est en coordonnées recadrées si sa dimension correspond à la zone de crop ou n'est pas encore définie
-        bool isGridInCropSpace = gridW <= 0 || (gridW <= vm.CropWidth + 2 && gridH <= vm.CropHeight + 2);
+        // Une grille est en coordonnées recadrées si sa dimension correspond à la zone de crop (en tenant compte de la rotation) ou n'est pas encore définie
+        double expectedCropW = vm.CropWidth;
+        double expectedCropH = vm.CropHeight;
+        if (vm.SelectedRotationIndex is 1 or 2) (expectedCropW, expectedCropH) = (expectedCropH, expectedCropW);
+        bool isGridInCropSpace = gridW <= 0 || (gridW <= expectedCropW + 2 && gridH <= expectedCropH + 2);
 
         if (isGridInCropSpace)
         {

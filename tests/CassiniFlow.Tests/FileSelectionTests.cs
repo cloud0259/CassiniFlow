@@ -154,4 +154,42 @@ public class FileSelectionTests
         Assert.Equal(149, rangeB.EndFrame);
         Assert.Equal(100, rangeB.EffectiveCount);
     }
+
+    [Fact]
+    public void SyncOptionsFromUi_PopulatesAllFileFrameRangesAndUpdatesAvailable()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        vm.IsJoinMode = true;
+
+        var item1 = new SourceFileItem
+        {
+            FileName = "item1.ser",
+            FullPath = "c:\\item1.ser",
+            Frames = 1000,
+            SelectionIn = 1,
+            SelectionOut = 500
+        };
+        var item2 = new SourceFileItem
+        {
+            FileName = "item2.ser",
+            FullPath = "c:\\item2.ser",
+            Frames = 870,
+            SelectionIn = 1,
+            SelectionOut = 328
+        };
+
+        vm.SourceFiles.Add(item1);
+        vm.SourceFiles.Add(item2);
+
+        vm.SyncOptionsFromUi();
+
+        Assert.Equal(2, vm.Options.FileFrameRanges.Count);
+        Assert.Equal((1, 500), vm.Options.FileFrameRanges["c:\\item1.ser"]);
+        Assert.Equal((1, 328), vm.Options.FileFrameRanges["c:\\item2.ser"]);
+
+        // Sum of effective counts is 828 (not 1870)
+        int sum = vm.Options.GetEffectiveFrameRange("c:\\item1.ser", 1000).EffectiveCount
+                + vm.Options.GetEffectiveFrameRange("c:\\item2.ser", 870).EffectiveCount;
+        Assert.Equal(828, sum);
+    }
 }

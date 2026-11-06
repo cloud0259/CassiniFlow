@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,12 +14,22 @@ using CassiniFlow.Domain.Services;
 using CassiniFlow.Application.UseCases;
 using CassiniFlow.Infrastructure.Adapters;
 using CassiniFlow.Desktop.Localization;
+using CassiniFlow.Desktop.Services;
 
 namespace CassiniFlow.Desktop.ViewModels;
 
 public partial class MainWindowViewModel
 {
-        private CancellationTokenSource? _processingCts;
+    public ObservableCollection<StackedTierUiItem> StackedComparisonItems { get; } = [];
+    [ObservableProperty] private bool _hasMultipleStackedTiers;
+    [ObservableProperty] private string _frameComparatorButtonText = string.Empty;
+
+    public event Action? RequestOpenFrameComparator;
+
+    [RelayCommand]
+    public void OpenFrameComparator() => RequestOpenFrameComparator?.Invoke();
+
+    private CancellationTokenSource? _processingCts;
 
     // 7. Do Processing
     [ObservableProperty]
@@ -212,6 +223,8 @@ public partial class MainWindowViewModel
         IsProcessing = true;
         HasCompletedOutput = false;
         DismissError();
+        HasMultipleStackedTiers = false;
+        StackedComparisonItems.Clear();
         SyncOptionsFromUi();
 
         _processingCts?.Cancel();
@@ -319,6 +332,43 @@ public partial class MainWindowViewModel
             string logMsg = Loc.Format("Messages.ExecutionLogGeneratedAt", DateTime.Now.ToString("HH:mm:ss"), summary.LogFilePath);
             _processingLogLines.Add(logMsg);
         }
+
+        if (summary.StackedTiers is { Count: > 1 } tiers)
+        {
+            StackedComparisonItems.Clear();
+            var pairs = new List<(StackedTierSummary Summary, AstroFrame Frame)>();
+
+            foreach (var tier in tiers)
+            {
+                if (File.Exists(tier.OutputFilePath))
+                {
+                    try
+                    {
+                        var frame = UniversalMediaReader.ReadSingleFrame(tier.OutputFilePath, 0);
+                        pairs.Add((tier, frame));
+                    }
+                    catch { }
+                }
+            }
+
+            if (pairs.Count > 1)
+            {
+                var evaluatedItems = StackedTierQualityEvaluator.EvaluateTiers(pairs);
+                var best = evaluatedItems.FirstOrDefault(it => it.IsBest) ?? evaluatedItems[0];
+
+                foreach (var eval in evaluatedItems)
+                {
+                    var bmp = AstroBitmapHelper.LoadBitmapFromFile(eval.OutputFilePath);
+                    StackedComparisonItems.Add(new StackedTierUiItem(eval, bmp));
+                }
+
+                HasMultipleStackedTiers = StackedComparisonItems.Count > 1;
+                FrameComparatorButtonText = Loc.Format("FrameComparator.ButtonLabel", StackedComparisonItems.Count, best.Percentage);
+                string bestLog = Loc.Format("Messages.BestTierIdentified", best.Percentage, best.QualityScore, best.FileName);
+                _processingLogLines.Add($"⭐ {bestLog}");
+            }
+        }
+
         ConsoleLogText = string.Join(Environment.NewLine, _processingLogLines);
     }
 

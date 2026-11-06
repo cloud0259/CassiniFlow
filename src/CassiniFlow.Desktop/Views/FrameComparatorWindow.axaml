@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+        xmlns:loc="using:CassiniFlow.Desktop.Localization"
+        x:Class="CassiniFlow.Desktop.Views.FrameComparatorWindow"
+        x:DataType="vm:FrameComparatorViewModel"
+        Title="{loc:Tr FrameComparator.WindowTitle}"
+        Width="1100" Height="720"
+        MinWidth="800" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/cassiniflow.ico"
+        Background="{DynamicResource AppWindowBackground}"
+        Foreground="{DynamicResource AppTextPrimary}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+
+        <!-- En-tête : Titre & Recommandation du meilleur rendu -->
+        <Border Grid.Row="0" Classes="groupbox" Margin="0,0,0,12" Padding="14,12">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Text="🔬" FontSize="26" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="{loc:Tr FrameComparator.Title}" FontSize="15" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding SummaryBannerText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Galerie des paliers comparés -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Tiers}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="16"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:StackedTierUiItem">
+                        <Border Width="340" Classes="groupbox" Padding="12" Margin="0,0,0,8"
+                                BorderBrush="{Binding IsBest, Converter={x:Null}}"
+                                CornerRadius="8">
+                            <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="2">
+
+                                <!-- Badge Meilleur Rendu ou Titre -->
+                                <Grid Grid.Row="0" Margin="0,0,0,8" ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TierLabel, StringFormat='{}Palier {0}'}" FontSize="14" FontWeight="Bold"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#eab308" CornerRadius="4" Padding="8,3"
+                                            IsVisible="{Binding IsBest}">
+                                        <TextBlock Text="{loc:Tr FrameComparator.BestBadge}" FontWeight="Bold" FontSize="11" Foreground="#1e1b4b"/>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Aperçu Image Haute Résolution -->
+                                <Border Grid.Row="1" Background="#090d16" CornerRadius="6" Padding="4" MinHeight="260" MaxHeight="360" VerticalAlignment="Center" ClipToBounds="True">
+                                    <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Score de qualité et netteté -->
+                                <Border Grid.Row="2" Background="{DynamicResource AppPanelSubtleBackground}" CornerRadius="6" Padding="10,6" Margin="0,10,0,6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{loc:Tr FrameComparator.SharpnessScore}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" Background="{DynamicResource AppAccent}" CornerRadius="4" Padding="8,2">
+                                            <TextBlock Text="{Binding ScoreText}" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Détails des trames et AP -->
+                                <StackPanel Grid.Row="3" Spacing="2" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding SummaryText}" FontSize="11.5" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding ResolutionDetails}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}"/>
+                                </StackPanel>
+
+                                <!-- Bouton pour ouvrir l'image en pleine résolution -->
+                                <Button Grid.Row="4"
+                                        Content="{loc:Tr FrameComparator.OpenImage}"
+                                        Command="{Binding OpenFileCommand}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Padding="10,6"
+                                        FontSize="11.5"
+                                        CornerRadius="4"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Pied de page avec actions -->
+        <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0"
+                    Content="{loc:Tr DoProcessing.OpenOutput}"
+                    Command="{Binding OpenOutputFolderCommand}"
+                    Padding="16,7"
+                    FontSize="12"/>
+
+            <Button Grid.Column="2"
+                    Content="{loc:Tr FrameComparator.Close}"
+                    Click="OnCloseClick"
+                    Padding="22,7"
+                    Background="{DynamicResource AppAccent}"
+                    Foreground="White"
+                    FontWeight="SemiBold"
+                    FontSize="12"
+                    CornerRadius="4"/>
+        </Grid>
+    </Grid>
+</Window>

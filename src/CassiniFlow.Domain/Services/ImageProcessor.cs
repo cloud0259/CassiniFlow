@@ -862,17 +862,34 @@ public static class ImageProcessor
         int outW = rotation is RotationAngle.Rotate90Clockwise or RotationAngle.Rotate90Anticlockwise ? src.Height : src.Width;
         int outH = rotation is RotationAngle.Rotate90Clockwise or RotationAngle.Rotate90Anticlockwise ? src.Width : src.Height;
 
+        int srcW = src.Width;
+        int srcH = src.Height;
+        int cx = src.DetectedCentroidX;
+        int cy = src.DetectedCentroidY;
+        int outCx = cx;
+        int outCy = cy;
+        if (cx > 0 || cy > 0)
+        {
+            int fx = flipX ? (srcW - 1 - cx) : cx;
+            int fy = flipY ? (srcH - 1 - cy) : cy;
+            (outCx, outCy) = rotation switch
+            {
+                RotationAngle.Rotate90Clockwise => (srcH - 1 - fy, fx),
+                RotationAngle.Rotate90Anticlockwise => (fy, srcW - 1 - fx),
+                RotationAngle.Rotate180 => (srcW - 1 - fx, srcH - 1 - fy),
+                _ => (fx, fy)
+            };
+        }
+
         var dst = new AstroFrame(outW, outH, src.Channels, src.OriginalBitDepth)
         {
             FrameIndex = src.FrameIndex,
             TimestampUtc = src.TimestampUtc,
             QualityScore = src.QualityScore,
-            DetectedCentroidX = src.DetectedCentroidX,
-            DetectedCentroidY = src.DetectedCentroidY
+            DetectedCentroidX = outCx,
+            DetectedCentroidY = outCy
         };
 
-        int srcW = src.Width;
-        int srcH = src.Height;
         int ch = src.Channels;
         ushort[] sData = src.Data;
         ushort[] dData = dst.Data;

@@ -110,6 +110,7 @@ public partial class MainWindowViewModel
             file.SelectionIn = value;
         }
         UpdateRetainedFramesSummary();
+        UpdateAvailableFrames();
     }
 
     partial void OnTimelineSelectionOutChanged(int value)
@@ -120,6 +121,7 @@ public partial class MainWindowViewModel
             file.SelectionOut = value;
         }
         UpdateRetainedFramesSummary();
+        UpdateAvailableFrames();
     }
 
     partial void OnTimelineCutoffPercentChanged(int value)
@@ -409,22 +411,26 @@ public partial class MainWindowViewModel
     partial void OnSelectedRotationIndexChanged(int value)
     {
         if (value > 0) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
     partial void OnFlipHorizontalChanged(bool value)
     {
         if (value) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
     partial void OnFlipVerticalChanged(bool value)
     {
         if (value) PreviewCroppedOutput = true;
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
-        partial void OnAutoRotateAlignChanged(bool value)
+    partial void OnAutoRotateAlignChanged(bool value)
     {
         _userSettings.Current.AutoRotateAlign = value;
         _userSettings.Save();
+        CurrentAlignmentGrid = AlignmentGrid.Empty;
         RequestPreviewUpdate(reloadFromDisk: false);
     }
 
@@ -680,7 +686,7 @@ public partial class MainWindowViewModel
 
                 if (!IsWorkflowPreProcessingOnly && !IsPlaying &&
                     (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
-                     (EnableCropping && (CurrentAlignmentGrid.FrameWidth != CropWidth || CurrentAlignmentGrid.FrameHeight != CropHeight))))
+                     CurrentAlignmentGrid.FrameWidth != processed.Width || CurrentAlignmentGrid.FrameHeight != processed.Height))
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
                 }

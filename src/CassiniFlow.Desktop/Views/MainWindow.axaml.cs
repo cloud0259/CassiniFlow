@@ -46,6 +46,9 @@ public partial class MainWindow : Window
             if (DataContext is MainWindowViewModel vm)
             {
                 vm.RequestOpenSettings += OpenSettingsDialog;
+                vm.RequestImportSettings += () => OnImportSettingsClick(null, null!);
+                vm.RequestExportSettings += () => OnExportSettingsClick(null, null!);
+                vm.RequestOpenFrameComparator += OpenFrameComparatorDialog;
             }
         };
 
@@ -113,6 +116,65 @@ public partial class MainWindow : Window
             DataContext = this.DataContext
         };
         settingsWin.ShowDialog(this);
+    }
+
+    private async void OnImportSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.IsProcessing) return;
+
+        var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = Loc.Get("Dialogs.ImportSettingsTitle"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType(Loc.Get("Dialogs.FilterSettingsFiles"))
+                {
+                    Patterns = ["*.cfset", "*.json", "*.pof"]
+                },
+                Avalonia.Platform.Storage.FilePickerFileTypes.All
+            ]
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path && !string.IsNullOrWhiteSpace(path))
+        {
+            await vm.ImportSettingsFromFileAsync(path);
+        }
+    }
+
+    private async void OnExportSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var file = await StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = Loc.Get("Dialogs.ExportSettingsTitle"),
+            DefaultExtension = "cfset",
+            SuggestedFileName = "cassiniflow_preset.cfset",
+            FileTypeChoices =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("CassiniFlow Preset (*.cfset)") { Patterns = ["*.cfset"] },
+                new Avalonia.Platform.Storage.FilePickerFileType("JSON Settings (*.json)") { Patterns = ["*.json"] },
+                new Avalonia.Platform.Storage.FilePickerFileType("CassiniFlow Options File (*.pof)") { Patterns = ["*.pof"] }
+            ]
+        });
+
+        if (file?.TryGetLocalPath() is { } path && !string.IsNullOrWhiteSpace(path))
+        {
+            await vm.ExportSettingsToFileAsync(path);
+        }
+    }
+
+    private void OpenFrameComparatorDialog()
+    {
+        if (DataContext is MainWindowViewModel vm && vm.StackedComparisonItems.Count > 0)
+        {
+            var comparatorWin = new FrameComparatorWindow
+            {
+                DataContext = new FrameComparatorViewModel(vm.StackedComparisonItems)
+            };
+            comparatorWin.ShowDialog(this);
+        }
     }
 
     private void OnSetLanguageFrenchClick(object? sender, RoutedEventArgs e)

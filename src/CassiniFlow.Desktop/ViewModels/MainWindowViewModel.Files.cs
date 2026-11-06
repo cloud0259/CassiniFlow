@@ -72,6 +72,36 @@ public partial class MainWindowViewModel
         EndFrame = selOut;
         TimelineSelectionIn = selIn;
         TimelineSelectionOut = selOut;
+
+        // Adapte automatiquement la taille de tuile AP et réinitialise la grille si la résolution change
+        int frameW = EnableCropping ? CropWidth : value.Width;
+        int frameH = EnableCropping ? CropHeight : value.Height;
+        var targetType = CelestialTargetType.Unknown;
+        if (!string.IsNullOrEmpty(value.IdentifiedObjectText))
+        {
+            if (value.IdentifiedObjectText.Contains("Lune", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Soleil", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Moon", StringComparison.OrdinalIgnoreCase) ||
+                value.IdentifiedObjectText.Contains("Sun", StringComparison.OrdinalIgnoreCase))
+            {
+                targetType = CelestialTargetType.MoonOrSunSurface;
+            }
+            else
+            {
+                targetType = CelestialTargetType.Planet;
+            }
+        }
+        AlignmentTileSize = AlignmentGridGenerator.RecommendOptimalTileSize(
+            value.PlanetDiameterPx,
+            targetType,
+            frameW,
+            frameH);
+
+        if (CurrentAlignmentGrid is not null && (CurrentAlignmentGrid.FrameWidth != frameW || CurrentAlignmentGrid.FrameHeight != frameH))
+        {
+            CurrentAlignmentGrid = AlignmentGrid.Empty;
+        }
+
         TriggerQualityTimelineAnalysis(value.FullPath);
         RequestPreviewUpdate(reloadFromDisk: true);
     }
@@ -261,7 +291,7 @@ public partial class MainWindowViewModel
         ConsoleLogText = Loc.Format("Messages.FilesLoaded", SourceFiles.Count, firstNew.FileName, firstNew.Resolution, firstNew.Frames, firstNew.FpsInfo);
 
         UpdateAvailableFrames();
-        await AnalyzePlanetSizes();
+        await AnalyzePlanetSizes(validItems);
     }
 
 
@@ -480,7 +510,19 @@ public partial class MainWindowViewModel
     [RelayCommand]
     public async Task AnalyzePlanetSizes()
     {
-        var items = SourceFiles.ToList();
+        var unmeasured = SourceFiles.Where(f => !f.PlanetDiameterPx.HasValue).ToList();
+        var targets = unmeasured.Count > 0 ? unmeasured : SourceFiles.ToList();
+        await AnalyzePlanetSizesInternal(targets);
+    }
+
+    public async Task AnalyzePlanetSizes(IEnumerable<SourceFileItem>? targetItems)
+    {
+        var items = (targetItems ?? SourceFiles).ToList();
+        await AnalyzePlanetSizesInternal(items);
+    }
+
+    private async Task AnalyzePlanetSizesInternal(List<SourceFileItem> items)
+    {
         if (items.Count == 0) return;
 
         IsMeasuringPlanetSizes = true;

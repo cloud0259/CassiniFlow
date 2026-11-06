@@ -11,7 +11,7 @@
         MinWidth="1040" MinHeight="620"
         Background="{DynamicResource AppWindowBackground}"
         Foreground="{DynamicResource AppTextPrimary}"
-        Icon="/Assets/cassiniflow.ico"
+        Icon="/Assets/icon_256x256.png"
         DragDrop.AllowDrop="True">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -47,6 +47,9 @@
                     </MenuItem>
                     <MenuItem Header="{loc:Tr Menu.Settings}">
                         <MenuItem Header="{loc:Tr Menu.OpenSettings}" Click="OnOpenSettingsClick" InputGesture="Ctrl+,"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Tr Menu.ImportSettings}" Click="OnImportSettingsClick" InputGesture="Ctrl+O"/>
+                        <MenuItem Header="{loc:Tr Menu.ExportSettings}" Click="OnExportSettingsClick" InputGesture="Ctrl+S"/>
                         <Separator/>
                         <MenuItem Header="{loc:Tr Menu.Theme}">
                             <MenuItem x:Name="DarkThemeMenuItem" Header="{loc:Tr Menu.ThemeDark}" ToggleType="Radio" GroupName="AppTheme" Click="OnSetThemeDarkClick"/>

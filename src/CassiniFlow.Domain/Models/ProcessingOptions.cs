@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using System.Xml.Serialization;
+
 namespace CassiniFlow.Domain.Models;
 
 /// <summary>
@@ -10,9 +13,21 @@ public sealed class ProcessingOptions
     public ProcessingRunMode RunMode { get; set; } = ProcessingRunMode.BatchMode;
     public OptimisationPreset ActivePreset { get; set; } = OptimisationPreset.None;
     public StackingOptions Stacking { get; set; } = new();
+
+    [JsonIgnore]
+    [XmlIgnore]
     public List<string> ImageFiles { get; set; } = [];
+
+    [JsonIgnore]
+    [XmlIgnore]
     public List<string> DarkFiles { get; set; } = [];
+
+    [JsonIgnore]
+    [XmlIgnore]
     public List<string> FlatFiles { get; set; } = [];
+
+    [JsonIgnore]
+    [XmlIgnore]
     public List<string> FlatDarkFiles { get; set; } = [];
 
     // --- Calibration (Dark / Flat / Flat-Dark / Hot Pixels) ---
@@ -29,17 +44,34 @@ public sealed class ProcessingOptions
     public bool FlatDarkFrameSubtract { get; set; }
     public bool SaveMasterFlatDark { get; set; }
 
-    // --- 2. Input Options ---
+    // --- 2. Input Options (spécifiques à la session vidéo en cours, exclus des presets) ---
+    [JsonIgnore]
+    [XmlIgnore]
     public bool LimitFrameRange { get; set; }
+
+    [JsonIgnore]
+    [XmlIgnore]
     public FrameRangeType FrameRangeMode { get; set; } = FrameRangeType.StartToEnd;
+
+    [JsonIgnore]
+    [XmlIgnore]
     public int StartFrame { get; set; } = 1;
+
+    [JsonIgnore]
+    [XmlIgnore]
     public int EndFrame { get; set; } = 999999;
+
+    [JsonIgnore]
+    [XmlIgnore]
     public int NumFramesFromCentre { get; set; } = 1000;
 
     /// <summary>
     /// Découpage temporel individuel par fichier [IN, OUT] (1-basé : StartFrame, EndFrame).
     /// Permet de respecter les sélections personnalisées de chaque vidéo en mode Multi-fichiers.
+    /// Exclu des imports/exports de profils de traitement.
     /// </summary>
+    [JsonIgnore]
+    [XmlIgnore]
     public Dictionary<string, (int StartFrame, int EndFrame)> FileFrameRanges { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
