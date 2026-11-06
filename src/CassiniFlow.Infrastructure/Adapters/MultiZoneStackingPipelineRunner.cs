@@ -165,7 +165,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % reportStep == 0 || done == framesToAnalyze)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, framesToAnalyze) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, done, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", done, framesToAnalyze, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, framesToAnalyze) * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, done, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", done, framesToAnalyze, stepPct)));
                     }
                 });
 
@@ -263,7 +264,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (pass1Processed % reportStep == 0 || pass1Processed == framesToAnalyze)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)pass1Processed / framesToAnalyze * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", pass1Processed, framesToAnalyze, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)pass1Processed / framesToAnalyze * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysis"), pct, fileName, pass1Processed, framesToAnalyze, _loc.Format("Progress.QualityEvalProgress", pass1Processed, framesToAnalyze, stepPct)));
                     }
                 }
             }
@@ -469,11 +471,11 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         var allTierSummaries = new List<StackedTierSummary>();
         int maxWorkers = PipelineRunner.GetSafeWorkerThreadCount(options);
 
-        int totalExpectedFrames = validFiles.Sum(f =>
+        int totalExpectedFrames = Math.Max(1, validFiles.Sum(f =>
         {
             var summary = UniversalMediaReader.InspectFile(f);
-            return Math.Max(1, options.GetEffectiveFrameRange(f, summary.FrameCount).EffectiveCount);
-        });
+            return options.GetEffectiveFrameRange(f, summary.FrameCount).EffectiveCount;
+        }));
         int globalPass1Count = 0;
 
         var allScoreRecords = new List<FrameScoreRecord>(totalExpectedFrames);
@@ -561,7 +563,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                 if (done % reportStep == 0 || done == totalExpectedFrames)
                 {
                     int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, Path.GetFileName(imgFile), done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                    int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                    progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, Path.GetFileName(imgFile), done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                 }
             });
 
@@ -650,7 +653,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % 50 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                     }
                 });
 
@@ -681,7 +685,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                      UniversalMediaReader.VideoExtensions.Contains(ext) &&
                      TryAnalyzeVideoPass1ZeroAlloc(
                          file,
-                         Math.Max(1, UniversalMediaReader.InspectFile(file).FrameCount),
+                         Math.Max(1, options.GetEffectiveFrameRange(file, UniversalMediaReader.InspectFile(file).FrameCount).EffectiveCount),
                          options,
                          maxWorkers,
                          progress,
@@ -744,10 +748,22 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % 10 == 0 || done == totalExpectedFrames)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / totalExpectedFrames * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(_loc.Get("Progress.QualityAnalysisJoin"), pct, fileName, done, totalExpectedFrames, _loc.Format("Progress.GlobalEvalProgress", done, totalExpectedFrames, stepPct)));
                     }
                 }
             }
+        }
+
+        if (allScoreRecords.Count > 0)
+        {
+            progress?.Report(new PipelineProgressReport(
+                _loc.Get("Progress.QualityAnalysisJoin"),
+                45,
+                Path.GetFileName(validFiles[0]),
+                allScoreRecords.Count,
+                totalExpectedFrames,
+                _loc.Format("Progress.GlobalEvalProgress", allScoreRecords.Count, totalExpectedFrames, 100)));
         }
 
         if (allScoreRecords.Count == 0 || bestRefFrame is null)
@@ -1075,7 +1091,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                             if (done % 25 == 0 || done == maxFramesToStack)
                             {
                                 int pct = 50 + Math.Clamp((int)Math.Round((double)done / maxFramesToStack * 46.0), 0, 46);
-                                progress?.Report(new PipelineProgressReport(progressStageName, pct, progressFileName, done, maxFramesToStack, _loc.Format("Progress.StackingFramesProgress", done, maxFramesToStack, pct)));
+                                int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, maxFramesToStack) * 100.0), 1, 100);
+                                progress?.Report(new PipelineProgressReport(progressStageName, pct, progressFileName, done, maxFramesToStack, _loc.Format("Progress.StackingFramesProgress", done, maxFramesToStack, stepPct)));
                             }
 
                             return local;
@@ -1371,7 +1388,8 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                     if (done % reportStep == 0 || done == reportTotal)
                     {
                         int pct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, reportTotal) * 45.0), 1, 45);
-                        progress?.Report(new PipelineProgressReport(stageName, pct, fileName, done, reportTotal, _loc.Format("Progress.QualityEvalProgress", done, reportTotal, pct)));
+                        int stepPct = Math.Clamp((int)Math.Round((double)done / Math.Max(1, reportTotal) * 100.0), 1, 100);
+                        progress?.Report(new PipelineProgressReport(stageName, pct, fileName, done, reportTotal, _loc.Format("Progress.QualityEvalProgress", done, reportTotal, stepPct)));
                     }
 
                     idx++;

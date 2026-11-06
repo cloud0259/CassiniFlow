@@ -499,7 +499,7 @@ public partial class MainWindowViewModel
         Options.FileFrameRanges.Clear();
         foreach (var file in SourceFiles)
         {
-            if (file.HasCustomRange)
+            if (file.SelectionIn > 0 && file.SelectionOut > 0)
             {
                 Options.FileFrameRanges[file.FullPath] = (file.SelectionIn, file.SelectionOut);
             }
