@@ -106,6 +106,24 @@
                 </StackPanel>
             </Border>
 
+            <!-- Section Import / Export des paramètres de session -->
+            <Border Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{loc:Tr Settings.ProfilesTitle}" FontSize="12.5" FontWeight="SemiBold"/>
+                    <TextBlock Text="{loc:Tr Settings.ProfilesDesc}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,8,*">
+                        <Button Grid.Column="0" Content="{loc:Tr Settings.ImportSettingsButton}"
+                                Command="{Binding TriggerImportSettingsCommand}"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Padding="12,6" FontSize="11.5" CornerRadius="4"/>
+                        <Button Grid.Column="2" Content="{loc:Tr Settings.ExportSettingsButton}"
+                                Command="{Binding TriggerExportSettingsCommand}"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Padding="12,6" FontSize="11.5" CornerRadius="4"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- Pied de fenêtre avec bouton Fermer -->
             <Grid Margin="0,4,0,0">
                 <Button Content="{loc:Tr Settings.Close}"

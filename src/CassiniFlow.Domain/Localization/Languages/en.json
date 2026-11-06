@@ -18,6 +18,8 @@
     "CancelProcessing": "Cancel processing",
     "Settings": "_Settings",
     "OpenSettings": "Preferences...",
+    "ImportSettings": "Import Settings...",
+    "ExportSettings": "Export Settings...",
     "Language": "Language",
     "French": "Français",
     "English": "English",
@@ -282,9 +284,14 @@
     "SelectOutputFolderTitle": "Choose output folder",
     "SelectDarkFiles": "Select Dark frames (SER, FITS, TIFF, PNG)",
     "SelectFlatFiles": "Select Flat frames (SER, FITS, TIFF, PNG)",
-    "SelectFlatDarkFiles": "Select Flat-Dark frames (SER, FITS, TIFF, PNG)"
+    "SelectFlatDarkFiles": "Select Flat-Dark frames (SER, FITS, TIFF, PNG)",
+    "ImportSettingsTitle": "Import Processing Settings (Preset)",
+    "ExportSettingsTitle": "Export Processing Settings (Preset)",
+    "FilterSettingsFiles": "Settings files (*.cfset, *.json, *.pof)"
   },
   "Messages": {
+    "SettingsImportedSuccess": "Settings successfully imported from '{0}'.",
+    "SettingsExportedSuccess": "Settings successfully exported to '{0}'.",
     "BestTierIdentified": "Best rendering identified: Tier {0:F0}% (Sharpness score: {1:F1}/100) -> {2}",
     "Ready": "Ready",
     "NoProcessingRun": "No processing run yet.",
@@ -419,6 +426,10 @@
     "LanguageGroupDesc": "Select the user interface language. Changes take effect immediately.",
     "SaveSettings": "Save Preferences",
     "AutoSaveNote": "✓ Your preferences are automatically saved to your user profile.",
+    "ProfilesTitle": "Profiles & Session Settings",
+    "ProfilesDesc": "Save or load parameter configurations to optimize imaging throughput across sessions for the same celestial object (Jupiter, Saturn, Moon, etc.).",
+    "ImportSettingsButton": "Import Settings...",
+    "ExportSettingsButton": "Export Settings...",
     "TotalCoresDetected": "Detected processor: {0} logical cores"
   },
   "Tutorial": {
