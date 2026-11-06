@@ -46,6 +46,7 @@ public partial class MainWindow : Window
             if (DataContext is MainWindowViewModel vm)
             {
                 vm.RequestOpenSettings += OpenSettingsDialog;
+                vm.RequestOpenFrameComparator += OpenFrameComparatorDialog;
             }
         };
 
@@ -113,6 +114,18 @@ public partial class MainWindow : Window
             DataContext = this.DataContext
         };
         settingsWin.ShowDialog(this);
+    }
+
+    private void OpenFrameComparatorDialog()
+    {
+        if (DataContext is MainWindowViewModel vm && vm.StackedComparisonItems.Count > 0)
+        {
+            var comparatorWin = new FrameComparatorWindow
+            {
+                DataContext = new FrameComparatorViewModel(vm.StackedComparisonItems)
+            };
+            comparatorWin.ShowDialog(this);
+        }
     }
 
     private void OnSetLanguageFrenchClick(object? sender, RoutedEventArgs e)
