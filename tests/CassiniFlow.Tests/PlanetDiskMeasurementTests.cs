@@ -142,6 +142,7 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
         var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
@@ -159,7 +160,10 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
-            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
         }
     }
 
@@ -193,6 +197,7 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
         var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
@@ -208,7 +213,82 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
-            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
+        }
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_AnalyzePlanetSizes_DoesNotRecomputeExistingFiles()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        var item1 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars1.ser",
+            FullPath = "e:\\mars1.ser",
+            Frames = 100,
+            PlanetDiameterPx = 75.0, // Already measured
+            IdentifiedObjectText = "Mars"
+        };
+        var item2 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
+        {
+            FileName = "mars2.ser",
+            FullPath = "e:\\mars2.ser",
+            Frames = 100
+        };
+        vm.SourceFiles.Add(item1);
+        vm.SourceFiles.Add(item2);
+
+        int callCount = 0;
+        var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
+        var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
+        try
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = (path, frameIdx, maxDim) =>
+            {
+                callCount++;
+                int w = 100, h = 100, r = 20;
+                var frame = new AstroFrame(w, h, 3, 16);
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int dx = x - 50, dy = y - 50;
+                        if (dx * dx + dy * dy <= r * r)
+                        {
+                            int idx = (y * w + x) * 3;
+                            frame.Data[idx] = 40000;
+                            frame.Data[idx + 1] = 40000;
+                            frame.Data[idx + 2] = 40000;
+                        }
+                    }
+                }
+                return (frame, w, h);
+            };
+            CelestialTargetClassifier.PreviewFrameLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+
+            // Analyze only item2 as newly added
+            await vm.AnalyzePlanetSizes([item2]);
+
+            // item1 should remain untouched with original value
+            Assert.Equal(75.0, item1.PlanetDiameterPx);
+            Assert.Equal("Mars", item1.IdentifiedObjectText);
+
+            // item2 should have been measured
+            Assert.NotNull(item2.PlanetDiameterPx);
+            // Exactly 1 file was analyzed: 3 samples for diameter measurement + 4 samples for target classification = 7 total calls
+            Assert.Equal(7, callCount);
+        }
+        finally
+        {
+            PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
         }
     }
 }
