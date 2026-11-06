@@ -268,6 +268,16 @@
     "AlgoPeakHisto": "Peak Histo",
     "AlgoTotalLum": "Total Lum"
   },
+  "FrameComparator": {
+    "WindowTitle": "Stacked Frame Comparator — CassiniFlow",
+    "Title": "Stacked Tiers Comparator",
+    "SummaryBanner": "Objective sharpness and contrast analysis identified the {0:F0}% tier as offering the best rendering with a score of {1:F1} / 100.",
+    "BestBadge": "⭐ BEST RENDERING",
+    "SharpnessScore": "Sharpness score:",
+    "OpenImage": "Open Image",
+    "ButtonLabel": "🔬 Compare {0} stacked tiers (Best: {1:F0}%)",
+    "Close": "Close"
+  },
   "Dialogs": {
     "SelectSourceFilesTitle": "Select videos or images (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF)",
     "FilterVideosAndImages": "Videos & Sequences (AVI, MP4, MOV, MKV, SER, FITS, BMP, PNG, TIFF, JPG)",
@@ -282,6 +292,7 @@
   "Messages": {
     "SettingsImportedSuccess": "Settings successfully imported from '{0}'.",
     "SettingsExportedSuccess": "Settings successfully exported to '{0}'.",
+    "BestTierIdentified": "Best rendering identified: Tier {0:F0}% (Sharpness score: {1:F1}/100) -> {2}",
     "Ready": "Ready",
     "NoProcessingRun": "No processing run yet.",
     "AddFilesToStart": "Add one or more video/image files in the '1. Source Files' tab to get started.",

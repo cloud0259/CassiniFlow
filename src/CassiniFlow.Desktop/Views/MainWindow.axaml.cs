@@ -48,6 +48,7 @@ public partial class MainWindow : Window
                 vm.RequestOpenSettings += OpenSettingsDialog;
                 vm.RequestImportSettings += () => OnImportSettingsClick(null, null!);
                 vm.RequestExportSettings += () => OnExportSettingsClick(null, null!);
+                vm.RequestOpenFrameComparator += OpenFrameComparatorDialog;
             }
         };
 
@@ -161,6 +162,18 @@ public partial class MainWindow : Window
         if (file?.TryGetLocalPath() is { } path && !string.IsNullOrWhiteSpace(path))
         {
             await vm.ExportSettingsToFileAsync(path);
+        }
+    }
+
+    private void OpenFrameComparatorDialog()
+    {
+        if (DataContext is MainWindowViewModel vm && vm.StackedComparisonItems.Count > 0)
+        {
+            var comparatorWin = new FrameComparatorWindow
+            {
+                DataContext = new FrameComparatorViewModel(vm.StackedComparisonItems)
+            };
+            comparatorWin.ShowDialog(this);
         }
     }
 
