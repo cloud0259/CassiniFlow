@@ -14,20 +14,9 @@ public static class AstroBitmapHelper
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return null;
 
-        string ext = Path.GetExtension(filePath).ToLowerInvariant();
-
-        // 1. Try native Avalonia Bitmap for standard web formats
-        if (ext is ".png" or ".jpg" or ".jpeg" or ".bmp")
-        {
-            try
-            {
-                using var fs = File.OpenRead(filePath);
-                return new Bitmap(fs);
-            }
-            catch { }
-        }
-
-        // 2. For TIFF, FITS, SER or fallback: decode via UniversalMediaReader
+        // 1. Toujours décoder via UniversalMediaReader en priorité :
+        // Préserve la dynamique linéaire exacte pour FITS, SER, TIFF et PNG 16-bit / 8-bit astro
+        // sans altération par la courbe de transfert sRGB de Skia/Avalonia qui brûle les blancs.
         try
         {
             var frame = UniversalMediaReader.ReadSingleFrame(filePath, 0);
@@ -35,6 +24,7 @@ public static class AstroBitmapHelper
         }
         catch
         {
+            // 2. Repli vers le décodeur natif Avalonia pour les formats web ou non astro
             try
             {
                 using var fs = File.OpenRead(filePath);
