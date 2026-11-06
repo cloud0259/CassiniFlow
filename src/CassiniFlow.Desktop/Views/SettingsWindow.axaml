@@ -9,7 +9,7 @@
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Icon="/Assets/cassiniflow.ico"
+        Icon="/Assets/icon_256x256.png"
         Background="{DynamicResource AppWindowBackground}"
         Foreground="{DynamicResource AppTextPrimary}">
 
