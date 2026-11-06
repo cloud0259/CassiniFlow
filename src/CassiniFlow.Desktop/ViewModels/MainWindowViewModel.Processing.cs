@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
+using CassiniFlow.Domain.Services;
 using CassiniFlow.Application.UseCases;
 using CassiniFlow.Infrastructure.Adapters;
 using CassiniFlow.Desktop.Localization;
@@ -210,6 +211,7 @@ public partial class MainWindowViewModel
         IsSection10Expanded = true;
         IsProcessing = true;
         HasCompletedOutput = false;
+        DismissError();
         SyncOptionsFromUi();
 
         _processingCts?.Cancel();
@@ -258,8 +260,13 @@ public partial class MainWindowViewModel
         catch (Exception ex)
         {
             ProcessingStageText = Loc.Get("Messages.Error");
-            string errorDetails = FormatExceptionDetails(ex);
-            AppendStatusLog(Loc.Format("Messages.ProcessingErrorAt", DateTime.Now, errorDetails));
+            var errorDetails = CassiniFlowErrorExplainer.Explain(ex, Loc.Localization);
+            AppendStatusLog(Loc.Format("Messages.ProcessingErrorAt", DateTime.Now, $"{errorDetails.Title} : {errorDetails.Message}"));
+            if (!string.IsNullOrWhiteSpace(errorDetails.SuggestedResolution))
+            {
+                AppendStatusLog($"💡 {errorDetails.SuggestedResolution.Replace('\n', ' ')}");
+            }
+            ShowError(errorDetails);
         }
         finally
         {
@@ -370,6 +377,13 @@ public partial class MainWindowViewModel
         {
             Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
         }
+        else
+        {
+            ShowError(new CassiniFlow.Domain.Exceptions.OutputDirectoryException(
+                Loc.Get("Errors.TitleOutputDirectory"),
+                Loc.Get("Errors.ExplanationOutputDirectory"),
+                Loc.Get("Errors.SuggestionOutputDirectory")));
+        }
     }
 
 
@@ -379,6 +393,13 @@ public partial class MainWindowViewModel
         if (!string.IsNullOrWhiteSpace(LastOutputFilePath) && File.Exists(LastOutputFilePath))
         {
             Process.Start(new ProcessStartInfo(LastOutputFilePath) { UseShellExecute = true });
+        }
+        else
+        {
+            ShowError(new CassiniFlow.Domain.Exceptions.CorruptedMediaException(
+                Loc.Get("Errors.TitleCorruptMedia"),
+                Loc.Get("Errors.ExplanationCorruptMedia"),
+                Loc.Get("Errors.SuggestionCorruptMedia")));
         }
     }
 }

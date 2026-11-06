@@ -208,6 +208,7 @@ public partial class MainWindowViewModel
                         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             ConsoleLogText += $"\n{Loc.Get("Messages.ReadError")} {Path.GetFileName(path)} : {ex.Message}";
+                            ShowError(ex);
                         });
                     }
 

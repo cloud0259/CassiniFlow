@@ -112,16 +112,53 @@
             </Grid>
         </Border>
 
-        <!-- BANNIÈRE DE MISE À JOUR DISPONIBLE (DISCRÈTE ET FERMABLE) -->
-        <Border Grid.Row="1" Background="{DynamicResource AppAccent}" IsVisible="{Binding IsUpdateBannerVisible}" Padding="14,6" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1">
-            <DockPanel LastChildFill="True">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
-                    <Button Content="{loc:Tr Messages.DownloadUpdateBtn}" Command="{Binding OpenUpdateUrlCommand}" Background="White" Foreground="{DynamicResource AppAccent}" FontWeight="Bold" FontSize="11" Padding="12,4" CornerRadius="4"/>
-                    <Button Content="✕" Command="{Binding DismissUpdateBannerCommand}" Background="Transparent" Foreground="White" FontSize="12" Padding="6,2"/>
-                </StackPanel>
-                <TextBlock Text="{Binding UpdateBannerText}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-            </DockPanel>
-        </Border>
+        <!-- BANNIÈRES D'INFORMATION ET D'ERREUR (ROW 1) -->
+        <StackPanel Grid.Row="1">
+            <!-- BANNIÈRE DE MISE À JOUR DISPONIBLE (DISCRÈTE ET FERMABLE) -->
+            <Border Background="{DynamicResource AppAccent}" IsVisible="{Binding IsUpdateBannerVisible}" Padding="14,6" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                        <Button Content="{loc:Tr Messages.DownloadUpdateBtn}" Command="{Binding OpenUpdateUrlCommand}" Background="White" Foreground="{DynamicResource AppAccent}" FontWeight="Bold" FontSize="11" Padding="12,4" CornerRadius="4"/>
+                        <Button Content="✕" Command="{Binding DismissUpdateBannerCommand}" Background="Transparent" Foreground="White" FontSize="12" Padding="6,2"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding UpdateBannerText}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- BANNIÈRE D'ERREUR EXPLICITE (PROÉMINENTE, ACCESSIBLE, AVEC CONSEILS DE RÉSOLUTION) -->
+            <Border Background="#2a1212" BorderBrush="#dc2626" BorderThickness="0,0,0,1"
+                    IsVisible="{Binding HasActiveError}" Padding="14,8">
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0" Text="⚠️" FontSize="20" VerticalAlignment="Top" Margin="0,1,10,0"/>
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Background="#dc2626" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ActiveErrorCode}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                            </Border>
+                            <TextBlock Text="{Binding ActiveErrorTitle}" FontSize="13" FontWeight="Bold" Foreground="#fca5a5" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ActiveErrorMessage}" FontSize="12" Foreground="#fecaca" TextWrapping="Wrap"/>
+
+                        <!-- Conseil de résolution -->
+                        <Border Background="#1a1111" BorderBrush="#b91c1c" BorderThickness="1" CornerRadius="4" Padding="8,5" Margin="0,3,0,0"
+                                IsVisible="{Binding HasActiveErrorSuggestion}">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{loc:Tr Errors.ResolutionTitle}" FontSize="11" FontWeight="Bold" Foreground="#fcd34d"/>
+                                <TextBlock Text="{Binding ActiveErrorSuggestion}" FontSize="11" Foreground="#fef3c7" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="12,0,0,0">
+                        <Button Content="{Binding ErrorCopyButtonText}" Command="{Binding CopyErrorDetailsCommand}"
+                                Background="#3b1d1d" Foreground="#fca5a5" BorderBrush="#ef4444" BorderThickness="1"
+                                FontSize="11" Padding="10,4" CornerRadius="4"/>
+                        <Button Content="✕" Command="{Binding DismissErrorCommand}"
+                                Background="Transparent" Foreground="#fca5a5" FontSize="14" Padding="6,2"
+                                ToolTip.Tip="{loc:Tr Errors.Dismiss}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX CONTINUS ET SANS ESPACES VIDES -->
         <Grid Grid.Row="2" ColumnDefinitions="26*,Auto,48*,Auto,26*">

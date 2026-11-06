@@ -38,6 +38,42 @@ public partial class App : Avalonia.Application
         Loc.LoadSettings();
         themeService.Initialize();
 
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                var error = CassiniFlowErrorExplainer.Explain(ex, Loc.Localization);
+                try
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (Services?.GetService<MainWindowViewModel>() is { } vm)
+                        {
+                            vm.ShowError(error);
+                        }
+                    });
+                }
+                catch { }
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            var error = CassiniFlowErrorExplainer.Explain(e.Exception, Loc.Localization);
+            try
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (Services?.GetService<MainWindowViewModel>() is { } vm)
+                    {
+                        vm.ShowError(error);
+                    }
+                });
+            }
+            catch { }
+            e.SetObserved();
+        };
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow
