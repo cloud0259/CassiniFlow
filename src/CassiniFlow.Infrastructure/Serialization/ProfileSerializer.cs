@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Outbound;
 
@@ -7,15 +10,69 @@ namespace CassiniFlow.Infrastructure.Serialization;
 
 /// <summary>
 /// Reads and writes legacy CassiniFlow Options Files (.pof) with "[CassiniFlow OPTIONS FILE]" header,
-/// as well as generating CLI argument lists compatible with CassiniFlow_core.exe.
+/// modern JSON configuration presets (.cfset / .json), and CLI argument lists compatible with CassiniFlow_core.exe.
 /// </summary>
 public sealed class ProfileSerializer : IProfileSerializer
 {
     public const string Header = "[CassiniFlow OPTIONS FILE]";
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+        PropertyNameCaseInsensitive = true,
+        IncludeFields = true
+    };
+
     string IProfileSerializer.SerializeToPof(ProcessingOptions options) => SerializeToPof(options);
     ProcessingOptions IProfileSerializer.ParseFromPof(string pofText) => ParseFromPof(pofText);
+    string IProfileSerializer.SerializeToJson(ProcessingOptions options) => SerializeToJson(options);
+    ProcessingOptions IProfileSerializer.ParseFromJson(string jsonText) => ParseFromJson(jsonText);
+    ProcessingOptions IProfileSerializer.LoadFromFile(string filePath) => LoadFromFile(filePath);
+    void IProfileSerializer.SaveToFile(ProcessingOptions options, string filePath) => SaveToFile(options, filePath);
     List<string> IProfileSerializer.GenerateCommandLineArguments(ProcessingOptions options) => GenerateCommandLineArguments(options);
+
+    public static string SerializeToJson(ProcessingOptions options)
+    {
+        return JsonSerializer.Serialize(options, JsonOptions);
+    }
+
+    public static ProcessingOptions ParseFromJson(string jsonText)
+    {
+        return JsonSerializer.Deserialize<ProcessingOptions>(jsonText, JsonOptions)
+            ?? new ProcessingOptions();
+    }
+
+    public static ProcessingOptions LoadFromFile(string filePath)
+    {
+        string text = File.ReadAllText(filePath);
+        if (filePath.EndsWith(".pof", StringComparison.OrdinalIgnoreCase) ||
+            text.TrimStart().StartsWith(Header, StringComparison.Ordinal))
+        {
+            return ParseFromPof(text);
+        }
+        return ParseFromJson(text);
+    }
+
+    public static void SaveToFile(ProcessingOptions options, string filePath)
+    {
+        string dir = Path.GetDirectoryName(filePath) ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        if (filePath.EndsWith(".pof", StringComparison.OrdinalIgnoreCase))
+        {
+            string pof = SerializeToPof(options);
+            File.WriteAllText(filePath, pof, Encoding.UTF8);
+        }
+        else
+        {
+            string json = SerializeToJson(options);
+            File.WriteAllText(filePath, json, Encoding.UTF8);
+        }
+    }
 
     public static string SerializeToPof(ProcessingOptions o)
     {
@@ -37,11 +94,12 @@ public sealed class ProfileSerializer : IProfileSerializer
         WriteBool("ISS_MODE", o.ActivePreset == OptimisationPreset.Iss);
         WriteBool("AVI_ARCHIVE_MODE", o.ActivePreset == OptimisationPreset.AviArchive);
 
-        WriteBool("FRAME_LIMIT", o.LimitFrameRange);
-        WriteInt("FRAME_RANGE_TYPE", (int)o.FrameRangeMode);
-        WriteInt("START_FRAME_VALUE", o.StartFrame);
-        WriteInt("END_FRAME_VALUE", o.EndFrame);
-        WriteInt("NUM_FRAMES_VALUE", o.NumFramesFromCentre);
+        // Les sélections de frames et plages spécifiques à un fichier ne sont pas exportées dans les profils
+        WriteBool("FRAME_LIMIT", false);
+        WriteInt("FRAME_RANGE_TYPE", 0);
+        WriteInt("START_FRAME_VALUE", 1);
+        WriteInt("END_FRAME_VALUE", 999999);
+        WriteInt("NUM_FRAMES_VALUE", 1000);
 
         WriteBool("DARK_FRAME_SUBTRACT", o.DarkFrameSubtract);
         WriteBool("SAVE_MASTER_DARK", o.SaveMasterDark);
@@ -227,11 +285,13 @@ public sealed class ProfileSerializer : IProfileSerializer
                 case "PLANETARY_ANNIMATION_GIF_MODE": if (AsBool()) o.ActivePreset = OptimisationPreset.PlanetaryAnimationGif; break;
                 case "AVI_ARCHIVE_MODE": if (AsBool()) o.ActivePreset = OptimisationPreset.AviArchive; break;
 
-                case "FRAME_LIMIT": o.LimitFrameRange = AsBool(); break;
-                case "FRAME_RANGE_TYPE": o.FrameRangeMode = (FrameRangeType)AsInt(); break;
-                case "START_FRAME_VALUE": o.StartFrame = AsInt(1); break;
-                case "END_FRAME_VALUE": o.EndFrame = AsInt(999999); break;
-                case "NUM_FRAMES_VALUE": o.NumFramesFromCentre = AsInt(1000); break;
+                // Les sélections de frames, plages et fichiers spécifiques à une vidéo ne sont pas importés pour ne pas écraser la session
+                case "FRAME_LIMIT":
+                case "FRAME_RANGE_TYPE":
+                case "START_FRAME_VALUE":
+                case "END_FRAME_VALUE":
+                case "NUM_FRAMES_VALUE":
+                    break;
 
                 case "DARK_FRAME_SUBTRACT": o.DarkFrameSubtract = AsBool(); break;
                 case "SAVE_MASTER_DARK": o.SaveMasterDark = AsBool(); break;

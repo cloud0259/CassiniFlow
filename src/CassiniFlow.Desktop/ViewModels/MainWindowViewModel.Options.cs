@@ -7,6 +7,7 @@ using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Application.UseCases;
 using CassiniFlow.Infrastructure.Adapters;
+using CassiniFlow.Infrastructure.Serialization;
 using CassiniFlow.Desktop.Localization;
 
 namespace CassiniFlow.Desktop.ViewModels;
@@ -499,7 +500,7 @@ public partial class MainWindowViewModel
         Options.FileFrameRanges.Clear();
         foreach (var file in SourceFiles)
         {
-            if (file.HasCustomRange)
+            if (file.SelectionIn > 0 && file.SelectionOut > 0)
             {
                 Options.FileFrameRanges[file.FullPath] = (file.SelectionIn, file.SelectionOut);
             }
@@ -629,6 +630,162 @@ public partial class MainWindowViewModel
         Options.Stacking.SharpeningEnabled = SharpeningEnabled;
         Options.Stacking.SharpeningBlendPercent = SharpeningBlendPercent;
         Options.Stacking.FeatheringEnabled = FeatheringEnabled;
+    }
+
+    public void LoadUiFromOptions(ProcessingOptions o)
+    {
+        ArgumentNullException.ThrowIfNull(o);
+
+        IsJoinMode = o.RunMode == ProcessingRunMode.JoinMode;
+        IsBatchMode = !IsJoinMode;
+
+        // Le nombre de frames, les images, darks, flats et plages de frames par fichier (FileFrameRanges)
+        // sont spécifiques à la session vidéo active et ne sont pas écrasés lors du chargement d'un profil.
+
+        DarkSubtractEnabled = o.DarkFrameSubtract;
+        HotPixelThreshold = Math.Clamp(o.HotPixelThreshold, 1, 255);
+        DebayerEnabled = o.DebayerEnabled;
+        SelectedBayerPatternIndex = Math.Clamp((int)o.DebayerPattern, 0, 3);
+        SelectedDebayerAlgoIndex = Math.Clamp((int)o.DebayerType, 0, 2);
+        SelectedBinningIndex = o.Binning == BinningMode.Disabled ? 0 : Math.Clamp((int)o.Binning - 1, 0, 3);
+
+        SelectedStabilisationModeIndex = Math.Clamp((int)o.StabilisationMode, 0, 2);
+        CheckObjectPresent = o.CheckPlanetObjectPresent;
+        CentreObjectInFrame = o.CentreObjectInFrame;
+        AutoThreshold = o.AutoDetectionThreshold;
+        DetectionThreshold = Math.Clamp(o.ManualDetectionThreshold, 1, 255);
+        MinObjectSizePixels = Math.Clamp(o.MinimumObjectSizePixels, 1, 1000);
+        ShowDetectedPixelsRed = o.ShowDetectedPixelsRed;
+        SelectedShadowEdgeIndex = Math.Clamp((int)o.EdgeInShadow, 0, 8);
+
+        AfbSize = o.AfbWidth > 0 ? o.AfbWidth : 64;
+
+        EnableCropping = o.EnableCropping;
+        CropWidth = Math.Max(16, o.CropWidth);
+        CropHeight = Math.Max(16, o.CropHeight);
+        CropOffsetX = o.CropOffsetX;
+        CropOffsetY = o.CropOffsetY;
+
+        InputGain = (double)o.InputGain;
+        Gamma = (double)o.Gamma;
+        HistogramStretchEnabled = o.EnableHistogramStretch;
+        HistogramStretchPercent = Math.Clamp(o.HistogramStretchWhitePointPercent, 1, 100);
+        ConvertToMono = o.ConvertToMonochrome;
+        MedianFilterEnabled = o.EnableMedianNoiseFilter;
+        SelectedRotationIndex = Math.Clamp((int)o.Rotation, 0, 3);
+        FlipHorizontal = o.FlipHorizontalX;
+        FlipVertical = o.FlipVerticalY;
+        AutoRotateAlign = o.AutoRotateAlign;
+        EnableFieldDerotation = o.EnableFieldDerotation;
+        ObserverLatitudeDegrees = o.ObserverLatitudeDegrees;
+        TargetAltitudeDegrees = o.TargetAltitudeDegrees;
+        TargetAzimuthDegrees = o.TargetAzimuthDegrees;
+        AdmissibleBlurPixels = o.AdmissibleBlurPixels;
+
+        EnableQuality = o.EnableQualityEstimation;
+        SelectedQualityAlgoIndex = Math.Clamp((int)o.QualityAlgorithm, 0, 3);
+        ReorderByQuality = o.QualityReorderFrames;
+        LimitQualityFrames = o.EnableQualityLimiting;
+        SelectedQualityLimitModeIndex = o.QualityLimitingMode == QualityLimitingType.NumberOfFrames ? 0 : 1;
+        QualityKeepValue = Math.Max(1, o.QualityFramesToKeep);
+        EnableQualityWeighting = o.EnableQualityWeighting;
+
+        AnimationForward = o.AnimationForwardPlay;
+        AnimationReverse = o.AnimationReversePlay;
+        AnimationRepeatCount = Math.Max(1, o.AnimationRepeatAllCount);
+
+        MatchInputFps = o.AviFpsSameAsInput;
+        OutputFps = Math.Max(1, o.AviFpsValue);
+        OutputSuffix = o.OutputFilenameSuffix ?? "_cassiniflow";
+        WinJuposNaming = o.GenerateWinJuposFilenames;
+        if (o.MaxCpuUsagePercent >= 10 && o.MaxCpuUsagePercent <= 100)
+        {
+            MaxCpuUsagePercent = o.MaxCpuUsagePercent;
+        }
+
+        if (o.Stacking != null)
+        {
+            SetWorkflowMode(o.Stacking.WorkflowMode switch
+            {
+                StackingWorkflowMode.StackingOnly => "stack",
+                StackingWorkflowMode.DirectStreamAllInOne => "directstream",
+                _ => "prep"
+            });
+
+            StackingStabilisationMode = o.Stacking.StabilisationMode;
+            DisableStabilisation = o.Stacking.DisableStabilisation;
+            StackingCanvasMode = o.Stacking.CanvasMode;
+            NoiseRobust = Math.Clamp(o.Stacking.NoiseRobust, 1, 8);
+            QualityScope = o.Stacking.QualityScope;
+            DoubleStackReference = o.Stacking.DoubleStackReference;
+            ReferenceFrameMode = o.Stacking.ReferenceMode;
+            ManualReferenceFrameIndex = o.Stacking.ManualReferenceFrameIndex;
+            AlignmentTileSize = Math.Clamp(o.Stacking.AlignmentTileSize, 16, 512);
+            MinBrightnessThreshold = Math.Clamp(o.Stacking.MinBrightnessThreshold, 1, 254);
+            EnablePruning = o.Stacking.EnablePruning;
+            EnableMultiScaleGrid = o.Stacking.EnableMultiScaleGrid;
+            NormalizeBrightness = o.Stacking.NormalizeBrightness;
+            NormalizeTargetPercent = Math.Clamp(o.Stacking.NormalizeTargetPercent, 10, 100);
+            CorrectAtmosphericDispersion = o.Stacking.CorrectAtmosphericDispersion;
+            SharpeningEnabled = o.Stacking.SharpeningEnabled;
+            SharpeningBlendPercent = Math.Clamp(o.Stacking.SharpeningBlendPercent, 0, 100);
+            FeatheringEnabled = o.Stacking.FeatheringEnabled;
+
+            if (o.Stacking.StackPercentages is { Count: > 0 } pcts)
+            {
+                StackPercentage1 = pcts.Count > 0 ? (int)Math.Round(pcts[0]) : 0;
+                StackPercentage2 = pcts.Count > 1 ? (int)Math.Round(pcts[1]) : 0;
+                StackPercentage3 = pcts.Count > 2 ? (int)Math.Round(pcts[2]) : 0;
+            }
+        }
+
+        RequestPreviewUpdate(reloadFromDisk: false);
+        NotifyStartProcessingValidation();
+        UpdateAvailableFrames();
+    }
+
+    public event Action? RequestImportSettings;
+    public event Action? RequestExportSettings;
+
+    [RelayCommand]
+    public void TriggerImportSettings() => RequestImportSettings?.Invoke();
+
+    [RelayCommand]
+    public void TriggerExportSettings() => RequestExportSettings?.Invoke();
+
+    public async Task ImportSettingsFromFileAsync(string filePath)
+    {
+        try
+        {
+            if (!System.IO.File.Exists(filePath))
+            {
+                throw new System.IO.FileNotFoundException($"File not found: {filePath}", filePath);
+            }
+
+            var loadedOptions = await Task.Run(() => ProfileSerializer.LoadFromFile(filePath));
+            LoadUiFromOptions(loadedOptions);
+            string msg = Loc.Format("Messages.SettingsImportedSuccess", System.IO.Path.GetFileName(filePath));
+            ConsoleLogText += $"{Environment.NewLine}✔ {msg}";
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogText += $"{Environment.NewLine}❌ {ex.Message}";
+        }
+    }
+
+    public async Task ExportSettingsToFileAsync(string filePath)
+    {
+        try
+        {
+            SyncOptionsFromUi();
+            await Task.Run(() => ProfileSerializer.SaveToFile(Options, filePath));
+            string msg = Loc.Format("Messages.SettingsExportedSuccess", System.IO.Path.GetFileName(filePath));
+            ConsoleLogText += $"{Environment.NewLine}✔ {msg}";
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogText += $"{Environment.NewLine}❌ {ex.Message}";
+        }
     }
 
     [RelayCommand]

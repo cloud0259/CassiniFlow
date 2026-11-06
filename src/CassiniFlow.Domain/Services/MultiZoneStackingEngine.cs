@@ -518,22 +518,23 @@ public sealed class MultiZoneStackingEngine
             }
         }
 
-        // 2. Normalisation de la brillance maximale (75% ou selon options)
-        if (_options.NormalizeBrightness)
-        {
-            NormalizeMasterBrightness(output, _options.NormalizeTargetPercent);
-        }
-
-        // 3. Correction de dispersion atmosphérique (alignement sous-pixel R et B sur G)
+        // 2. Correction de dispersion atmosphérique (alignement sous-pixel R et B sur G)
         if (_options.CorrectAtmosphericDispersion && _channels >= 3)
         {
             output = AtmosphericDispersionCorrector.AlignChannels(output);
         }
 
-        // 4. Accentuation haute fréquence (Convolution Laplacian non-destructif)
+        // 3. Accentuation haute fréquence (Convolution Laplacian non-destructif)
+        // Appliquée avant normalisation pour bénéficier du headroom naturel et éviter de brûler les hautes lumières
         if (_options.SharpeningEnabled)
         {
             output = ConvolutionSharpeningFilter.ApplySharpening(output, _options.SharpeningBlendPercent);
+        }
+
+        // 4. Normalisation de la brillance maximale contrôlée
+        if (_options.NormalizeBrightness)
+        {
+            NormalizeMasterBrightness(output, _options.NormalizeTargetPercent);
         }
 
         return output;
@@ -557,7 +558,14 @@ public sealed class MultiZoneStackingEngine
 
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] = (ushort)Math.Clamp(Math.Round(data[i] * factor), 0, 65535);
+            double v = data[i] * factor;
+            // Soft-knee au-delà de 92% pour éviter tout écrêtage dur / brûlure des hautes lumières
+            if (v > 60000.0)
+            {
+                double excess = v - 60000.0;
+                v = 60000.0 + (5535.0 * (1.0 - Math.Exp(-excess / 8000.0)));
+            }
+            data[i] = (ushort)Math.Clamp(Math.Round(v), 0, 65535);
         }
     }
 }

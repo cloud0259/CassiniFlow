@@ -13,6 +13,7 @@ using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Domain.Ports.Outbound;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Adapters;
+using CassiniFlow.Infrastructure.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CassiniFlow.Desktop;
@@ -60,6 +61,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IUpdateCheckerService, GitHubReleaseUpdateChecker>();
         services.AddSingleton<IQualityTimelineScanner, QualityTimelineScanner>();
         services.AddSingleton<IQualityTimelineUseCase, QualityTimelineUseCase>();
+        services.AddSingleton<IProfileSerializer, ProfileSerializer>();
 
         services.AddTransient<TutorialViewModel>();
         services.AddTransient<AlignmentOptionsViewModel>();

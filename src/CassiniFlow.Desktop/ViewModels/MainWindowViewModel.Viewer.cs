@@ -110,6 +110,7 @@ public partial class MainWindowViewModel
             file.SelectionIn = value;
         }
         UpdateRetainedFramesSummary();
+        UpdateAvailableFrames();
     }
 
     partial void OnTimelineSelectionOutChanged(int value)
@@ -120,6 +121,7 @@ public partial class MainWindowViewModel
             file.SelectionOut = value;
         }
         UpdateRetainedFramesSummary();
+        UpdateAvailableFrames();
     }
 
     partial void OnTimelineCutoffPercentChanged(int value)
