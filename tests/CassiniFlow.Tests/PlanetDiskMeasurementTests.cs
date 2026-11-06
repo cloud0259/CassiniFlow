@@ -142,6 +142,7 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
         var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
@@ -159,7 +160,10 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
-            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
         }
     }
 
@@ -193,6 +197,7 @@ public class PlanetDiskMeasurementTests
         }
 
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
         var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
@@ -208,7 +213,10 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
-            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
         }
     }
 
@@ -235,6 +243,7 @@ public class PlanetDiskMeasurementTests
 
         int callCount = 0;
         var prevLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
+        bool hadCustomClassifierLoader = CelestialTargetClassifier.HasCustomPreviewFrameLoader;
         var prevClassifierLoader = CelestialTargetClassifier.PreviewFrameLoader;
         try
         {
@@ -259,6 +268,7 @@ public class PlanetDiskMeasurementTests
                 }
                 return (frame, w, h);
             };
+            CelestialTargetClassifier.PreviewFrameLoader = PlanetSizeAnalyzer.PreviewFrameLoader;
 
             // Analyze only item2 as newly added
             await vm.AnalyzePlanetSizes([item2]);
@@ -275,7 +285,10 @@ public class PlanetDiskMeasurementTests
         finally
         {
             PlanetSizeAnalyzer.PreviewFrameLoader = prevLoader;
-            CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            if (hadCustomClassifierLoader)
+                CelestialTargetClassifier.PreviewFrameLoader = prevClassifierLoader;
+            else
+                CelestialTargetClassifier.ResetPreviewFrameLoader();
         }
     }
 }
