@@ -15,11 +15,16 @@
                     <TextBlock Text="{Binding ViewerTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Grid.Column="1" Text="{Binding FrameDimensionsText}" FontSize="12" Foreground="{DynamicResource AppBadgeFormat}" Margin="8,0,0,0"/>
                 </Grid>
-                <WrapPanel Orientation="Horizontal">
+                <WrapPanel Orientation="Horizontal" IsVisible="{Binding IsFileWorkflowMode}">
                     <CheckBox Content="{loc:Tr Viewer.ShowCropped}" IsChecked="{Binding PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
                     <CheckBox Content="{loc:Tr Viewer.ShowOverlay}" IsChecked="{Binding ShowOverlayBoxes}" IsEnabled="{Binding !PreviewCroppedOutput}" FontSize="12" Margin="0,0,14,0"/>
                     <CheckBox Content="{loc:Tr Viewer.ShowAlignmentGrid}" IsChecked="{Binding IsAlignmentGridVisible}" ToolTip.Tip="{loc:Tr Viewer.ShowAlignmentGridTip}" FontSize="12" Margin="0,0,14,0"/>
                     <CheckBox Content="{loc:Tr Viewer.TestThreshold}" IsChecked="{Binding ShowDetectedPixelsRed}" ToolTip.Tip="{loc:Tr Viewer.TestThresholdTip}" FontSize="12"/>
+                </WrapPanel>
+                <WrapPanel Orientation="Horizontal" IsVisible="{Binding IsWorkflowLiveStacking}">
+                    <CheckBox Content="{loc:Tr LiveStacking.EnableLiveSharpening}" IsChecked="{Binding LiveEnableSharpening}" FontWeight="SemiBold" FontSize="12" Margin="0,0,16,0"/>
+                    <CheckBox Content="{loc:Tr LiveStacking.EnableDigitalAdc}" IsChecked="{Binding LiveEnableDigitalAdc}" FontSize="12" Margin="0,0,16,0"/>
+                    <Button Content="{loc:Tr LiveStacking.ResetStack}" Command="{Binding ResetLiveStackCommand}" IsEnabled="{Binding IsLiveStackingActive}" Padding="8,2" FontSize="11"/>
                 </WrapPanel>
             </StackPanel>
         </Border>
@@ -30,7 +35,8 @@
         </Border>
 
         <!-- Contrôles de navigation temporelle et Graphique de Qualité / Seeing (Ticket #61) -->
-        <Border Grid.Row="2" Classes="groupbox" Padding="10,6">
+        <Grid Grid.Row="2">
+        <Border Classes="groupbox" Padding="10,6" IsVisible="{Binding IsFileWorkflowMode}">
             <StackPanel Spacing="6">
                 <!-- Barre d'outils Timeline : Modes, Navigation, Hauteur -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
@@ -163,6 +169,31 @@
                 </Grid>
             </StackPanel>
         </Border>
+
+        <!-- HUD Télémétrie Live Stacking (visible en mode Live Caméra) -->
+        <Border Classes="groupbox" Padding="12,8" IsVisible="{Binding IsWorkflowLiveStacking}">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding LiveHudCaptureFpsText}" FontSize="12" FontWeight="SemiBold" Foreground="#38bdf8"/>
+                        <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource AppTextDimmed}"/>
+                        <TextBlock Text="{Binding LiveHudStackFpsText}" FontSize="12" FontWeight="SemiBold" Foreground="#22c55e"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" Text="{Binding LiveHudBufferText}" FontSize="12" FontWeight="Bold" Foreground="#fbbf24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Column="2" Text="{Binding LiveHudSensorTempText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding LiveHudAcceptedRejectedText}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding LiveHudSeeingText}" FontSize="11" FontWeight="SemiBold" Foreground="#10b981" VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+        </Grid>
 
     </Grid>
 </UserControl>

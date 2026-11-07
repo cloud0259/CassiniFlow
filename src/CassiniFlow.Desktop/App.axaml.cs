@@ -98,6 +98,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IQualityTimelineScanner, QualityTimelineScanner>();
         services.AddSingleton<IQualityTimelineUseCase, QualityTimelineUseCase>();
         services.AddSingleton<IProfileSerializer, ProfileSerializer>();
+        services.AddSingleton<ICameraDriver, ZwoAsiCameraDriver>();
+        services.AddSingleton<ILiveStackingUseCase, LiveStackingSessionService>();
 
         services.AddTransient<TutorialViewModel>();
         services.AddTransient<AlignmentOptionsViewModel>();

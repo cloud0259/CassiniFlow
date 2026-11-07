@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CassiniFlow.Desktop.ViewModels"
+             xmlns:controls="using:CassiniFlow.Desktop.Controls"
+             xmlns:loc="using:CassiniFlow.Desktop.Localization"
+             x:Class="CassiniFlow.Desktop.Views.LiveStackingOptionsView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="6">
+
+        <!-- CARTE LIVE 1 : BUFFER GLISSANT TOP-K & ALIGNEMENT TEMPS RÉEL -->
+        <Expander Classes="accordion-card" IsExpanded="{Binding IsLiveSection1Expanded}">
+            <Expander.Header>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                        <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{loc:Tr LiveStacking.SectionBufferAlign}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Expander.Header>
+            <Border Padding="10,8">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,110">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.RollingBufferSize}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding LiveRollingBufferSize}" Minimum="10" Maximum="1000" Increment="25" FormatString="0"/>
+                    </Grid>
+                    <Slider Minimum="20" Maximum="500" Value="{Binding LiveRollingBufferSize}"/>
+
+                    <CheckBox Content="{loc:Tr LiveStacking.QualityWeighting}" IsChecked="{Binding LiveQualityWeighting}" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr LiveStacking.NormalizeBg}" IsChecked="{Binding LiveNormalizeBackground}" FontSize="12"/>
+
+                    <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{loc:Tr LiveStacking.AlignmentMode}" Classes="label"/>
+                        <ComboBox SelectedIndex="{Binding LiveSelectedAlignmentMethodIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                            <ComboBoxItem Content="{loc:Tr LiveStacking.AlignAutoHybrid}"/>
+                            <ComboBoxItem Content="{loc:Tr LiveStacking.AlignPlanetCog}"/>
+                            <ComboBoxItem Content="{loc:Tr LiveStacking.AlignSurface}"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,110">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.MaxDrift}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding LiveMaxDriftPixels}" Minimum="10" Maximum="500" Increment="10" FormatString="0"/>
+                    </Grid>
+
+                    <CheckBox Content="{loc:Tr LiveStacking.RejectClipped}" IsChecked="{Binding LiveRejectClipped}" FontSize="12"/>
+                </StackPanel>
+            </Border>
+        </Expander>
+
+        <!-- CARTE LIVE 2 : FILTRAGE QUALITÉ SEEING & ANTI-NUAGES -->
+        <Expander Classes="accordion-card" IsExpanded="{Binding IsLiveSection2Expanded}">
+            <Expander.Header>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                        <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{loc:Tr LiveStacking.SectionQualityFilter}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Expander.Header>
+            <Border Padding="10,8">
+                <StackPanel Spacing="8">
+                    <CheckBox Content="{loc:Tr LiveStacking.EnableQualityGate}" IsChecked="{Binding LiveEnableQualityGate}" FontSize="12"/>
+
+                    <Grid ColumnDefinitions="*,110" IsEnabled="{Binding LiveEnableQualityGate}">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.KeepBestPercent}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding LiveKeepBestPercent}" Minimum="5" Maximum="100" Increment="5" FormatString="0"/>
+                    </Grid>
+                    <Slider Minimum="5" Maximum="100" Value="{Binding LiveKeepBestPercent}" IsEnabled="{Binding LiveEnableQualityGate}"/>
+
+                    <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                    <CheckBox Content="{loc:Tr LiveStacking.CloudFilter}" IsChecked="{Binding LiveEnableCloudFilter}" FontSize="12"/>
+                    <Grid ColumnDefinitions="*,110" IsEnabled="{Binding LiveEnableCloudFilter}">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.MaxBrightnessDrop}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding LiveMaxBrightnessDropPercent}" Minimum="5" Maximum="90" Increment="5" FormatString="0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Expander>
+
+        <!-- CARTE LIVE 3 : ACCENTUATION EN DIRECT (SHARPENING COMMUTABLE) & ADC NUMÉRIQUE -->
+        <Expander Classes="accordion-card" IsExpanded="{Binding IsLiveSection3Expanded}">
+            <Expander.Header>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                        <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{loc:Tr LiveStacking.SectionLiveEnhancement}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Expander.Header>
+            <Border Padding="10,8">
+                <StackPanel Spacing="8">
+                    <CheckBox Content="{loc:Tr LiveStacking.EnableLiveSharpening}" IsChecked="{Binding LiveEnableSharpening}" FontWeight="SemiBold" FontSize="12"/>
+
+                    <StackPanel Spacing="6" IsEnabled="{Binding LiveEnableSharpening}">
+                        <Grid ColumnDefinitions="*,110">
+                            <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.SharpenBlend}" Classes="label" VerticalAlignment="Center"/>
+                            <controls:NumberStepper Grid.Column="1" Value="{Binding LiveSharpeningBlendPercent}" Minimum="0" Maximum="100" Increment="5" FormatString="0"/>
+                        </Grid>
+                        <Slider Minimum="0" Maximum="100" Value="{Binding LiveSharpeningBlendPercent}"/>
+
+                        <Grid ColumnDefinitions="*,110">
+                            <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.UnsharpRadius}" Classes="label" VerticalAlignment="Center"/>
+                            <controls:NumberStepper Grid.Column="1" Value="{Binding LiveUnsharpRadius}" Minimum="1.0" Maximum="4.0" Increment="0.5" FormatString="0.0"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,110">
+                            <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.UnsharpAmount}" Classes="label" VerticalAlignment="Center"/>
+                            <controls:NumberStepper Grid.Column="1" Value="{Binding LiveUnsharpAmount}" Minimum="0.0" Maximum="4.0" Increment="0.2" FormatString="0.0"/>
+                        </Grid>
+                        <Slider Minimum="0.0" Maximum="4.0" Value="{Binding LiveUnsharpAmount}"/>
+                    </StackPanel>
+
+                    <Separator Background="{DynamicResource AppBorderBrush}"/>
+
+                    <CheckBox Content="{loc:Tr LiveStacking.EnableDigitalAdc}" IsChecked="{Binding LiveEnableDigitalAdc}" FontSize="12"/>
+                    <CheckBox Content="{loc:Tr LiveStacking.AutoDigitalAdc}" IsChecked="{Binding LiveAutoDigitalAdc}" IsEnabled="{Binding LiveEnableDigitalAdc}" FontSize="12"/>
+
+                    <Grid ColumnDefinitions="*,110">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.DisplayGamma}" Classes="label" VerticalAlignment="Center"/>
+                        <controls:NumberStepper Grid.Column="1" Value="{Binding LiveDisplayGamma}" Minimum="0.3" Maximum="2.5" Increment="0.1" FormatString="0.00"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Expander>
+
+        <!-- CARTE LIVE 4 : INSTANTANÉS (FITS/TIFF 16-BIT + PNG) & ENREGISTREMENT SER -->
+        <Expander Classes="accordion-card" IsExpanded="{Binding IsLiveSection4Expanded}">
+            <Expander.Header>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{DynamicResource AppPanelSubtleBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3" Width="20" Height="20" Margin="0,0,8,0">
+                        <TextBlock Text="4" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppBadgeFormat}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{loc:Tr LiveStacking.SectionRecording}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Expander.Header>
+            <Border Padding="10,8">
+                <StackPanel Spacing="8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{loc:Tr LiveStacking.FilePrefix}" Classes="label"/>
+                        <TextBox Text="{Binding LiveFilePrefix}" FontSize="12"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{loc:Tr LiveStacking.SnapshotFormat}" Classes="label"/>
+                        <ComboBox SelectedIndex="{Binding LiveSelectedSnapshotFormatIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                            <ComboBoxItem Content="FITS 16-bit scientifique (.fit) + PNG accentué"/>
+                            <ComboBoxItem Content="TIFF 16-bit linéaire (.tif) + PNG accentué"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <Button Content="{loc:Tr LiveStacking.TakeSnapshot}"
+                            Command="{Binding TakeLiveSnapshotCommand}"
+                            IsEnabled="{Binding IsLiveStackingActive}"
+                            Background="{DynamicResource AppAccent}"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="12" Padding="8,6"/>
+
+                    <Button Content="{Binding LiveRecordSerButtonText}"
+                            Command="{Binding ToggleLiveSerRecordingCommand}"
+                            IsEnabled="{Binding IsLiveStackingActive}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="12" Padding="8,6"/>
+                </StackPanel>
+            </Border>
+        </Expander>
+
+    </StackPanel>
+</UserControl>

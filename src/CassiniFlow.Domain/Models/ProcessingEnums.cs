@@ -188,7 +188,15 @@ public enum StackingWorkflowMode
 {
     PreProcessingOnly = 0,
     StackingOnly = 1,
-    DirectStreamAllInOne = 2
+    DirectStreamAllInOne = 2,
+    LiveStacking = 3
+}
+
+public enum LiveAlignmentMethod
+{
+    AutoHybrid = 0,
+    PlanetCog = 1,
+    SurfacePhaseCorrelation = 2
 }
 
 public enum DrizzleScale

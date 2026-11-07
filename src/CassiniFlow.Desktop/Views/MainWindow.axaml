@@ -95,6 +95,13 @@
                                      GroupName="WorkflowModeGroup"
                                      Classes="segment-button"
                                      ToolTip.Tip="{loc:Tr Workflow.DirectStreamAllInOneTip}"/>
+                        <RadioButton Content="{loc:Tr Workflow.LiveStacking}"
+                                     IsChecked="{Binding IsWorkflowLiveStackingMode}"
+                                     Command="{Binding SetWorkflowModeCommand}"
+                                     CommandParameter="livestacking"
+                                     GroupName="WorkflowModeGroup"
+                                     Classes="segment-button"
+                                     ToolTip.Tip="{loc:Tr Workflow.LiveStackingTip}"/>
                     </StackPanel>
                 </Border>
 
@@ -166,9 +173,12 @@
         <!-- ZONE PRINCIPALE : 3 VOLETS VERTICAUX CONTINUS ET SANS ESPACES VIDES -->
         <Grid Grid.Row="2" ColumnDefinitions="26*,Auto,48*,Auto,26*">
 
-            <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES -->
+            <!-- VOLET GAUCHE : SESSION & FICHIERS SOURCES OU ACQUISITION CAMÉRA LIVE -->
             <Border Grid.Column="0" MinWidth="250" MaxWidth="480" Background="{DynamicResource AppPanelBackground}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="4" IsEnabled="{Binding !IsProcessing}">
-                <views:SourceFilesView />
+                <Grid>
+                    <views:SourceFilesView IsVisible="{Binding IsFileWorkflowMode}" />
+                    <views:LiveCameraControlView IsVisible="{Binding IsWorkflowLiveStacking}" />
+                </Grid>
             </Border>
 
             <!-- SPLITTER GAUCHE / CENTRE (Fin 2px continu) -->
@@ -438,6 +448,9 @@
                                 <views:DoProcessingView />
                             </Border>
                         </Expander>
+
+                        <!-- OPTIONS DE LIVE STACKING (VISIBLES EN MODE LIVE CAMÉRA) -->
+                        <views:LiveStackingOptionsView IsVisible="{Binding IsWorkflowLiveStacking}" />
                         </StackPanel>
                 </ScrollViewer>
             </Border>

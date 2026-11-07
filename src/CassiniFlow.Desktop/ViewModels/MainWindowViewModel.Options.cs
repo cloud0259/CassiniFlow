@@ -162,6 +162,7 @@ public partial class MainWindowViewModel
     [ObservableProperty] private bool _isWorkflowPreProcessingOnly;
     [ObservableProperty] private bool _isWorkflowStackingOnly;
     [ObservableProperty] private bool _isWorkflowDirectStreamAllInOne = true;
+    [ObservableProperty] private bool _isWorkflowLiveStackingMode;
 
     partial void OnIsWorkflowPreProcessingOnlyChanged(bool value)
     {
@@ -187,21 +188,29 @@ public partial class MainWindowViewModel
         }
     }
 
+    partial void OnIsWorkflowLiveStackingModeChanged(bool value)
+    {
+        if (value && WorkflowMode != StackingWorkflowMode.LiveStacking)
+        {
+            SetWorkflowMode("livestacking");
+        }
+    }
+
     public string Section1Title => Loc.Get("Messages.Section1Title");
     public string Section5Title => Loc.Get("Messages.Section5Title");
 
-    public bool IsSection1Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSectionDerotationVisible => WorkflowMode != StackingWorkflowMode.StackingOnly;
+    public bool IsSection1Visible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection2Visible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection3Visible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSectionDerotationVisible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
     public string SectionDerotationBadgeText => "⟳";
-    public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
-    public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
-    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly;
-    public bool IsSection8Visible => WorkflowMode != StackingWorkflowMode.StackingOnly;
-    public bool IsSection9Visible => true;
-    public bool IsSection10Visible => true;
+    public bool IsSection4Visible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection5Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection6Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection7Visible => WorkflowMode != StackingWorkflowMode.PreProcessingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection8Visible => WorkflowMode != StackingWorkflowMode.StackingOnly && WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection9Visible => WorkflowMode != StackingWorkflowMode.LiveStacking;
+    public bool IsSection10Visible => WorkflowMode != StackingWorkflowMode.LiveStacking;
 
     public string Section1BadgeText => "1";
     public string Section2BadgeText => "2";
@@ -251,7 +260,10 @@ public partial class MainWindowViewModel
         IsWorkflowPreProcessingOnly = value == StackingWorkflowMode.PreProcessingOnly;
         IsWorkflowStackingOnly = value == StackingWorkflowMode.StackingOnly;
         IsWorkflowDirectStreamAllInOne = value == StackingWorkflowMode.DirectStreamAllInOne;
+        IsWorkflowLiveStackingMode = value == StackingWorkflowMode.LiveStacking;
 
+        OnPropertyChanged(nameof(IsWorkflowLiveStacking));
+        OnPropertyChanged(nameof(IsFileWorkflowMode));
         OnPropertyChanged(nameof(Section1Title));
         OnPropertyChanged(nameof(Section5Title));
         OnPropertyChanged(nameof(IsSection1Visible));
@@ -294,7 +306,7 @@ public partial class MainWindowViewModel
             else if (IsSection5Visible) IsSection5Expanded = true;
         }
 
-        if (IsWorkflowPreProcessingOnly)
+        if (IsWorkflowPreProcessingOnly || IsWorkflowLiveStacking)
         {
             IsAlignmentGridVisible = false;
         }
@@ -799,6 +811,7 @@ public partial class MainWindowViewModel
                 IsWorkflowPreProcessingOnly = true;
                 IsWorkflowStackingOnly = false;
                 IsWorkflowDirectStreamAllInOne = false;
+                IsWorkflowLiveStackingMode = false;
                 break;
             case "stack":
             case "stackingonly":
@@ -811,6 +824,15 @@ public partial class MainWindowViewModel
                     SelectedStackingImageFormatIndex = 0;
                 }
                 IsWorkflowDirectStreamAllInOne = false;
+                IsWorkflowLiveStackingMode = false;
+                break;
+            case "live":
+            case "livestacking":
+                WorkflowMode = StackingWorkflowMode.LiveStacking;
+                IsWorkflowPreProcessingOnly = false;
+                IsWorkflowStackingOnly = false;
+                IsWorkflowDirectStreamAllInOne = false;
+                IsWorkflowLiveStackingMode = true;
                 break;
             case "all":
             case "directstreamallinone":
@@ -820,6 +842,7 @@ public partial class MainWindowViewModel
                 IsWorkflowPreProcessingOnly = false;
                 IsWorkflowStackingOnly = false;
                 IsWorkflowDirectStreamAllInOne = true;
+                IsWorkflowLiveStackingMode = false;
                 if (SelectedOutputFormatIndex is 0 or 1 or 2)
                 {
                     SelectedOutputFormatIndex = 5;

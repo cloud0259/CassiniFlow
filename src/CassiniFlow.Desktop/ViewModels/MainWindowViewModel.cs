@@ -128,7 +128,8 @@ public partial class MainWindowViewModel : ObservableObject
         ICelestialTargetClassifier celestialClassifier,
         TutorialViewModel tutorialVM,
         IUpdateCheckerService? updateChecker = null,
-        IQualityTimelineUseCase? qualityTimelineUseCase = null)
+        IQualityTimelineUseCase? qualityTimelineUseCase = null,
+        ILiveStackingUseCase? liveStackingUseCase = null)
     {
         _loc = localization ?? throw new ArgumentNullException(nameof(localization));
         _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
@@ -136,6 +137,7 @@ public partial class MainWindowViewModel : ObservableObject
         _pipelineRunner = pipelineRunner ?? throw new ArgumentNullException(nameof(pipelineRunner));
         _celestialClassifier = celestialClassifier ?? throw new ArgumentNullException(nameof(celestialClassifier));
         _qualityTimelineUseCase = qualityTimelineUseCase;
+        InitializeLiveStacking(liveStackingUseCase);
 
         _maxCpuUsagePercent = _userSettings.Current.MaxCpuUsagePercent;
         _cpuWarningThresholdPercent = _userSettings.Current.CpuWarningThresholdPercent;

@@ -351,7 +351,13 @@ public partial class MainWindowViewModel
         RetainedFramesSummaryText = Loc.Format("Viewer.RetainedFrames", kept, TimelineCutoffPercent);
     }
 
-        public event Action<AstroFrame?, DetectionResult?, double>? PreviewReady;
+    public event Action<AstroFrame?, DetectionResult?, double>? PreviewReady;
+
+    internal void RaiseLivePreviewFrame(AstroFrame frame)
+    {
+        _lastProcessedPreviewFrame = frame;
+        PreviewReady?.Invoke(frame, null, 1.0);
+    }
 
     partial void OnCurrentFrameIndexChanged(int value) => RequestPreviewUpdate(reloadFromDisk: true);
     partial void OnPreviewCroppedOutputChanged(bool value) => RequestPreviewUpdate(reloadFromDisk: false);
