@@ -140,6 +140,14 @@
             <Border Padding="10,8">
                 <StackPanel Spacing="8">
                     <StackPanel Spacing="4">
+                        <TextBlock Text="{loc:Tr LiveStacking.OutputFolder}" Classes="label"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding LiveOutputDirectory}" PlaceholderText="{loc:Tr LiveStacking.DefaultOutputFolderWatermark}" FontSize="12"/>
+                            <Button Grid.Column="1" Content="..." Command="{Binding BrowseLiveOutputFolderCommand}" ToolTip.Tip="{loc:Tr LiveStacking.BrowseFolder}" Margin="4,0,0,0" Padding="8,4" FontSize="12"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
                         <TextBlock Text="{loc:Tr LiveStacking.FilePrefix}" Classes="label"/>
                         <TextBox Text="{Binding LiveFilePrefix}" FontSize="12"/>
                     </StackPanel>

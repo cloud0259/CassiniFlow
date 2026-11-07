@@ -15,6 +15,7 @@ public partial class MainWindowViewModel
     public ObservableCollection<CameraDeviceInfo> AvailableCameras { get; } = [];
 
     [ObservableProperty] private CameraDeviceInfo? _selectedCamera;
+    [ObservableProperty] private bool _showSimulatedCameras = true;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ConnectCameraButtonText))]
     [NotifyPropertyChangedFor(nameof(CanStartLiveStacking))]
@@ -67,8 +68,17 @@ public partial class MainWindowViewModel
     [ObservableProperty] private double _liveDisplayGamma = 1.0;
 
     // 5. Enregistrement & Instantanés (Snapshots & SER)
+    [ObservableProperty] private string _liveOutputDirectory = string.Empty;
     [ObservableProperty] private string _liveFilePrefix = "Jupiter_Live";
     [ObservableProperty] private int _liveSelectedSnapshotFormatIndex = 0; // 0: FITS 16-bit, 1: TIFF 16-bit
+
+    public event Action? RequestSelectLiveOutputFolder;
+
+    [RelayCommand]
+    public void BrowseLiveOutputFolder()
+    {
+        RequestSelectLiveOutputFolder?.Invoke();
+    }
 
     // 6. Télémétrie HUD
     [ObservableProperty] private string _liveHudCaptureFpsText = "Capture : 0.0 fps";
@@ -110,16 +120,28 @@ public partial class MainWindowViewModel
         }
     }
 
+    partial void OnShowSimulatedCamerasChanged(bool value)
+    {
+        if (!IsLiveCameraConnected)
+        {
+            RefreshLiveCameras();
+        }
+    }
+
     [RelayCommand]
     public void RefreshLiveCameras()
     {
         if (_liveStackingUseCase is null) return;
 
         var discovered = _liveStackingUseCase.DiscoverCameras();
+        var filtered = ShowSimulatedCameras
+            ? discovered
+            : discovered.Where(c => !c.IsSimulated).ToList();
+
         string? prevId = SelectedCamera?.Id;
 
         AvailableCameras.Clear();
-        foreach (var cam in discovered)
+        foreach (var cam in filtered)
         {
             AvailableCameras.Add(cam);
         }
@@ -235,10 +257,29 @@ public partial class MainWindowViewModel
 
     private string GetEffectiveLiveOutputDirectory()
     {
+        if (!string.IsNullOrWhiteSpace(LiveOutputDirectory) && Directory.Exists(LiveOutputDirectory))
+        {
+            return LiveOutputDirectory;
+        }
+
+        if (!string.IsNullOrWhiteSpace(LiveOutputDirectory))
+        {
+            try
+            {
+                Directory.CreateDirectory(LiveOutputDirectory);
+                return LiveOutputDirectory;
+            }
+            catch
+            {
+                // Fallback si dossier invalide
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(CustomOutputDirectory))
         {
             return CustomOutputDirectory;
         }
+
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "CassiniFlow_Live");
     }
 

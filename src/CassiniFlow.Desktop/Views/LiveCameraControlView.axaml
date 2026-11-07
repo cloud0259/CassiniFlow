@@ -16,11 +16,16 @@
 
                     <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
                         <TextBlock Grid.Column="0" Text="{loc:Tr LiveStacking.SelectCamera}" Classes="label" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Content="{loc:Tr LiveStacking.RefreshCameras}" Command="{Binding RefreshLiveCamerasCommand}" FontSize="11" Padding="8,2"/>
+                        <Button Grid.Column="1"
+                                Content="{loc:Tr LiveStacking.RefreshCameras}"
+                                Command="{Binding RefreshLiveCamerasCommand}"
+                                IsEnabled="{Binding !IsLiveCameraConnected}"
+                                FontSize="11" Padding="8,2"/>
                     </Grid>
 
                     <ComboBox ItemsSource="{Binding AvailableCameras}"
                               SelectedItem="{Binding SelectedCamera}"
+                              IsEnabled="{Binding !IsLiveCameraConnected}"
                               HorizontalAlignment="Stretch"
                               FontSize="12">
                         <ComboBox.ItemTemplate>
@@ -29,6 +34,11 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+
+                    <CheckBox Content="{loc:Tr LiveStacking.ShowSimulators}"
+                              IsChecked="{Binding ShowSimulatedCameras}"
+                              IsEnabled="{Binding !IsLiveCameraConnected}"
+                              FontSize="11" Margin="0,-2,0,0"/>
 
                     <Grid ColumnDefinitions="*,8,*">
                         <Button Grid.Column="0"
@@ -82,7 +92,9 @@
 
                     <StackPanel Spacing="4">
                         <TextBlock Text="{loc:Tr LiveStacking.RoiResolution}" Classes="label"/>
-                        <ComboBox SelectedIndex="{Binding LiveSelectedRoiIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                        <ComboBox SelectedIndex="{Binding LiveSelectedRoiIndex}"
+                                  IsEnabled="{Binding !IsLiveCameraConnected}"
+                                  HorizontalAlignment="Stretch" FontSize="12">
                             <ComboBoxItem Content="480 × 360 (Planétaire Haute Vitesse)"/>
                             <ComboBoxItem Content="640 × 480 (Planétaire Standard)"/>
                             <ComboBoxItem Content="800 × 600 (Planétaire &amp; Satellites)"/>
@@ -93,7 +105,9 @@
 
                     <StackPanel Spacing="4">
                         <TextBlock Text="{loc:Tr LiveStacking.BitDepth}" Classes="label"/>
-                        <ComboBox SelectedIndex="{Binding LiveSelectedBitDepthIndex}" HorizontalAlignment="Stretch" FontSize="12">
+                        <ComboBox SelectedIndex="{Binding LiveSelectedBitDepthIndex}"
+                                  IsEnabled="{Binding !IsLiveCameraConnected}"
+                                  HorizontalAlignment="Stretch" FontSize="12">
                             <ComboBoxItem Content="RAW 8-bit (Cadence FPS Maximale)"/>
                             <ComboBoxItem Content="RAW 16-bit (Dynamique Étendue)"/>
                         </ComboBox>
@@ -117,28 +131,6 @@
                     </Grid>
 
                     <CheckBox Content="{loc:Tr LiveStacking.HighSpeedMode}" IsChecked="{Binding LiveHighSpeedMode}" FontSize="12"/>
-                </StackPanel>
-            </Border>
-
-            <!-- CAPTURE INSTANTANÉE & FLUX SER EN ARRIÈRE-PLAN -->
-            <Border Classes="groupbox" Padding="10,8">
-                <StackPanel Spacing="8">
-                    <Button Content="{loc:Tr LiveStacking.TakeSnapshot}"
-                            Command="{Binding TakeLiveSnapshotCommand}"
-                            IsEnabled="{Binding IsLiveStackingActive}"
-                            Background="{DynamicResource AppAccent}"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            FontSize="12" Padding="10,6"/>
-
-                    <Button Content="{Binding LiveRecordSerButtonText}"
-                            Command="{Binding ToggleLiveSerRecordingCommand}"
-                            IsEnabled="{Binding IsLiveStackingActive}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            FontSize="12" Padding="10,6"/>
                 </StackPanel>
             </Border>
 

@@ -49,6 +49,7 @@ public partial class MainWindow : Window
                 vm.RequestImportSettings += () => OnImportSettingsClick(null, null!);
                 vm.RequestExportSettings += () => OnExportSettingsClick(null, null!);
                 vm.RequestOpenFrameComparator += OpenFrameComparatorDialog;
+                vm.RequestSelectLiveOutputFolder += OnSelectLiveOutputFolderClick;
             }
         };
 
@@ -348,6 +349,26 @@ public partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(path))
             {
                 vm.CustomOutputDirectory = path;
+            }
+        }
+    }
+
+    private async void OnSelectLiveOutputFolderClick()
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = Loc.Get("LiveStacking.SelectOutputFolderTitle"),
+            AllowMultiple = false
+        });
+
+        if (folders.Count > 0)
+        {
+            string? path = folders[0].TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                vm.LiveOutputDirectory = path;
             }
         }
     }

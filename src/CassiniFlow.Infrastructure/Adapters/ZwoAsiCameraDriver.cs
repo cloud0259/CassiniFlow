@@ -3,18 +3,20 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Outbound;
+using CassiniFlow.Infrastructure.Codecs;
 using CassiniFlow.Infrastructure.Synthetic;
 
 namespace CassiniFlow.Infrastructure.Adapters;
 
 /// <summary>
 /// Adaptateur de pilote caméra pour les caméras planétaires ZWO ASI (via ASICamera2 SDK)
-/// avec simulateurs matériels temps réel intégrés (Jupiter RVB & Surface Lunaire Mono) en secours.
+/// avec simulateurs matériels temps réel intégrés (Flux SER réel & synthétique) en secours.
 /// </summary>
 public sealed class ZwoAsiCameraDriver : ICameraDriver
 {
     public const string SimJupiterCameraId = "sim-zwo-asi224mc-jupiter";
     public const string SimLunarCameraId = "sim-zwo-asi290mm-lunar";
+    public const string SimRealSerCameraId = "sim-zwo-real-ser";
 
     private readonly object _stateLock = new();
     private List<CameraDeviceInfo> _knownCameras = [];
@@ -80,10 +82,38 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
             // Ignorer les erreurs d'énumération USB bas niveau
         }
 
-        // 2. Toujours proposer les simulateurs temps réel ZWO pour test en intérieur et étalonnage
+        // 2. Détection d'un flux vidéo SER réel sur disque (ultra-réaliste pour les tests et la démo)
+        string? realSerPath = FindAvailableRealSerPath();
+        if (!string.IsNullOrEmpty(realSerPath))
+        {
+            try
+            {
+                using var ser = new SerFile(realSerPath);
+                var hdr = ser.Header;
+                list.Add(new CameraDeviceInfo(
+                    Id: SimRealSerCameraId,
+                    Name: $"ZWO ASI (Flux SER Réel - Saturne {hdr.ImageWidth}×{hdr.ImageHeight})",
+                    CameraIndex: -99,
+                    MaxWidth: hdr.ImageWidth,
+                    MaxHeight: hdr.ImageHeight,
+                    IsColor: hdr.IsBayer || hdr.Planes == 3,
+                    BayerPattern: hdr.ToBayerPattern(),
+                    MaxBitDepth: hdr.PixelDepthPerPlane > 8 ? 16 : 8,
+                    PixelSizeMicrons: 3.75,
+                    IsUsb3: true,
+                    IsCoolerCam: false,
+                    IsSimulated: true));
+            }
+            catch
+            {
+                // Ignorer si fichier SER non lisible
+            }
+        }
+
+        // 3. Simulateurs synthétiques temps réel haute-fidélité (avec seeing intermittent et turbulence de Kolmogorov)
         list.Add(new CameraDeviceInfo(
             Id: SimJupiterCameraId,
-            Name: "ZWO ASI224MC (Simulateur Planétaire Jupiter)",
+            Name: "ZWO ASI224MC (Simulateur Synthétique Jupiter RVB)",
             CameraIndex: -1,
             MaxWidth: 1304,
             MaxHeight: 976,
@@ -97,7 +127,7 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
 
         list.Add(new CameraDeviceInfo(
             Id: SimLunarCameraId,
-            Name: "ZWO ASI290MM (Simulateur Surface Lunaire)",
+            Name: "ZWO ASI290MM (Simulateur Synthétique Clavius Mono)",
             CameraIndex: -2,
             MaxWidth: 1936,
             MaxHeight: 1096,
@@ -214,7 +244,19 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
         var cts = new CancellationTokenSource();
         _streamCts = cts;
 
-        if (cam.IsSimulated)
+        if (string.Equals(cam.Id, SimRealSerCameraId, StringComparison.OrdinalIgnoreCase))
+        {
+            string? serPath = FindAvailableRealSerPath();
+            if (!string.IsNullOrEmpty(serPath))
+            {
+                _streamTask = Task.Run(() => RunRealSerCaptureLoop(serPath, cam, cfg, onFrameCaptured, cts.Token), cts.Token);
+            }
+            else
+            {
+                _streamTask = Task.Run(() => RunSimulatedCaptureLoop(cam, cfg, onFrameCaptured, cts.Token), cts.Token);
+            }
+        }
+        else if (cam.IsSimulated)
         {
             _streamTask = Task.Run(() => RunSimulatedCaptureLoop(cam, cfg, onFrameCaptured, cts.Token), cts.Token);
         }
@@ -508,6 +550,66 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
                 Thread.Sleep(sleepMs);
             }
         }
+    }
+
+    private void RunRealSerCaptureLoop(
+        string serPath,
+        CameraDeviceInfo cam,
+        CameraStreamConfig cfg,
+        Action<AstroFrame> onFrameCaptured,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var ser = new SerFile(serPath);
+            int totalFrames = ser.Header.FrameCount;
+            if (totalFrames <= 0) return;
+
+            int frameIdx = 0;
+            var sw = Stopwatch.StartNew();
+
+            while (!ct.IsCancellationRequested)
+            {
+                long frameStartMs = sw.ElapsedMilliseconds;
+
+                var frame = ser.ReadFrame(frameIdx % totalFrames);
+                frame.FrameIndex = frameIdx;
+                frame.TimestampUtc = DateTime.UtcNow;
+
+                onFrameCaptured(frame);
+                frameIdx++;
+
+                // Cadencement régulier selon l'exposition demandée (par ex. 15 ms ~ 65 fps)
+                int targetIntervalMs = Math.Clamp((int)Math.Round(_currentExposureMs), 10, 250);
+                int elapsedMs = (int)(sw.ElapsedMilliseconds - frameStartMs);
+                int sleepMs = targetIntervalMs - elapsedMs;
+                if (sleepMs > 1)
+                {
+                    Thread.Sleep(sleepMs);
+                }
+            }
+        }
+        catch
+        {
+            // Terminer proprement la boucle sur annulation ou déconnexion
+        }
+    }
+
+    private static string? FindAvailableRealSerPath()
+    {
+        string? envPath = Environment.GetEnvironmentVariable("CASSINIFLOW_SIM_SER");
+        if (!string.IsNullOrWhiteSpace(envPath) && File.Exists(envPath))
+        {
+            return envPath;
+        }
+
+        string knownSaturn = @"D:\Astro\test\2026-10-01-2238_8-Saturn.ser";
+        if (File.Exists(knownSaturn))
+        {
+            return knownSaturn;
+        }
+
+        return null;
     }
 
     public void Dispose()
