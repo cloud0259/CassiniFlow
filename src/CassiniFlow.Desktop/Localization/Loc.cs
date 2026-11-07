@@ -138,7 +138,7 @@ public sealed class Loc : INotifyPropertyChanged
         bool changed = false;
 
         if (o is TextBlock tb) changed |= Apply(o, TextBlock.TextProperty, tb.Text);
-        if (o is TextBox box) changed |= Apply(o, TextBox.WatermarkProperty, box.Watermark);
+        if (o is TextBox box) changed |= Apply(o, TextBox.PlaceholderTextProperty, box.PlaceholderText);
         if (o is Window w) changed |= Apply(o, Window.TitleProperty, w.Title);
         if (o is MenuItem mi) changed |= Apply(o, MenuItem.HeaderProperty, mi.Header as string);
         else if (o is TabItem ti) changed |= Apply(o, TabItem.HeaderProperty, ti.Header as string);

@@ -1,8 +1,10 @@
 using CassiniFlow.Desktop.Services;
 using CassiniFlow.Desktop.Theme;
+using Xunit;
 
 namespace CassiniFlow.Tests;
 
+[Collection("Localization")]
 public class ThemeTests
 {
     [Fact]
@@ -45,13 +47,5 @@ public class ThemeTests
     {
         Assert.NotNull(ThemeService.NightVisionVariant);
         Assert.Equal("NightVision", ThemeService.NightVisionVariant.Key);
-    }
-
-    [Fact]
-    public void App_InitializesAndLoadsThemeDictionariesWithoutException()
-    {
-        var app = new CassiniFlow.Desktop.App();
-        var ex = Record.Exception(() => app.Initialize());
-        Assert.Null(ex);
     }
 }

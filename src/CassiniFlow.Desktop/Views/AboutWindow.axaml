@@ -40,7 +40,7 @@
                         <Button x:Name="BtnDownloadUpdate" Content="{loc:Tr About.DownloadUpdate}" Click="OnDownloadUpdateClick" IsVisible="False" Padding="14,5" Background="{DynamicResource AppAccent}" Foreground="White" FontWeight="SemiBold" FontSize="11" CornerRadius="5"/>
                     </StackPanel>
                     <TextBlock x:Name="TxtUpdateStatus" Text="" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" HorizontalAlignment="Center" TextAlignment="Center" IsVisible="False"/>
-                    <CheckBox x:Name="ChkAutoUpdate" Content="{loc:Tr About.CheckOnStartup}" IsChecked="True" Checked="OnAutoUpdateCheckChanged" Unchecked="OnAutoUpdateCheckChanged" FontSize="11" HorizontalAlignment="Center"/>
+                    <CheckBox x:Name="ChkAutoUpdate" Content="{loc:Tr About.CheckOnStartup}" IsChecked="True" IsCheckedChanged="OnAutoUpdateCheckChanged" FontSize="11" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
 
