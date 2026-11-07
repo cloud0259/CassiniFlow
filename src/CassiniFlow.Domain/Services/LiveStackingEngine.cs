@@ -708,15 +708,23 @@ public sealed class LiveStackingEngine
 
                     if (ch == 1)
                     {
-                        int v = (pSrc[i00] * w00 + pSrc[i10] * w10 + pSrc[i01] * w01 + pSrc[i11] * w11 + 32768) >> 16;
-                        pDst[dIdx] = (ushort)(v < 0 ? 0 : (v > 65535 ? 65535 : v));
+                        long sum = (long)pSrc[i00] * w00 +
+                                   (long)pSrc[i10] * w10 +
+                                   (long)pSrc[i01] * w01 +
+                                   (long)pSrc[i11] * w11 + 32768L;
+                        long v = sum >> 16;
+                        pDst[dIdx] = (ushort)(v < 0 ? 0 : (v > 65535 ? 65535 : (ushort)v));
                     }
                     else
                     {
                         for (int c = 0; c < 3; c++)
                         {
-                            int v = (pSrc[i00 + c] * w00 + pSrc[i10 + c] * w10 + pSrc[i01 + c] * w01 + pSrc[i11 + c] * w11 + 32768) >> 16;
-                            pDst[dIdx + c] = (ushort)(v < 0 ? 0 : (v > 65535 ? 65535 : v));
+                            long sum = (long)pSrc[i00 + c] * w00 +
+                                       (long)pSrc[i10 + c] * w10 +
+                                       (long)pSrc[i01 + c] * w01 +
+                                       (long)pSrc[i11 + c] * w11 + 32768L;
+                            long v = sum >> 16;
+                            pDst[dIdx + c] = (ushort)(v < 0 ? 0 : (v > 65535 ? 65535 : (ushort)v));
                         }
                     }
                 }

@@ -133,9 +133,9 @@ public class LiveStackingTests
 
         var cameras = session.DiscoverCameras();
         Assert.NotEmpty(cameras);
-        Assert.Contains(cameras, c => c.Id == ZwoAsiCameraDriver.SimJupiterCameraId);
+        Assert.Contains(cameras, c => c.Id == ZwoAsiCameraDriver.SimRealSerCameraId);
 
-        Assert.True(session.ConnectCamera(ZwoAsiCameraDriver.SimJupiterCameraId));
+        Assert.True(session.ConnectCamera(ZwoAsiCameraDriver.SimRealSerCameraId));
         Assert.True(session.IsConnected);
 
         var tcs = new TaskCompletionSource<LiveStackingTelemetry>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -196,5 +196,24 @@ public class LiveStackingTests
                 try { Directory.Delete(tempDir, recursive: true); } catch { }
             }
         }
+    }
+
+    [Fact]
+    public void LiveStackingEngine_ShiftFrameBilinear_PreservesHighBitDepthWithoutInt32Overflow()
+    {
+        // Régression : vérifie qu'un décalage sub-pixel d'une image lumineuse 16-bit ne subit aucun overflow arithmétique int32
+        int w = 64, h = 64;
+        var frame = new AstroFrame(w, h, 3, 16);
+        ushort highLum = 52000;
+        Array.Fill(frame.Data, highLum);
+
+        // Décalage sub-pixel arbitraire (ex: 0.45 px en X, 0.65 px en Y)
+        var shifted = LiveStackingEngine.ShiftFrameBilinear(frame, 0.45, 0.65);
+
+        // Le pixel intérieur doit conserver sa luminosité sans être clampé à 0 (trou noir)
+        int idx = (32 * w + 32) * 3;
+        Assert.InRange(shifted.Data[idx], highLum - 100, highLum + 100);
+        Assert.InRange(shifted.Data[idx + 1], highLum - 100, highLum + 100);
+        Assert.InRange(shifted.Data[idx + 2], highLum - 100, highLum + 100);
     }
 }

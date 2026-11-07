@@ -82,7 +82,7 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
             // Ignorer les erreurs d'énumération USB bas niveau
         }
 
-        // 2. Détection d'un flux vidéo SER réel sur disque (ultra-réaliste pour les tests et la démo)
+        // 2. Simulateur temps réel basé sur un flux vidéo SER réel (Saturne haute fidélité)
         string? realSerPath = FindAvailableRealSerPath();
         if (!string.IsNullOrEmpty(realSerPath))
         {
@@ -92,7 +92,7 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
                 var hdr = ser.Header;
                 list.Add(new CameraDeviceInfo(
                     Id: SimRealSerCameraId,
-                    Name: $"ZWO ASI (Flux SER Réel - Saturne {hdr.ImageWidth}×{hdr.ImageHeight})",
+                    Name: $"ZWO ASI (Simulateur SER - Saturne {hdr.ImageWidth}×{hdr.ImageHeight})",
                     CameraIndex: -99,
                     MaxWidth: hdr.ImageWidth,
                     MaxHeight: hdr.ImageHeight,
@@ -109,35 +109,6 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
                 // Ignorer si fichier SER non lisible
             }
         }
-
-        // 3. Simulateurs synthétiques temps réel haute-fidélité (avec seeing intermittent et turbulence de Kolmogorov)
-        list.Add(new CameraDeviceInfo(
-            Id: SimJupiterCameraId,
-            Name: "ZWO ASI224MC (Simulateur Synthétique Jupiter RVB)",
-            CameraIndex: -1,
-            MaxWidth: 1304,
-            MaxHeight: 976,
-            IsColor: true,
-            BayerPattern: BayerPattern.Rggb,
-            MaxBitDepth: 16,
-            PixelSizeMicrons: 3.75,
-            IsUsb3: true,
-            IsCoolerCam: false,
-            IsSimulated: true));
-
-        list.Add(new CameraDeviceInfo(
-            Id: SimLunarCameraId,
-            Name: "ZWO ASI290MM (Simulateur Synthétique Clavius Mono)",
-            CameraIndex: -2,
-            MaxWidth: 1936,
-            MaxHeight: 1096,
-            IsColor: false,
-            BayerPattern: BayerPattern.Rggb,
-            MaxBitDepth: 16,
-            PixelSizeMicrons: 2.90,
-            IsUsb3: true,
-            IsCoolerCam: false,
-            IsSimulated: true));
 
         lock (_stateLock)
         {
@@ -609,7 +580,32 @@ public sealed class ZwoAsiCameraDriver : ICameraDriver
             return knownSaturn;
         }
 
-        return null;
+        return EnsureFallbackTestSerPath();
+    }
+
+    private static string? EnsureFallbackTestSerPath()
+    {
+        try
+        {
+            string fallbackPath = Path.Combine(Path.GetTempPath(), "CassiniFlow_Saturn_Fallback.ser");
+            if (File.Exists(fallbackPath) && new FileInfo(fallbackPath).Length > 1024)
+            {
+                return fallbackPath;
+            }
+
+            var frames = SyntheticAstroGenerator.GenerateSequence(SyntheticSubject.SaturnRingsRgb, frameCount: 12, width: 320, height: 240);
+            using var writer = new SerStreamWriter(fallbackPath, 320, 240, channels: 3, pixelDepthPerPlane: 16, isBayerRaw: false);
+            foreach (var f in frames)
+            {
+                writer.WriteFrame(f);
+            }
+            writer.Finish();
+            return fallbackPath;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public void Dispose()
