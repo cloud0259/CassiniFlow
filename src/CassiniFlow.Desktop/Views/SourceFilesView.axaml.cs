@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -161,7 +162,7 @@ public partial class SourceFilesView : UserControl
             return;
         }
 
-        e.DragEffects = e.Data.Contains(DataFormats.Files)
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
             ? DragDropEffects.Copy
             : DragDropEffects.None;
     }
@@ -220,7 +221,7 @@ public partial class SourceFilesView : UserControl
 
     private static System.Collections.Generic.List<string> ExtractDroppedFiles(DragEventArgs e)
     {
-        var files = e.Data.GetFiles();
+        var files = e.DataTransfer.TryGetFiles();
         if (files == null) return [];
         return files
             .Select(f => f.TryGetLocalPath())

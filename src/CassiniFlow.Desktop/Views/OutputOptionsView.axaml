@@ -59,7 +59,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="{loc:Tr OutputOptions.DestinationFolder}" Classes="grouptitle"/>
                 <TextBlock Text="{loc:Tr OutputOptions.DefaultFolderHint}" FontSize="11" Foreground="{DynamicResource AppTextDimmed}" TextWrapping="Wrap"/>
-                <TextBox Text="{Binding CustomOutputDirectory}" Watermark="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,2"/>
+                <TextBox Text="{Binding CustomOutputDirectory}" PlaceholderText="{loc:Tr OutputOptions.FolderWatermark}" Margin="0,2"/>
                 <Grid ColumnDefinitions="*,8,*">
                     <Button Grid.Column="0" Content="{loc:Tr OutputOptions.Browse}" Click="OnSelectOutputFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                     <Button Grid.Column="2" Content="{loc:Tr OutputOptions.OpenFolder}" Command="{Binding OpenOutputFolderCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>

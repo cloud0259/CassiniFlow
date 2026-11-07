@@ -220,7 +220,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        e.DragEffects = e.Data.Contains(DataFormats.Files)
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
             ? DragDropEffects.Copy
             : DragDropEffects.None;
     }
@@ -229,7 +229,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel vm || vm.IsProcessing || vm.IsLoadingFiles || vm.IsMeasuringPlanetSizes) return;
 
-        var files = e.Data.GetFiles();
+        var files = e.DataTransfer.TryGetFiles();
         if (files is null) return;
 
         var localPaths = files

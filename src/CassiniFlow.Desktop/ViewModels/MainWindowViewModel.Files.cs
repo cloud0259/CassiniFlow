@@ -560,17 +560,22 @@ public partial class MainWindowViewModel
 
                 int step = current;
                 var classResult = classification;
-                Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+                it.PlanetDiameterPx = d;
+                if (classResult is not null && classResult.TargetType != CelestialTargetType.Unknown)
                 {
-                    it.PlanetDiameterPx = d;
-                    if (classResult is not null && classResult.TargetType != CelestialTargetType.Unknown)
+                    it.IdentifiedObjectText = classResult.ObjectSummary(!Loc.IsEnglish);
+                    detectedList.Add((it, classResult));
+                }
+                it.IsMeasuring = false;
+
+                try
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        it.IdentifiedObjectText = classResult.ObjectSummary(!Loc.IsEnglish);
-                        detectedList.Add((it, classResult));
-                    }
-                    it.IsMeasuring = false;
-                    MeasuringStatusText = Loc.Format("Messages.MeasuringAndIdentifyingProgress", step, items.Count);
-                });
+                        MeasuringStatusText = Loc.Format("Messages.MeasuringAndIdentifyingProgress", step, items.Count);
+                    });
+                }
+                catch { }
             }
         });
 
