@@ -9,6 +9,7 @@
         Title="{loc:Tr App.Title}"
         Width="1340" Height="820"
         MinWidth="1040" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppWindowBackground}"
         Foreground="{DynamicResource AppTextPrimary}"
         Icon="/Assets/icon_256x256.png"
@@ -260,12 +261,12 @@
                                             </Button>
                                         </Grid>
                                         <ComboBox SelectedIndex="{Binding SelectedPresetIndex}" HorizontalAlignment="Stretch" FontSize="12">
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetManual}"/>
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetary}"/>
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/>
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/>
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetIss}"/>
-                                            <ComboBoxItem Content="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetManual}"/></ComboBoxItem>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetPlanetary}"/></ComboBoxItem>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetSolarLunarCloseup}"/></ComboBoxItem>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetSolarLunarFullDisc}"/></ComboBoxItem>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetIss}"/></ComboBoxItem>
+                                            <ComboBoxItem><TextBlock Text="{loc:Tr SourceFiles.PresetPlanetaryAnimation}"/></ComboBoxItem>
                                         </ComboBox>
                                     </StackPanel>
 

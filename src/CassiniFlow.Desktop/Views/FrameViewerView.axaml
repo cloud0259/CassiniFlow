@@ -67,7 +67,7 @@
                                   ToolTip.Tip="Afficher la courbe de qualité par histogramme de crête">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <Border Background="#fbbf24" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center"/>
-                                <TextBlock Text="Histogramme" FontSize="11" FontWeight="SemiBold"
+                                <TextBlock Text="{loc:Tr Viewer.AlgoHistogram}" FontSize="11" FontWeight="SemiBold"
                                            Foreground="#fbbf24" VerticalAlignment="Center"/>
                             </StackPanel>
                         </CheckBox>

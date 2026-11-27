@@ -604,6 +604,126 @@ public class CenteringValidationTests
         }
     }
 
+    [Fact]
+    public async Task StackingOnly_BatchMode_CentersUncenteredPlanetsInFullFrame()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"cf_stackonly_batch_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            int w = 320, h = 240;
+            string ser1 = Path.Combine(tempDir, "2026-11-14-0141_5-CapObj.ser");
+            string ser2 = Path.Combine(tempDir, "2026-11-14-0146_6-CapObj.ser");
+            WriteSyntheticPlanetSer(ser1, w, h, frameCount: 6, cx: 70, cy: 60, r: 24);
+            WriteSyntheticPlanetSer(ser2, w, h, frameCount: 6, cx: 250, cy: 180, r: 24);
+
+            var loc = new AstroLocalizationService();
+            var runner = new MultiZoneStackingPipelineRunner(loc, new CalibrationFrameProviderService(loc));
+            var outDir = Path.Combine(tempDir, "out");
+
+            var opts = new ProcessingOptions
+            {
+                RunMode = ProcessingRunMode.BatchMode,
+                GenerateWinJuposFilenames = true,
+                OutputFormat = OutputFormat.Tiff,
+                Stacking = new StackingOptions
+                {
+                    WorkflowMode = StackingWorkflowMode.StackingOnly,
+                    StabilisationMode = StackingStabilisationMode.PlanetCog,
+                    DisableStabilisation = false,
+                    StackPercentages = [50.0],
+                    AlignmentTileSize = 24
+                }
+            };
+
+            var summary = await runner.ExecuteAsync([ser1, ser2], opts, outDir);
+            Assert.True(summary.Success);
+            Assert.NotNull(summary.StackedTiers);
+            Assert.Equal(2, summary.StackedTiers!.Count);
+
+            foreach (var tier in summary.StackedTiers)
+            {
+                Assert.StartsWith("2026-11-14-", Path.GetFileName(tier.OutputFilePath));
+                var img = UniversalMediaReader.ReadSingleFrame(tier.OutputFilePath, 0);
+                Assert.Equal(w, img.Width);
+                Assert.Equal(h, img.Height);
+
+                var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
+                    img, checkObject: true, autoThreshold: true, manualThreshold8Bit: 40,
+                    minObjectSizePixels: 15, shadowEdge: LunarShadowEdge.None,
+                    checkOverexposed: false, maxOverexposedPixels: 0);
+                Assert.True(det.Accepted);
+                Assert.InRange(det.CentroidX, w / 2 - 2, w / 2 + 2);
+                Assert.InRange(det.CentroidY, h / 2 - 2, h / 2 + 2);
+            }
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task PreProcessingOnly_BatchMode_WinJuposNaming_AvoidsCollisionsAndUsesCaptureTimestamp()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"cf_prep_winjupos_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            int w = 240, h = 200;
+            string ser1 = Path.Combine(tempDir, "2026-11-14-0141_5-CapObj.ser");
+            string ser2 = Path.Combine(tempDir, "2026-11-14-0146_6-CapObj.ser");
+            string ser3 = Path.Combine(tempDir, "2026-11-14-0146_6-Extra.ser");
+            WriteSyntheticPlanetSer(ser1, w, h, frameCount: 4, cx: 80, cy: 70, r: 22);
+            WriteSyntheticPlanetSer(ser2, w, h, frameCount: 4, cx: 160, cy: 130, r: 22);
+            WriteSyntheticPlanetSer(ser3, w, h, frameCount: 4, cx: 120, cy: 100, r: 22);
+
+            var loc = new AstroLocalizationService();
+            var runner = new PipelineRunner(loc, new MultiZoneStackingPipelineRunner(loc, new CalibrationFrameProviderService(loc)), new CalibrationFrameProviderService(loc));
+            var outDir = Path.Combine(tempDir, "out");
+
+            var opts = new ProcessingOptions
+            {
+                RunMode = ProcessingRunMode.BatchMode,
+                GenerateWinJuposFilenames = true,
+                OutputFormat = OutputFormat.Ser,
+                OutputFilenameSuffix = "_cassiniflow",
+                StabilisationMode = StabilisationMode.ObjectPlanetary,
+                CheckPlanetObjectPresent = true,
+                CentreObjectInFrame = true,
+                EnableCropping = true,
+                CropWidth = 128,
+                CropHeight = 128,
+                Stacking = new StackingOptions { WorkflowMode = StackingWorkflowMode.PreProcessingOnly }
+            };
+
+            var summary = await runner.ExecuteFilesAsync([ser1, ser2, ser3], opts, outDir);
+            Assert.True(summary.Success);
+
+            var outFiles = Directory.GetFiles(outDir, "*.ser").Select(Path.GetFileName).OrderBy(n => n).ToList();
+            Assert.Equal(3, outFiles.Count);
+            Assert.Contains(outFiles, f => f!.StartsWith("2026-11-14-0141_5_cassiniflow", StringComparison.Ordinal));
+            Assert.Contains(outFiles, f => f!.StartsWith("2026-11-14-0146_6_cassiniflow", StringComparison.Ordinal));
+        }
+        finally
+        {
+            UniversalMediaReader.ClosePreviewCache();
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
+    private static void WriteSyntheticPlanetSer(string path, int w, int h, int frameCount, int cx, int cy, int r)
+    {
+        using var writer = new SerStreamWriter(path, w, h, channels: 1, pixelDepthPerPlane: 16);
+        for (int i = 0; i < frameCount; i++)
+        {
+            var f = CreatePlanetFrame(w, h, 1, cx, cy, r);
+            f.FrameIndex = i;
+            writer.WriteFrame(f);
+        }
+    }
+
     private static AstroFrame CreatePlanetFrame(int w, int h, int channels, int cx, int cy, int r)
     {
         var frame = new AstroFrame(w, h, channels, 16);

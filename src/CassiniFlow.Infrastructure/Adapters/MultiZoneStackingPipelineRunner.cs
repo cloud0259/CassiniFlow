@@ -5,6 +5,7 @@ using CassiniFlow.Domain.Models;
 using CassiniFlow.Domain.Ports.Inbound;
 using CassiniFlow.Domain.Services;
 using CassiniFlow.Infrastructure.Codecs;
+using CassiniFlow.Infrastructure.WinJupos;
 using OpenCvSharp;
 
 namespace CassiniFlow.Infrastructure.Adapters;
@@ -85,7 +86,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         {
             cancellationToken.ThrowIfCancellationRequested();
             string fileName = Path.GetFileName(file);
-            string baseStem = Path.GetFileNameWithoutExtension(file);
+            string baseStem = ResolveOutputBaseStem(file, options);
 
             var summary = UniversalMediaReader.InspectFile(file);
             var (fileStart, fileEnd, framesToAnalyze) = options.GetEffectiveFrameRange(file, summary.FrameCount);
@@ -825,7 +826,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             _ => ".tif"
         };
 
-        string baseStem = Path.GetFileNameWithoutExtension(validFiles[0]);
+        string baseStem = ResolveOutputBaseStem(validFiles[0], options);
 
         // =========================================================================
         // PASSE 2 (FUSION) : Accumulateur cumulatif unique & Parallélisation par paliers
@@ -1601,6 +1602,50 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
     /// Lit et prépare une trame SER en Passe 2 en ne lisant depuis la mémoire mappée que la sous-fenêtre
     /// recadrée (ReadFrameCropped) lorsque le recadrage est actif. Évite de lire et débayériser toute la trame plein capteur.
     /// </summary>
+    private static bool ShouldCentrePlanetary(ProcessingOptions options)
+    {
+        if (options.Stacking.WorkflowMode == StackingWorkflowMode.StackingOnly)
+        {
+            return !options.Stacking.DisableStabilisation &&
+                   options.Stacking.StabilisationMode == StackingStabilisationMode.PlanetCog;
+        }
+
+        return options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+    }
+
+    private static string ResolveOutputBaseStem(string filePath, ProcessingOptions options)
+    {
+        if (!options.GenerateWinJuposFilenames)
+        {
+            return Path.GetFileNameWithoutExtension(filePath);
+        }
+
+        if (WinJuposHelper.TryExtractDateTime(filePath, options.WinJuposConvertLocalToUt, out var extractedUtc))
+        {
+            return WinJuposHelper.FormatWinJuposPrefix(extractedUtc);
+        }
+
+        if (filePath.EndsWith(".ser", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var ser = new SerFile(filePath);
+                if (ser.Header.DateTimeUtcTicks > 0)
+                {
+                    return WinJuposHelper.FormatWinJuposPrefix(SerHeader.SerTimestampToDateTime(ser.Header.DateTimeUtcTicks));
+                }
+                if (ser.Header.DateTimeTicks > 0)
+                {
+                    var local = new DateTime(ser.Header.DateTimeTicks, DateTimeKind.Local);
+                    return WinJuposHelper.FormatWinJuposPrefix(local.ToUniversalTime());
+                }
+            }
+            catch { }
+        }
+
+        return WinJuposHelper.FormatWinJuposPrefix(File.GetLastWriteTimeUtc(filePath));
+    }
+
     private AstroFrame ReadAndPrepareSerFrameForStacking(
         SerFile ser,
         FrameScoreRecord record,
@@ -1610,17 +1655,19 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         int totalFrames = 0)
     {
         int effectiveTotal = totalFrames > 0 ? totalFrames : ser.Header.FrameCount;
-        bool centrePlanetary = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        bool isStackingOnly = options.Stacking.WorkflowMode == StackingWorkflowMode.StackingOnly;
+        bool centrePlanetary = ShouldCentrePlanetary(options);
+        bool useUserCrop = !isStackingOnly && options.EnableCropping;
         if (masterDark == null &&
             masterFlat == null &&
-            options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne &&
-            (options.EnableCropping || centrePlanetary) &&
+            (options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne || (isStackingOnly && centrePlanetary)) &&
+            (useUserCrop || centrePlanetary) &&
             options.Binning == BinningMode.Disabled)
         {
-            int cropW = options.EnableCropping ? Math.Max(16, options.CropWidth) : ser.Header.ImageWidth;
-            int cropH = options.EnableCropping ? Math.Max(16, options.CropHeight) : ser.Header.ImageHeight;
-            int offX = options.EnableCropping ? options.CropOffsetX : 0;
-            int offY = options.EnableCropping ? options.CropOffsetY : 0;
+            int cropW = useUserCrop ? Math.Max(16, options.CropWidth) : ser.Header.ImageWidth;
+            int cropH = useUserCrop ? Math.Max(16, options.CropHeight) : ser.Header.ImageHeight;
+            int offX = useUserCrop ? options.CropOffsetX : 0;
+            int offY = useUserCrop ? options.CropOffsetY : 0;
             int targetX = centrePlanetary
                 ? record.CentroidX
                 : ser.Header.ImageWidth / 2;
@@ -1688,19 +1735,21 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                 masterFlat);
         }
 
-        bool centrePlanetary = options.CentreObjectInFrame && options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        bool isStackingOnly = options.Stacking.WorkflowMode == StackingWorkflowMode.StackingOnly;
+        bool centrePlanetary = ShouldCentrePlanetary(options);
+        bool useUserCrop = !isStackingOnly && options.EnableCropping;
         bool canCropBeforeDebayer =
             !alreadyCropped &&
-            options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne &&
-            (options.EnableCropping || centrePlanetary) &&
+            (options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne || (isStackingOnly && centrePlanetary)) &&
+            (useUserCrop || centrePlanetary) &&
             options.Binning == BinningMode.Disabled;
 
         if (canCropBeforeDebayer)
         {
-            int cropW = options.EnableCropping ? Math.Max(16, options.CropWidth) : work.Width;
-            int cropH = options.EnableCropping ? Math.Max(16, options.CropHeight) : work.Height;
-            int offX = options.EnableCropping ? options.CropOffsetX : 0;
-            int offY = options.EnableCropping ? options.CropOffsetY : 0;
+            int cropW = useUserCrop ? Math.Max(16, options.CropWidth) : work.Width;
+            int cropH = useUserCrop ? Math.Max(16, options.CropHeight) : work.Height;
+            int offX = useUserCrop ? options.CropOffsetX : 0;
+            int offY = useUserCrop ? options.CropOffsetY : 0;
             int targetX = centrePlanetary
                 ? knownCentroidX
                 : work.Width / 2;
@@ -1847,11 +1896,15 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             detectWork = ImageProcessor.ApplyBinning(detectWork, options.Binning, options.BinCalculation);
         }
 
-        if (options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne)
+        if (options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne ||
+            (options.Stacking.WorkflowMode == StackingWorkflowMode.StackingOnly && ShouldCentrePlanetary(options)))
         {
+            bool checkObject = options.Stacking.WorkflowMode == StackingWorkflowMode.DirectStreamAllInOne &&
+                               options.CheckPlanetObjectPresent &&
+                               options.StabilisationMode == StabilisationMode.ObjectPlanetary;
             var det = StabilisationAndQualityEngine.DetectPlanetOrObject(
                 detectWork,
-                options.CheckPlanetObjectPresent && options.StabilisationMode == StabilisationMode.ObjectPlanetary,
+                checkObject,
                 options.AutoDetectionThreshold,
                 options.ManualDetectionThreshold,
                 options.MinimumObjectSizePixels,
@@ -1860,7 +1913,7 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                 options.MaxOverexposedPixels,
                 rejectClippedObjects: false);
 
-            if (options.CheckPlanetObjectPresent && !det.Accepted)
+            if (checkObject && !det.Accepted)
             {
                 centroidX = detectWork.Width / 2;
                 centroidY = detectWork.Height / 2;

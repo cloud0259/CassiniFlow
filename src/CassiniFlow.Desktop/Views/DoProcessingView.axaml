@@ -11,28 +11,26 @@
 
             <Border Grid.Row="0" Classes="groupbox" Margin="0,0,0,10">
                 <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="{loc:Tr DoProcessing.ExecutionTitle}" Classes="grouptitle" Margin="0"/>
-                            <TextBlock Text="{Binding ProcessingStageText}" FontSize="13" Foreground="{DynamicResource AppBadgeFormat}"/>
-                            <TextBlock Text="{Binding SummaryStatsText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Content="{loc:Tr DoProcessing.StartProcessing}"
-                                    Command="{Binding RunProcessingCommand}"
-                                    IsVisible="{Binding !IsProcessing}"
-                                    IsEnabled="{Binding CanStartProcessing}"
-                                    ToolTip.Tip="{Binding StartProcessingValidationMessage}"
-                                    Background="{DynamicResource AppAccent}"
-                                    Foreground="White"
-                                    FontWeight="SemiBold"
-                                    Padding="16,8"/>
-                            <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="20,8" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="110" HorizontalContentAlignment="Center">
-                                <controls:EllipsisBounceLoader DotBrush="White" DotSize="7"/>
-                            </Button>
-                            <Button Content="{loc:Tr DoProcessing.Cancel}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Classes="secondary-cancel" Padding="14,8"/>
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{loc:Tr DoProcessing.ExecutionTitle}" Classes="grouptitle" Margin="0" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding ProcessingStageText}" FontSize="13" Foreground="{DynamicResource AppBadgeFormat}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SummaryStatsText}" FontSize="12" Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                        <Button Content="{loc:Tr DoProcessing.StartProcessing}"
+                                Command="{Binding RunProcessingCommand}"
+                                IsVisible="{Binding !IsProcessing}"
+                                IsEnabled="{Binding CanStartProcessing}"
+                                ToolTip.Tip="{Binding StartProcessingValidationMessage}"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                Padding="16,8"/>
+                        <Button IsVisible="{Binding IsProcessing}" IsEnabled="False" Background="{DynamicResource AppAccent}" Foreground="White" Padding="20,8" ToolTip.Tip="{loc:Tr Toolbar.ProcessingInProgress}" MinWidth="110" HorizontalContentAlignment="Center">
+                            <controls:EllipsisBounceLoader DotBrush="White" DotSize="7"/>
+                        </Button>
+                        <Button Content="{loc:Tr DoProcessing.Cancel}" Command="{Binding CancelProcessingCommand}" IsVisible="{Binding IsProcessing}" Classes="secondary-cancel" Padding="14,8"/>
+                    </StackPanel>
 
                     <!-- Message explicite si le bouton Démarrer est bloqué -->
                     <Border Background="#2a1515" BorderBrush="#dc2626" BorderThickness="1" CornerRadius="4" Padding="8,5"
@@ -44,15 +42,15 @@
                     <Border Background="#2a1212" BorderBrush="#dc2626" BorderThickness="1" CornerRadius="4" Padding="10,8"
                             IsVisible="{Binding HasActiveError}">
                         <StackPanel Spacing="6">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="⚠️" FontSize="14" VerticalAlignment="Center"/>
-                                    <Border Background="#dc2626" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⚠️" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Border Background="#dc2626" CornerRadius="3" Padding="5,1" VerticalAlignment="Center" Margin="0,0,6,0">
                                         <TextBlock Text="{Binding ActiveErrorCode}" FontSize="10" FontWeight="Bold" Foreground="White"/>
                                     </Border>
-                                    <TextBlock Text="{Binding ActiveErrorTitle}" FontSize="12.5" FontWeight="Bold" Foreground="#fca5a5" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding ActiveErrorTitle}" FontSize="12.5" FontWeight="Bold" Foreground="#fca5a5" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </WrapPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="6,0,0,0">
                                     <Button Content="{Binding ErrorCopyButtonText}" Command="{Binding CopyErrorDetailsCommand}"
                                             Background="#3b1d1d" Foreground="#fca5a5" BorderBrush="#ef4444" BorderThickness="1"
                                             FontSize="10.5" Padding="8,3" CornerRadius="4"/>
@@ -96,15 +94,16 @@
                     </Grid>
 
                     <!-- Bouton Comparateur de Paliers Empilés -->
-                    <Button Content="{Binding FrameComparatorButtonText}"
-                            Command="{Binding OpenFrameComparatorCommand}"
+                    <Button Command="{Binding OpenFrameComparatorCommand}"
                             IsVisible="{Binding HasMultipleStackedTiers}"
                             Background="#854d0e"
                             Foreground="White"
                             FontWeight="SemiBold"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            Padding="8,8"/>
+                            Padding="8,8">
+                        <TextBlock Text="{Binding FrameComparatorButtonText}" TextWrapping="Wrap" TextAlignment="Center"/>
+                    </Button>
                 </StackPanel>
             </Border>
 

@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Themes.Fluent;
 using CassiniFlow.Desktop.Services;
 
 namespace CassiniFlow.Desktop.Theme;
@@ -52,6 +55,12 @@ public class ThemeService : IThemeService
 
         if (Avalonia.Application.Current != null)
         {
+            var fluentTheme = Avalonia.Application.Current.Styles.OfType<FluentTheme>().FirstOrDefault();
+            if (fluentTheme != null && fluentTheme.Palettes.TryGetValue(ThemeVariant.Dark, out var darkPalette))
+            {
+                darkPalette.Accent = Color.Parse(theme == AppTheme.NightVision ? "#DC2626" : "#2563EB");
+            }
+
             Avalonia.Application.Current.RequestedThemeVariant = targetVariant;
         }
 

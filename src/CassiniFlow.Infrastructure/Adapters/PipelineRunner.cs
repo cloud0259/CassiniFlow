@@ -424,6 +424,59 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         return Path.Combine(dir, $"{stem}_{numStr}{ext}");
     }
 
+    private static readonly object OutputPathLock = new();
+
+    private static string ResolveWinJuposBaseName(string filePath, ProcessingOptions options)
+    {
+        if (WinJuposHelper.TryExtractDateTime(filePath, options.WinJuposConvertLocalToUt, out var extractedUtc))
+        {
+            return WinJuposHelper.FormatWinJuposPrefix(extractedUtc);
+        }
+
+        if (filePath.EndsWith(".ser", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var ser = new SerFile(filePath);
+                if (ser.Header.DateTimeUtcTicks > 0)
+                {
+                    return WinJuposHelper.FormatWinJuposPrefix(SerHeader.SerTimestampToDateTime(ser.Header.DateTimeUtcTicks));
+                }
+                if (ser.Header.DateTimeTicks > 0)
+                {
+                    var local = new DateTime(ser.Header.DateTimeTicks, DateTimeKind.Local);
+                    return WinJuposHelper.FormatWinJuposPrefix(local.ToUniversalTime());
+                }
+            }
+            catch { }
+        }
+
+        return WinJuposHelper.FormatWinJuposPrefix(File.GetLastWriteTimeUtc(filePath));
+    }
+
+    private static string EnsureUniqueOutputPath(string candidatePath, out string uniqueStem)
+    {
+        string dir = Path.GetDirectoryName(candidatePath) ?? Environment.CurrentDirectory;
+        string stem = Path.GetFileNameWithoutExtension(candidatePath);
+        string ext = Path.GetExtension(candidatePath);
+
+        lock (OutputPathLock)
+        {
+            string path = candidatePath;
+            int suffix = 2;
+            while (File.Exists(path))
+            {
+                string nextStem = $"{stem}_{suffix}";
+                path = Path.Combine(dir, $"{nextStem}{ext}");
+                suffix++;
+            }
+            uniqueStem = Path.GetFileNameWithoutExtension(path);
+            // Reserve path immediately so concurrent BatchMode workers do not pick the same file
+            using var _ = File.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            return path;
+        }
+    }
+
     private async Task<PipelineRunSummary> ProcessFileGroupStreamingAsync(
         IReadOnlyList<string> groupFiles,
         ProcessingOptions options,
@@ -458,7 +511,7 @@ public sealed class PipelineRunner : IRunPipelineUseCase
         double outFps = options.AviFpsSameAsInput ? Math.Max(1.0, sourceFps) : Math.Max(1.0, options.AviFpsValue);
         string sourceStem = Path.GetFileNameWithoutExtension(groupFiles[0]);
         string baseName = options.GenerateWinJuposFilenames
-            ? WinJuposHelper.FormatWinJuposPrefix(DateTime.UtcNow)
+            ? ResolveWinJuposBaseName(groupFiles[0], options)
             : sourceStem;
         string fullStem = $"{options.OutputFilenamePrefix}{baseName}{options.OutputFilenameSuffix}";
 
@@ -469,6 +522,11 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             OutputFormat.Ser => Path.Combine(outputDirectory, $"{fullStem}.ser"),
             _ => GetImageFramePath(outputDirectory, fullStem, options.OutputFormat, 1, Math.Max(1, totalInputFrames), options.AddLeadingZeros)
         };
+        if (options.RunMode == ProcessingRunMode.BatchMode &&
+            options.OutputFormat is OutputFormat.Avi or OutputFormat.Mp4 or OutputFormat.Ser)
+        {
+            outputPath = EnsureUniqueOutputPath(outputPath, out fullStem);
+        }
 
         int outW = options.EnableCropping ? Math.Max(16, options.CropWidth) : firstWidth;
         int outH = options.EnableCropping ? Math.Max(16, options.CropHeight) : firstHeight;

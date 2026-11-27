@@ -107,4 +107,27 @@ public class FrameComparatorTests
         Assert.Equal(15.0, vm.BestTier.Percentage);
         Assert.True(vm.BestTier.IsBest);
     }
+
+    [Fact]
+    public void EvaluateScore_DifferentiatesHighSharpnessTiers_WithoutSaturatingAt100()
+    {
+        var frameA = new AstroFrame(64, 64, 1);
+        var frameB = new AstroFrame(64, 64, 1);
+        for (int y = 0; y < 64; y++)
+        {
+            for (int x = 0; x < 64; x++)
+            {
+                frameA.Data[y * 64 + x] = (ushort)(((x + y) % 2 == 0) ? 55000 : 8000);
+                frameB.Data[y * 64 + x] = (ushort)(((x / 2) % 2 == 0) ? 48000 : 12000);
+            }
+        }
+
+        double scoreA = StackedTierQualityEvaluator.EvaluateScore(frameA);
+        double scoreB = StackedTierQualityEvaluator.EvaluateScore(frameB);
+
+        Assert.InRange(scoreA, 0.1, 99.9);
+        Assert.InRange(scoreB, 0.1, 99.9);
+        Assert.NotEqual(scoreA, scoreB);
+        Assert.True(scoreA > scoreB);
+    }
 }
