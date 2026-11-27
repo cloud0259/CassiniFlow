@@ -8,6 +8,7 @@
             <FluentTheme.Palettes>
                 <ColorPaletteResources x:Key="Dark" Accent="#2563EB" />
                 <ColorPaletteResources x:Key="Light" Accent="#2563EB" />
+                <ColorPaletteResources x:Key="{x:Static theme:ThemeService.NightVisionVariant}" Accent="#DC2626" />
             </FluentTheme.Palettes>
         </FluentTheme>
         <!-- Polices système multiplateformes et fallback d'icônes/emojis pour Linux -->

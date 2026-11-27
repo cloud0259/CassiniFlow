@@ -12,14 +12,15 @@ public static class StackedTierQualityEvaluator
     {
         if (frame.Width < 8 || frame.Height < 8 || frame.Data.Length == 0) return 0.0;
 
-        // 1. High-frequency detail / gradient sharpness score
+        // 1. High-frequency detail / gradient sharpness score (asymptotic mapping prevents saturation at 100.0)
         double rawGrad = StabilisationAndQualityEngine.ComputeQualityScore(frame, QualityAlgorithm.GradientSharpness, noiseRobust: 2);
+        double normalizedGrad = 100.0 * (1.0 - Math.Exp(-Math.Max(0.0, rawGrad) / 2500.0));
 
         // 2. Contrast & dynamic range
         double contrast = ComputeContrastScore(frame);
 
         // 3. Combined score
-        double combined = (rawGrad * 0.65) + (contrast * 0.35);
+        double combined = (normalizedGrad * 0.65) + (contrast * 0.35);
         return Math.Round(Math.Clamp(combined, 0.0, 100.0), 1);
     }
 

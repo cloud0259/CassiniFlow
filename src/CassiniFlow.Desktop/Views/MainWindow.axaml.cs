@@ -34,6 +34,18 @@ public partial class MainWindow : Window
             ApplyLanguage();
             UpdateMenuCheckStates();
 
+            // Force la fenêtre au premier plan lors du lancement depuis un terminal ou raccourci
+            try
+            {
+                Topmost = true;
+                Topmost = false;
+                Activate();
+                Focus();
+            }
+            catch
+            {
+            }
+
             // Démarrage automatique du didacticiel au premier lancement
             if (DataContext is MainWindowViewModel vm && !vm.HasSeenTutorial)
             {
@@ -57,6 +69,7 @@ public partial class MainWindow : Window
         {
             Loc.LocalizeTree(this);
             UpdateMenuCheckStates();
+            (DataContext as MainWindowViewModel)?.RefreshLocalizedTexts();
         };
 
         UpdateMenuCheckStates();

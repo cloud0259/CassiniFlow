@@ -296,12 +296,16 @@ public sealed unsafe class SerFile : IDisposable
 
         int cx = w / 2;
         int cy = h / 2;
+        bool isStackingOnlyPlanet = options.Stacking.WorkflowMode == StackingWorkflowMode.StackingOnly &&
+                                    !options.Stacking.DisableStabilisation &&
+                                    options.Stacking.StabilisationMode == StackingStabilisationMode.PlanetCog;
         bool checkObject = options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly &&
                            options.CheckPlanetObjectPresent &&
                            options.StabilisationMode == StabilisationMode.ObjectPlanetary;
-        bool centreObject = options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly &&
-                            options.CentreObjectInFrame &&
-                            options.StabilisationMode == StabilisationMode.ObjectPlanetary;
+        bool centreObject = isStackingOnlyPlanet ||
+                            (options.Stacking.WorkflowMode != StackingWorkflowMode.StackingOnly &&
+                             options.CentreObjectInFrame &&
+                             options.StabilisationMode == StabilisationMode.ObjectPlanetary);
 
         if (checkObject || centreObject)
         {

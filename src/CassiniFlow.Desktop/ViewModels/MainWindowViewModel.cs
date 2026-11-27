@@ -96,6 +96,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isUpdateBannerVisible;
     [ObservableProperty] private string _updateBannerText = string.Empty;
     [ObservableProperty] private string _updateBannerUrl = string.Empty;
+    private string? _latestUpdateVersion;
 
     [RelayCommand]
     public void OpenUpdateUrl()
@@ -264,6 +265,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
+                    _latestUpdateVersion = info.LatestVersion;
                     UpdateBannerText = _loc.Format("Messages.UpdateAvailableBanner", info.LatestVersion);
                     UpdateBannerUrl = info.HtmlUrl;
                     IsUpdateBannerVisible = true;
@@ -370,6 +372,10 @@ public partial class MainWindowViewModel : ObservableObject
         }
         UpdateCpuStatus();
         NotifyStartProcessingValidation();
+        if (IsUpdateBannerVisible && !string.IsNullOrEmpty(_latestUpdateVersion))
+        {
+            UpdateBannerText = _loc.Format("Messages.UpdateAvailableBanner", _latestUpdateVersion);
+        }
         foreach (var f in SourceFiles) f.RefreshLocalizedText();
         if (SelectedSourceFile is not null) RequestPreviewUpdate(reloadFromDisk: false);
         if (IsTutorialActive) UpdateTutorialStep();
