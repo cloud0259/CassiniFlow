@@ -111,12 +111,10 @@ public class FileSelectionTests
 
         // In join mode: 500 + 328 = 828 frames (matching user scenario)
         Assert.Equal(828, vm.MaxAvailableFrames);
-        Assert.Equal(828, vm.StackFrameCount);
 
         // Adjusting SelectionIn/SelectionOut dynamically updates the total
         item1.SelectionIn = 101; // now 101..500 = 400 frames
         Assert.Equal(728, vm.MaxAvailableFrames);
-        Assert.Equal(728, vm.StackFrameCount);
     }
 
     [Fact]
@@ -191,5 +189,94 @@ public class FileSelectionTests
         int sum = vm.Options.GetEffectiveFrameRange("c:\\item1.ser", 1000).EffectiveCount
                 + vm.Options.GetEffectiveFrameRange("c:\\item2.ser", 870).EffectiveCount;
         Assert.Equal(828, sum);
+    }
+
+    [Fact]
+    public void SwitchingSourceFiles_PreservesPerVideoManualAlignmentGrid()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        vm.SetWorkflowMode("stack");
+        vm.EnableCropping = false;
+
+        var videoA = new SourceFileItem { FileName = "A.ser", FullPath = "c:\\A.ser", Frames = 500, Width = 640, Height = 480 };
+        var videoB = new SourceFileItem { FileName = "B.ser", FullPath = "c:\\B.ser", Frames = 500, Width = 640, Height = 480 };
+
+        vm.SourceFiles.Add(videoA);
+        vm.SourceFiles.Add(videoB);
+
+        // Sélection de A et placement manuel de 2 points AP
+        vm.SelectedSourceFile = videoA;
+        var gridA = new CassiniFlow.Domain.Models.AlignmentGrid(
+            48,
+            15,
+            [
+                new CassiniFlow.Domain.Models.AlignmentPoint(1, 200, 200, 48, true),
+                new CassiniFlow.Domain.Models.AlignmentPoint(2, 260, 240, 48, true)
+            ],
+            (230, 220),
+            640,
+            480);
+        vm.CurrentAlignmentGrid = gridA;
+
+        // Passage sur B : B n'a pas encore de points
+        vm.SelectedSourceFile = videoB;
+        Assert.Equal(0, vm.CurrentAlignmentGrid.ActiveCount);
+
+        // Placement manuel d'1 point sur B
+        var gridB = new CassiniFlow.Domain.Models.AlignmentGrid(
+            48,
+            15,
+            [new CassiniFlow.Domain.Models.AlignmentPoint(1, 320, 240, 48, true)],
+            (320, 240),
+            640,
+            480);
+        vm.CurrentAlignmentGrid = gridB;
+
+        // Retour sur A : les 2 points manuels de A doivent être restaurés
+        vm.SelectedSourceFile = videoA;
+        Assert.Equal(2, vm.CurrentAlignmentGrid.ActiveCount);
+        Assert.Equal(200, vm.CurrentAlignmentGrid.Points[0].X);
+
+        // SyncOptionsFromUi doit transmettre les deux grilles séparément
+        vm.SyncOptionsFromUi();
+        Assert.Equal(2, vm.Options.Stacking.FileAlignmentGrids.Count);
+        Assert.Equal(2, vm.Options.Stacking.FileAlignmentGrids["c:\\A.ser"].ActiveCount);
+        Assert.Equal(1, vm.Options.Stacking.FileAlignmentGrids["c:\\B.ser"].ActiveCount);
+    }
+
+    [Fact]
+    public void SwitchingSourceFiles_WithCroppingEnabled_PreservesPerVideoManualAlignmentGrid()
+    {
+        var vm = TestFactory.CreateMainWindowViewModel();
+        vm.SetWorkflowMode("directstream");
+        vm.EnableCropping = true;
+        vm.CropWidth = 448;
+        vm.CropHeight = 448;
+
+        var videoA = new SourceFileItem { FileName = "A.ser", FullPath = "c:\\cropA.ser", Frames = 500, Width = 1920, Height = 1080 };
+        var videoB = new SourceFileItem { FileName = "B.ser", FullPath = "c:\\cropB.ser", Frames = 500, Width = 1280, Height = 720 };
+
+        vm.SourceFiles.Add(videoA);
+        vm.SourceFiles.Add(videoB);
+
+        vm.SelectedSourceFile = videoA;
+        vm.CurrentAlignmentGrid = new CassiniFlow.Domain.Models.AlignmentGrid(
+            48,
+            15,
+            [
+                new CassiniFlow.Domain.Models.AlignmentPoint(1, 224, 224, 48, true),
+                new CassiniFlow.Domain.Models.AlignmentPoint(2, 240, 210, 48, true)
+            ],
+            (224, 224),
+            448,
+            448);
+
+        vm.SelectedSourceFile = videoB;
+        Assert.Equal(0, vm.CurrentAlignmentGrid.ActiveCount);
+
+        vm.SelectedSourceFile = videoA;
+        Assert.Equal(2, vm.CurrentAlignmentGrid.ActiveCount);
+        Assert.Equal(448, vm.CurrentAlignmentGrid.FrameWidth);
+        Assert.Equal(448, vm.CurrentAlignmentGrid.FrameHeight);
     }
 }

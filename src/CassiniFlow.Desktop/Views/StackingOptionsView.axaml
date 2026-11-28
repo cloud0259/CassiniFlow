@@ -8,14 +8,24 @@
 
     <StackPanel Spacing="10" Margin="2,4,2,2">
 
-        <!-- Paliers d'empilement & Quotas -->
+        <!-- Paliers d'empilement & Sélection des trames -->
         <Border Classes="groupbox" Padding="10,8">
             <StackPanel Spacing="8">
                 <TextBlock Text="{loc:Tr Stacking.Percentages}" Classes="grouptitle"/>
 
-                <TextBlock Text="{loc:Tr Stacking.PercentagesHint}" Classes="hint" FontSize="11" Foreground="#94a3b8"/>
+                <TextBlock Text="{loc:Tr Stacking.PercentagesHint}" Classes="hint" FontSize="11" Foreground="#94a3b8" TextWrapping="Wrap"/>
 
-                <Grid ColumnDefinitions="*,8,*,8,*" Margin="0,2">
+                <!-- Sélecteur d'unité : Pourcentage (%) vs Nombre fixe (N) -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.RetentionUnit}" Classes="label" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding SelectedStackRetentionUnitIndex}" Width="165">
+                        <ComboBoxItem Content="{loc:Tr Stacking.UnitPercent}"/>
+                        <ComboBoxItem Content="{loc:Tr Stacking.UnitFrameCount}"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Paliers en pourcentage (%) -->
+                <Grid ColumnDefinitions="*,8,*,8,*" Margin="0,2" IsVisible="{Binding IsStackRetentionPercentage}">
                     <StackPanel Grid.Column="0" Spacing="3">
                         <TextBlock Text="{loc:Tr Stacking.Tier1}" Classes="label"/>
                         <controls:NumberStepper Value="{Binding StackPercentage1}" Minimum="0" Maximum="100" FormatString="{}{0} %"/>
@@ -30,12 +40,33 @@
                     </StackPanel>
                 </Grid>
 
-                <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
-
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{loc:Tr Stacking.MaxQuota}" Classes="label" VerticalAlignment="Center"/>
-                    <controls:NumberStepper Grid.Column="1" Value="{Binding StackFrameCount}" Minimum="1" Maximum="{Binding MaxAvailableFrames}" FormatString="0" Width="110"/>
+                <!-- Paliers en nombre fixe de trames (N) -->
+                <Grid ColumnDefinitions="*,8,*,8,*" Margin="0,2" IsVisible="{Binding IsStackRetentionFrameCount}">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.TierCount1}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackFrameCount1}" Minimum="0" Maximum="999999" FormatString="0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.TierCount2}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackFrameCount2}" Minimum="0" Maximum="999999" FormatString="0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Spacing="3">
+                        <TextBlock Text="{loc:Tr Stacking.TierCount3}" Classes="label"/>
+                        <controls:NumberStepper Value="{Binding StackFrameCount3}" Minimum="0" Maximum="999999" FormatString="0"/>
+                    </StackPanel>
                 </Grid>
+
+                <TextBlock Text="{Binding StackingSelectionPreviewText}"
+                           FontSize="11"
+                           Foreground="{DynamicResource AppAccent}"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"/>
+
+                <TextBlock Text="{loc:Tr Stacking.BatchHint}"
+                           IsVisible="{Binding IsBatchRetentionHintVisible}"
+                           FontSize="11"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
 

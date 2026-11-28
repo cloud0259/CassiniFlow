@@ -191,7 +191,8 @@
     "LimitingMode": "Limiting mode:",
     "LimitFixed": "Fixed number of frames",
     "LimitPercent": "Percentage of best frames (%)",
-    "ValueToKeep": "Value to keep:"
+    "ValueToKeep": "Value to keep:",
+    "RetentionManagedInStacking": "In stacking mode, frame retention is configured in the 'Stacking & Render' section."
   },
   "AnimationOptions": {
     "PlaybackTitle": "Playback Sequence and Animation Loop",
@@ -261,6 +262,7 @@
     "RankFormatted": "Rank: #{0} / {1} (Top {2}%)",
     "CutoffKeepBest": "Keep:",
     "RetainedFrames": "Kept: {0} frames ({1}%)",
+    "RetainedFramesWithExtraTiers": "Kept: {0} frames ({1}%) (+{2} tier(s))",
     "ToggleTimelineSize": "Timeline Height",
     "AnalyzingQuality": "Analyzing seeing...",
     "AlgoGradient": "Gradient",
@@ -565,10 +567,18 @@
   },
   "Stacking": {
     "Percentages": "Stacking tiers:",
-    "PercentagesHint": "Generates a distinct file for each tier above 0%.",
+    "PercentagesHint": "Generates a distinct file for each tier above 0.",
+    "RetentionUnit": "Selection unit:",
+    "UnitPercent": "Percentage (%)",
+    "UnitFrameCount": "Fixed count (frames)",
     "Tier1": "Tier 1 (%) :",
     "Tier2": "Tier 2 (%) :",
     "Tier3": "Tier 3 (%) :",
+    "TierCount1": "Tier 1 (frames) :",
+    "TierCount2": "Tier 2 (frames) :",
+    "TierCount3": "Tier 3 (frames) :",
+    "PreviewSummary": "Preview on selected video: {0}",
+    "BatchHint": "Batch mode: each tier is applied independently to every video in the batch.",
     "MaxQuota": "Max frame quota :",
     "Drizzle": "Drizzle resample:",
     "DrizzleNone": "Disabled",

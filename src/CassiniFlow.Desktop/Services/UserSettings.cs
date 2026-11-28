@@ -25,9 +25,13 @@ public sealed class UserSettings
     public double SatelliteDetectionSensitivity { get; set; } = 1.0;
 
     // Persisted stacking & alignment preferences
+    public int StackRetentionUnit { get; set; } = 0; // 0 = Percentage, 1 = FrameCount
     public int StackPercentage1 { get; set; } = 25;
     public int StackPercentage2 { get; set; } = 0;
     public int StackPercentage3 { get; set; } = 0;
+    public int StackFrameCount1 { get; set; } = 1000;
+    public int StackFrameCount2 { get; set; } = 0;
+    public int StackFrameCount3 { get; set; } = 0;
     public int AlignmentTileSize { get; set; } = 48;
     public int MinBrightnessThreshold { get; set; } = 15;
     public bool NormalizeBrightness { get; set; } = true;

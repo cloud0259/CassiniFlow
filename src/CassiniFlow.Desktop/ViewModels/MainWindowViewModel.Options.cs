@@ -99,8 +99,14 @@ public partial class MainWindowViewModel
         RecalculateAlignmentGridIfActive();
     }
 
+    private bool _isSwitchingSourceFile;
+
     partial void OnCurrentAlignmentGridChanged(AlignmentGrid value)
     {
+        if (!_isSwitchingSourceFile && SelectedSourceFile is { } file)
+        {
+            file.CustomAlignmentGrid = value is { ActiveCount: > 0 } ? value : null;
+        }
         OnPropertyChanged(nameof(ActivePointsCountText));
         NotifyStartProcessingValidation();
     }
@@ -448,14 +454,39 @@ public partial class MainWindowViewModel
     [ObservableProperty] private int _selectedStackingImageFormatIndex = 0;
 
     // --- Empilement Multi-Zones & Rendu ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStackRetentionPercentage))]
+    [NotifyPropertyChangedFor(nameof(IsStackRetentionFrameCount))]
+    private int _selectedStackRetentionUnitIndex = 0; // 0 = Percentage, 1 = FrameCount
+
+    public bool IsStackRetentionPercentage => SelectedStackRetentionUnitIndex == 0;
+    public bool IsStackRetentionFrameCount => SelectedStackRetentionUnitIndex == 1;
+
     [ObservableProperty] private int _stackPercentage1 = 25;
     [ObservableProperty] private int _stackPercentage2 = 0;
     [ObservableProperty] private int _stackPercentage3 = 0;
+
+    [ObservableProperty] private int _stackFrameCount1 = 1000;
+    [ObservableProperty] private int _stackFrameCount2 = 0;
+    [ObservableProperty] private int _stackFrameCount3 = 0;
+
+    [ObservableProperty] private string _stackingSelectionPreviewText = string.Empty;
+
+    public bool IsBatchRetentionHintVisible => IsBatchMode && SourceFiles.Count > 1;
+
+    partial void OnSelectedStackRetentionUnitIndexChanged(int value)
+    {
+        _userSettings.Current.StackRetentionUnit = Math.Clamp(value, 0, 1);
+        _userSettings.Save();
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
 
     partial void OnStackPercentage1Changed(int value)
     {
         _userSettings.Current.StackPercentage1 = Math.Clamp(value, 0, 100);
         _userSettings.Save();
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
     }
 
@@ -463,6 +494,7 @@ public partial class MainWindowViewModel
     {
         _userSettings.Current.StackPercentage2 = Math.Clamp(value, 0, 100);
         _userSettings.Save();
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
     }
 
@@ -470,6 +502,37 @@ public partial class MainWindowViewModel
     {
         _userSettings.Current.StackPercentage3 = Math.Clamp(value, 0, 100);
         _userSettings.Save();
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnStackFrameCount1Changed(int value)
+    {
+        _userSettings.Current.StackFrameCount1 = Math.Max(0, value);
+        _userSettings.Save();
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnStackFrameCount2Changed(int value)
+    {
+        _userSettings.Current.StackFrameCount2 = Math.Max(0, value);
+        _userSettings.Save();
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnStackFrameCount3Changed(int value)
+    {
+        _userSettings.Current.StackFrameCount3 = Math.Max(0, value);
+        _userSettings.Save();
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
+
+    partial void OnSelectedQualityLimitModeIndexChanged(int value)
+    {
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
     }
 
@@ -488,6 +551,29 @@ public partial class MainWindowViewModel
         return list.Distinct().OrderBy(p => p).ToList();
     }
 
+    public List<int> GetActiveStackFixedFrameCounts()
+    {
+        var list = new List<int>();
+        if (StackFrameCount1 > 0) list.Add(StackFrameCount1);
+        if (StackFrameCount2 > 0) list.Add(StackFrameCount2);
+        if (StackFrameCount3 > 0) list.Add(StackFrameCount3);
+        return list.Distinct().OrderBy(c => c).ToList();
+    }
+
+    public IReadOnlyList<FrameRetentionRule> GetActiveStackRetentionRules()
+    {
+        if (IsStackRetentionFrameCount)
+        {
+            return GetActiveStackFixedFrameCounts()
+                .Select(FrameRetentionRule.FromFrameCount)
+                .ToList();
+        }
+
+        return GetActiveStackPercentages()
+            .Select(p => FrameRetentionRule.FromPercentage(Math.Clamp(p, 1, 100)))
+            .ToList();
+    }
+
 
 
     public void SyncOptionsFromUi()
@@ -497,14 +583,16 @@ public partial class MainWindowViewModel
         Options.StartFrame = Math.Max(1, StartFrame);
         Options.EndFrame = Math.Max(Options.StartFrame, EndFrame);
 
-        Options.FileFrameRanges.Clear();
-        foreach (var file in SourceFiles)
+        var sourceSnapshot = SourceFiles.ToArray();
+        var fileRanges = new Dictionary<string, (int StartFrame, int EndFrame)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in sourceSnapshot)
         {
             if (file.SelectionIn > 0 && file.SelectionOut > 0)
             {
-                Options.FileFrameRanges[file.FullPath] = (file.SelectionIn, file.SelectionOut);
+                fileRanges[file.FullPath] = (file.SelectionIn, file.SelectionOut);
             }
         }
+        Options.FileFrameRanges = fileRanges;
 
         Options.DarkFiles = DarkFiles.ToList();
         Options.FlatFiles = FlatFiles.ToList();
@@ -560,7 +648,8 @@ public partial class MainWindowViewModel
         Options.QualityAlgorithm = (QualityAlgorithm)Math.Clamp(SelectedQualityAlgoIndex, 0, 3);
         // En Join Mode, les vidéos sont fusionnées l'une après l'autre (ordre de la liste) : pas de réordonnancement par qualité.
         Options.QualityReorderFrames = ReorderByQuality && !IsJoinMode;
-        Options.EnableQualityLimiting = EnableQuality && LimitQualityFrames;
+        // Garantie anti-double-filtrage : la limitation qualité prétraitement n'est active qu'en PreProcessingOnly.
+        Options.EnableQualityLimiting = IsWorkflowPreProcessingOnly && EnableQuality && LimitQualityFrames;
         Options.QualityLimitingMode = SelectedQualityLimitModeIndex == 0 ? QualityLimitingType.NumberOfFrames : QualityLimitingType.PercentageOfFrames;
         Options.QualityFramesToKeep = Math.Max(1, QualityKeepValue);
         Options.EnableQualityWeighting = EnableQualityWeighting;
@@ -613,11 +702,26 @@ public partial class MainWindowViewModel
         Options.Stacking.EnablePruning = EnablePruning;
         Options.Stacking.EnableMultiScaleGrid = EnableMultiScaleGrid;
         var activePcts = GetActiveStackPercentages();
+        var activeCounts = GetActiveStackFixedFrameCounts();
+        Options.Stacking.RetentionUnit = IsStackRetentionFrameCount ? FrameRetentionUnit.FrameCount : FrameRetentionUnit.Percentage;
         Options.Stacking.StackPercentages = activePcts;
+        Options.Stacking.StackFixedFrameCounts = activeCounts;
         Options.Stacking.CustomAlignmentGrid = (!IsWorkflowPreProcessingOnly && CurrentAlignmentGrid.ActiveCount > 0)
             ? CurrentAlignmentGrid
             : null;
-        Options.Stacking.StackFrameCounts = [StackFrameCount];
+        var fileGrids = new Dictionary<string, AlignmentGrid>(StringComparer.OrdinalIgnoreCase);
+        if (!IsWorkflowPreProcessingOnly)
+        {
+            foreach (var file in sourceSnapshot)
+            {
+                if (file.CustomAlignmentGrid is { ActiveCount: > 0 } fileGrid)
+                {
+                    fileGrids[file.FullPath] = fileGrid;
+                }
+            }
+        }
+        Options.Stacking.FileAlignmentGrids = fileGrids;
+        Options.Stacking.StackFrameCounts = [];
         Options.Stacking.Drizzle = SelectedDrizzleIndex switch
         {
             1 => DrizzleScale.Drizzle15,
@@ -731,15 +835,25 @@ public partial class MainWindowViewModel
             SharpeningBlendPercent = Math.Clamp(o.Stacking.SharpeningBlendPercent, 0, 100);
             FeatheringEnabled = o.Stacking.FeatheringEnabled;
 
+            SelectedStackRetentionUnitIndex = o.Stacking.RetentionUnit == FrameRetentionUnit.FrameCount ? 1 : 0;
+
             if (o.Stacking.StackPercentages is { Count: > 0 } pcts)
             {
                 StackPercentage1 = pcts.Count > 0 ? (int)Math.Round(pcts[0]) : 0;
                 StackPercentage2 = pcts.Count > 1 ? (int)Math.Round(pcts[1]) : 0;
                 StackPercentage3 = pcts.Count > 2 ? (int)Math.Round(pcts[2]) : 0;
             }
+
+            if (o.Stacking.StackFixedFrameCounts is { Count: > 0 } counts)
+            {
+                StackFrameCount1 = counts.Count > 0 ? Math.Max(0, counts[0]) : 0;
+                StackFrameCount2 = counts.Count > 1 ? Math.Max(0, counts[1]) : 0;
+                StackFrameCount3 = counts.Count > 2 ? Math.Max(0, counts[2]) : 0;
+            }
         }
 
         RequestPreviewUpdate(reloadFromDisk: false);
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
         UpdateAvailableFrames();
     }
@@ -827,6 +941,9 @@ public partial class MainWindowViewModel
                 }
                 break;
         }
+
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
     }
 
     [RelayCommand]

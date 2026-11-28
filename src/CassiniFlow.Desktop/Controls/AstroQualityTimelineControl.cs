@@ -33,9 +33,6 @@ public sealed class AstroQualityTimelineControl : Control
     public static readonly StyledProperty<int> SelectionEndProperty =
         AvaloniaProperty.Register<AstroQualityTimelineControl, int>(nameof(SelectionEnd), 1, defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
-    public static readonly StyledProperty<int> CutoffPercentProperty =
-        AvaloniaProperty.Register<AstroQualityTimelineControl, int>(nameof(CutoffPercent), 100, defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
-
     public static readonly StyledProperty<bool> IsChronologicalModeProperty =
         AvaloniaProperty.Register<AstroQualityTimelineControl, bool>(nameof(IsChronologicalMode), true);
 
@@ -97,12 +94,6 @@ public sealed class AstroQualityTimelineControl : Control
     {
         get => GetValue(SelectionEndProperty);
         set => SetValue(SelectionEndProperty, value);
-    }
-
-    public int CutoffPercent
-    {
-        get => GetValue(CutoffPercentProperty);
-        set => SetValue(CutoffPercentProperty, value);
     }
 
     public bool IsChronologicalMode
@@ -208,7 +199,6 @@ public sealed class AstroQualityTimelineControl : Control
             MaxFrameCountProperty,
             SelectionStartProperty,
             SelectionEndProperty,
-            CutoffPercentProperty,
             IsChronologicalModeProperty,
             ShowGradientSharpnessProperty,
             ShowNinoxProperty,
@@ -279,28 +269,6 @@ public sealed class AstroQualityTimelineControl : Control
             if (xOut < w - 1)
             {
                 context.DrawRectangle(DimExclusionBrush, null, new Rect(xOut, 0, w - xOut, h));
-            }
-        }
-
-        // 3. Draw Cutoff threshold line ("Keep X% best")
-        if (CutoffPercent < 100 && data != null)
-        {
-            var primaryRecords = data.GetSortedScores(data.PrimaryAlgorithm);
-            if (primaryRecords != null && primaryRecords.Length > 0)
-            {
-                int cutoffIndex = Math.Clamp((int)Math.Round(primaryRecords.Length * (CutoffPercent / 100.0)), 0, primaryRecords.Length - 1);
-                double cutoffNorm = primaryRecords[cutoffIndex].NormalizedScore;
-                double cy = h - (cutoffNorm / 100.0) * (h - 16) - 8;
-
-                context.DrawLine(CutoffPen, new Point(0, cy), new Point(w, cy));
-                var ft = new FormattedText(
-                    $"{CutoffPercent}%",
-                    CultureInfo.InvariantCulture,
-                    FlowDirection.LeftToRight,
-                    MonospaceTypeface,
-                    9.5,
-                    new SolidColorBrush(Color.Parse("#38bdf8")));
-                context.DrawText(ft, new Point(w - ft.Width - 4, Math.Clamp(cy - ft.Height - 1, 2, h - ft.Height - 2)));
             }
         }
 

@@ -351,9 +351,11 @@ public class MultiZoneStackingEngineTests
     }
 
     [Fact]
-    public void MainWindowViewModel_StackFrameCount_MatchesMaxAvailableFrames()
+    public void MainWindowViewModel_MaxAvailableFrames_UpdatesWithoutOverwritingUserRetention()
     {
         var vm = TestFactory.CreateMainWindowViewModel();
+        vm.SelectedStackRetentionUnitIndex = 1; // FrameCount
+        vm.StackFrameCount1 = 1500;
 
         var file1 = new CassiniFlow.Desktop.ViewModels.SourceFileItem
         {
@@ -378,18 +380,18 @@ public class MultiZoneStackingEngineTests
         vm.UpdateAvailableFrames();
 
         Assert.Equal(12085, vm.MaxAvailableFrames);
-        Assert.Equal(12085, vm.StackFrameCount);
+        Assert.Equal(1500, vm.StackFrameCount1);
 
         // 2. Add second file and enable JoinMode
         vm.SourceFiles.Add(file2);
         vm.IsJoinMode = true;
         Assert.Equal(12085 + 5000, vm.MaxAvailableFrames);
-        Assert.Equal(17085, vm.StackFrameCount);
+        Assert.Equal(1500, vm.StackFrameCount1);
 
         // 3. Switch to BatchMode (not JoinMode)
         vm.IsJoinMode = false;
         Assert.Equal(12085, vm.MaxAvailableFrames);
-        Assert.Equal(12085, vm.StackFrameCount);
+        Assert.Equal(1500, vm.StackFrameCount1);
     }
 
     [Fact]

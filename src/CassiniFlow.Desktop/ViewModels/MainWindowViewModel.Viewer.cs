@@ -59,10 +59,8 @@ public partial class MainWindowViewModel
     [ObservableProperty] private bool _timelineShowTotalLum;
     [ObservableProperty] private int _timelineSelectionIn = 1;
     [ObservableProperty] private int _timelineSelectionOut = 1;
-    [ObservableProperty] private int _timelineCutoffPercent = 25;
     [ObservableProperty] private string _currentFrameRankText = "—";
     [ObservableProperty] private string _currentSeeingText = "—";
-    [ObservableProperty] private string _retainedFramesSummaryText = "—";
     [ObservableProperty] private int _hoverFrameIndex = -1;
     [ObservableProperty] private double _hoverScore;
     [ObservableProperty] private int _hoverRank = -1;
@@ -109,7 +107,7 @@ public partial class MainWindowViewModel
         {
             file.SelectionIn = value;
         }
-        UpdateRetainedFramesSummary();
+        UpdateStackingSelectionPreview();
         UpdateAvailableFrames();
     }
 
@@ -120,15 +118,8 @@ public partial class MainWindowViewModel
         {
             file.SelectionOut = value;
         }
-        UpdateRetainedFramesSummary();
+        UpdateStackingSelectionPreview();
         UpdateAvailableFrames();
-    }
-
-    partial void OnTimelineCutoffPercentChanged(int value)
-    {
-        QualityKeepValue = value;
-        SelectedQualityLimitModeIndex = 1; // Percentage
-        UpdateRetainedFramesSummary();
     }
 
     partial void OnTimelineShowGradientChanged(bool value)
@@ -188,7 +179,6 @@ public partial class MainWindowViewModel
         TimelineSelectionOut = 1;
         CurrentFrameRankText = "—";
         CurrentSeeingText = "—";
-        RetainedFramesSummaryText = "—";
         QualityScoreText = "—";
         MaxPixelStatsText = "—";
         HoverFrameIndex = -1;
@@ -269,7 +259,7 @@ public partial class MainWindowViewModel
                         }
 
                         UpdateTimelineFrameHud(CurrentFrameIndex);
-                        UpdateRetainedFramesSummary();
+                        UpdateStackingSelectionPreview();
                         OnPropertyChanged(nameof(ActiveQualityAlgorithmName));
                     });
                 }
@@ -344,11 +334,49 @@ public partial class MainWindowViewModel
         CurrentSeeingText = "—";
     }
 
-    private void UpdateRetainedFramesSummary()
+    private int GetPreviewEffectiveFrameCount()
     {
-        int rangeCount = Math.Max(1, TimelineSelectionOut - TimelineSelectionIn + 1);
-        int kept = Math.Clamp((int)Math.Round(rangeCount * (TimelineCutoffPercent / 100.0)), 1, rangeCount);
-        RetainedFramesSummaryText = Loc.Format("Viewer.RetainedFrames", kept, TimelineCutoffPercent);
+        if (TimelineSelectionOut >= TimelineSelectionIn && TimelineSelectionOut > 1)
+        {
+            return Math.Max(1, TimelineSelectionOut - TimelineSelectionIn + 1);
+        }
+        if (SelectedSourceFile != null)
+        {
+            return Math.Max(1, GetFileEffectiveFrames(SelectedSourceFile));
+        }
+        if (MaxAvailableFrames > 0 && MaxAvailableFrames < 999999)
+        {
+            return MaxAvailableFrames;
+        }
+        return 1000;
+    }
+
+    public void SyncTimelineFromActiveRetention()
+    {
+        UpdateStackingSelectionPreview();
+    }
+
+    private void UpdateStackingSelectionPreview()
+    {
+        OnPropertyChanged(nameof(IsBatchRetentionHintVisible));
+
+        int rangeCount = GetPreviewEffectiveFrameCount();
+        var rules = GetActiveStackRetentionRules();
+        if (rules.Count == 0)
+        {
+            StackingSelectionPreviewText = string.Empty;
+            return;
+        }
+
+        var parts = new System.Collections.Generic.List<string>(rules.Count);
+        foreach (var rule in rules)
+        {
+            int kept = rule.ResolveFrameCount(rangeCount);
+            int pct = (int)Math.Round((kept * 100.0) / Math.Max(1, rangeCount), MidpointRounding.AwayFromZero);
+            parts.Add($"{kept} ({pct}%)");
+        }
+
+        StackingSelectionPreviewText = Loc.Format("Stacking.PreviewSummary", string.Join(" · ", parts));
     }
 
         public event Action<AstroFrame?, DetectionResult?, double>? PreviewReady;
@@ -441,10 +469,15 @@ public partial class MainWindowViewModel
     {
         _userSettings.Current.EnableQualityEstimation = value;
         _userSettings.Save();
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
         RequestPreviewUpdate(reloadFromDisk: false);
     }
-    partial void OnLimitQualityFramesChanged(bool value) => NotifyStartProcessingValidation();
+    partial void OnLimitQualityFramesChanged(bool value)
+    {
+        SyncTimelineFromActiveRetention();
+        NotifyStartProcessingValidation();
+    }
     partial void OnQualityKeepValueChanged(int value)
     {
         if (value > 0)
@@ -452,6 +485,7 @@ public partial class MainWindowViewModel
             _userSettings.Current.QualityFramesToKeep = value;
             _userSettings.Save();
         }
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
     }
     partial void OnSelectedQualityAlgoIndexChanged(int value)
@@ -684,11 +718,21 @@ public partial class MainWindowViewModel
                 _lastDetection = det;
                 PreviewReady?.Invoke(processed, det, applyCrop ? 1.0 : scale);
 
+                int expectedGridW = EnableCropping ? CropWidth : processed.Width;
+                int expectedGridH = EnableCropping ? CropHeight : processed.Height;
                 if (!IsWorkflowPreProcessingOnly && !IsPlaying &&
                     (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
-                     CurrentAlignmentGrid.FrameWidth != processed.Width || CurrentAlignmentGrid.FrameHeight != processed.Height))
+                     CurrentAlignmentGrid.FrameWidth != expectedGridW || CurrentAlignmentGrid.FrameHeight != expectedGridH))
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(CalculateAlignmentGrid);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (SelectedSourceFile == source && !IsWorkflowPreProcessingOnly && !IsPlaying &&
+                            (CurrentAlignmentGrid is null || CurrentAlignmentGrid.Points.Count == 0 ||
+                             CurrentAlignmentGrid.FrameWidth != expectedGridW || CurrentAlignmentGrid.FrameHeight != expectedGridH))
+                        {
+                            CalculateAlignmentGrid();
+                        }
+                    });
                 }
             }
             catch (Exception ex)

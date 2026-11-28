@@ -79,7 +79,7 @@ public partial class MainWindowViewModel
 
         if (!IsWorkflowPreProcessingOnly)
         {
-            if (GetActiveStackPercentages().Count == 0)
+            if (GetActiveStackRetentionRules().Count == 0)
             {
                 return Loc.Get("Messages.ValidationStackPercentageRequiredNonZero");
             }
@@ -135,7 +135,7 @@ public partial class MainWindowViewModel
         }
 
         MaxAvailableFrames = Math.Max(1, available);
-        StackFrameCount = MaxAvailableFrames;
+        SyncTimelineFromActiveRetention();
     }
 
     private int GetFileEffectiveFrames(SourceFileItem file)

@@ -191,7 +191,8 @@
     "LimitingMode": "Mode de limitation :",
     "LimitFixed": "Nombre fixe de trames",
     "LimitPercent": "Pourcentage des meilleures trames (%)",
-    "ValueToKeep": "Valeur à conserver :"
+    "ValueToKeep": "Valeur à conserver :",
+    "RetentionManagedInStacking": "En mode empilement, le nombre de trames retenues se règle dans la section « Empilement & Rendu »."
   },
   "AnimationOptions": {
     "PlaybackTitle": "Séquence de Lecture et Boucle d'Animation",
@@ -261,6 +262,7 @@
     "RankFormatted": "Rang : #{0} / {1} (Top {2}%)",
     "CutoffKeepBest": "Garder :",
     "RetainedFrames": "Retenues : {0} trames ({1}%)",
+    "RetainedFramesWithExtraTiers": "Retenues : {0} trames ({1}%) (+{2} palier(s))",
     "ToggleTimelineSize": "Hauteur timeline",
     "AnalyzingQuality": "Analyse du seeing...",
     "AlgoGradient": "Gradient",
@@ -565,10 +567,18 @@
   },
   "Stacking": {
     "Percentages": "Paliers d'empilement :",
-    "PercentagesHint": "Génère un fichier distinct pour chaque palier supérieur à 0%.",
+    "PercentagesHint": "Génère un fichier distinct pour chaque palier supérieur à 0.",
+    "RetentionUnit": "Unité de sélection :",
+    "UnitPercent": "Pourcentage (%)",
+    "UnitFrameCount": "Nombre fixe (trames)",
     "Tier1": "Palier 1 (%) :",
     "Tier2": "Palier 2 (%) :",
     "Tier3": "Palier 3 (%) :",
+    "TierCount1": "Palier 1 (tr.) :",
+    "TierCount2": "Palier 2 (tr.) :",
+    "TierCount3": "Palier 3 (tr.) :",
+    "PreviewSummary": "Aperçu sur la vidéo sélectionnée : {0}",
+    "BatchHint": "Mode Lot : chaque palier est appliqué indépendamment à chaque vidéo du lot.",
     "MaxQuota": "Quota max de trames :",
     "Drizzle": "Suréchantillonnage Drizzle :",
     "DrizzleNone": "Désactivé",

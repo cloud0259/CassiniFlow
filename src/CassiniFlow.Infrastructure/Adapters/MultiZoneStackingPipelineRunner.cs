@@ -307,36 +307,20 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
                 bestRefFrame = CreateDoubleStackReference(scoreRecords, bestRefFrame, options, masterDark, masterFlat, expectedTotalFrames);
             }
 
-            // Détermination des paliers d'empilement
-            var activePercentages = options.Stacking.StackPercentages.Where(p => p > 0).Distinct().OrderBy(p => p).ToList();
-            if (activePercentages.Count == 0)
-            {
-                activePercentages = [25.0];
-            }
-
-            int quotaMax = (options.Stacking.StackFrameCounts.Count > 0 && options.Stacking.StackFrameCounts[0] > 0)
-                ? options.Stacking.StackFrameCounts[0]
-                : int.MaxValue;
+            // Détermination des paliers d'empilement via la règle unifiée du Domaine (sans quota caché)
+            var resolvedTiers = options.Stacking.ResolveTiers(scoreRecords.Count);
 
             progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AlignmentPoints"), 47, fileName, 0, scoreRecords.Count, _loc.Get("Progress.PreparingApGrid")));
 
             // Réutilisation de la grille AP placée par l'utilisateur si ses dimensions correspondent, sinon génération
-            AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking);
+            AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking, file);
 
             // Construction des paliers triés par nombre de trames croissant
-            var tiers = new List<StackingTier>();
-            foreach (var pct in activePercentages)
+            var tiers = resolvedTiers.Select(t => new StackingTier
             {
-                int count = Math.Max(1, (int)Math.Round(scoreRecords.Count * (pct / 100.0)));
-                count = Math.Min(count, quotaMax);
-                count = Math.Clamp(count, 1, scoreRecords.Count);
-
-                tiers.Add(new StackingTier
-                {
-                    Percentage = pct,
-                    FramesToStack = count
-                });
-            }
+                Percentage = t.EffectivePercentage,
+                FramesToStack = t.FramesToStack
+            }).ToList();
 
             int maxFramesToStack = tiers.Max(t => t.FramesToStack);
             discardedQuality += (scoreRecords.Count - maxFramesToStack);
@@ -783,33 +767,17 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
             bestRefFrame = CreateDoubleStackReference(allScoreRecords, bestRefFrame, options, masterDark, masterFlat, totalExpectedFrames);
         }
 
-        var activePercentages = options.Stacking.StackPercentages.Where(p => p > 0).Distinct().OrderBy(p => p).ToList();
-        if (activePercentages.Count == 0)
-        {
-            activePercentages = [25.0];
-        }
-
-        int quotaMax = (options.Stacking.StackFrameCounts.Count > 0 && options.Stacking.StackFrameCounts[0] > 0)
-            ? options.Stacking.StackFrameCounts[0]
-            : int.MaxValue;
+        var resolvedTiers = options.Stacking.ResolveTiers(allScoreRecords.Count);
 
         progress?.Report(new PipelineProgressReport(_loc.Get("Progress.AlignmentPointsJoin"), 47, Path.GetFileName(validFiles[0]), 0, allScoreRecords.Count, _loc.Get("Progress.PreparingApGrid")));
 
-        AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking);
+        AlignmentGrid grid = ResolveAlignmentGrid(bestRefFrame, options.Stacking, validFiles[0]);
 
-        var tiers = new List<StackingTier>();
-        foreach (var pct in activePercentages)
+        var tiers = resolvedTiers.Select(t => new StackingTier
         {
-            int count = Math.Max(1, (int)Math.Round(allScoreRecords.Count * (pct / 100.0)));
-            count = Math.Min(count, quotaMax);
-            count = Math.Clamp(count, 1, allScoreRecords.Count);
-
-            tiers.Add(new StackingTier
-            {
-                Percentage = pct,
-                FramesToStack = count
-            });
-        }
+            Percentage = t.EffectivePercentage,
+            FramesToStack = t.FramesToStack
+        }).ToList();
 
         int maxFramesToStack = tiers.Max(t => t.FramesToStack);
         discardedQuality += (allScoreRecords.Count - maxFramesToStack);
@@ -926,9 +894,21 @@ public sealed class MultiZoneStackingPipelineRunner : IStackingPipelineUseCase
         return summary;
     }
 
-    private AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions)
+    private AlignmentGrid ResolveAlignmentGrid(AstroFrame bestRefFrame, StackingOptions stackingOptions, string? sourceFilePath = null)
     {
-        if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } custom)
+        AlignmentGrid? candidate = null;
+        if (!string.IsNullOrEmpty(sourceFilePath) &&
+            stackingOptions.FileAlignmentGrids.TryGetValue(sourceFilePath, out var perFileGrid) &&
+            perFileGrid.ActiveCount > 0)
+        {
+            candidate = perFileGrid;
+        }
+        else if (stackingOptions.CustomAlignmentGrid is { ActiveCount: > 0 } globalGrid)
+        {
+            candidate = globalGrid;
+        }
+
+        if (candidate is { ActiveCount: > 0 } custom)
         {
             if (custom.FrameWidth == bestRefFrame.Width && custom.FrameHeight == bestRefFrame.Height)
             {

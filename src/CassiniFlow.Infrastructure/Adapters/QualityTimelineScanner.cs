@@ -100,9 +100,15 @@ public sealed class QualityTimelineScanner : IQualityTimelineScanner
                 Parallel.For(
                     0,
                     sIdx,
-                    new ParallelOptions { MaxDegreeOfParallelism = maxDegree, CancellationToken = cancellationToken },
-                    k =>
+                    new ParallelOptions { MaxDegreeOfParallelism = maxDegree },
+                    (k, state) =>
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            state.Stop();
+                            return;
+                        }
+
                         int frameIdx = sampledIndices[k];
                         metrics[frameIdx] = ser.ComputeTimelineMetricsZeroAlloc(frameIdx, options, options.SerBitDepthOverride);
 
@@ -112,6 +118,11 @@ public sealed class QualityTimelineScanner : IQualityTimelineScanner
                             progress?.Report(Math.Clamp((double)done / sIdx * 100.0, 0.0, 100.0));
                         }
                     });
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return new Dictionary<QualityAlgorithm, IReadOnlyList<(int FrameIndex, double RawScore)>>();
+                }
 
                 // Interpolation linéaire ultra-rapide des trames intermédiaires
                 if (step > 1)
@@ -155,7 +166,7 @@ public sealed class QualityTimelineScanner : IQualityTimelineScanner
                 result[algo] = scores;
             }
             return result;
-        }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
     private static Task<IReadOnlyDictionary<QualityAlgorithm, IReadOnlyList<(int FrameIndex, double RawScore)>>> ScanVideoOrImageFileAsync(
@@ -224,7 +235,10 @@ public sealed class QualityTimelineScanner : IQualityTimelineScanner
 
             for (int idx = 0; idx < frameCount; idx++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return new Dictionary<QualityAlgorithm, IReadOnlyList<(int FrameIndex, double RawScore)>>();
+                }
 
                 bool shouldDecode = (idx % step == 0) || (idx == frameCount - 1);
 
@@ -285,6 +299,6 @@ public sealed class QualityTimelineScanner : IQualityTimelineScanner
                 dict[algorithms[a]] = results[a];
             }
             return dict;
-        }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 }

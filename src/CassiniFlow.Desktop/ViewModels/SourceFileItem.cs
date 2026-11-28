@@ -84,5 +84,8 @@ public sealed partial class SourceFileItem : ObservableObject
     public string RangeSummaryText => HasCustomRange
         ? $"Plage : {SelectionIn} – {SelectionOut} ({Math.Max(0, SelectionOut - SelectionIn + 1)} fr)"
         : $"{Frames} fr";
+
+    // Grille de points d'alignement (AP) propre à cette vidéo
+    public AlignmentGrid? CustomAlignmentGrid { get; set; }
 }
 
