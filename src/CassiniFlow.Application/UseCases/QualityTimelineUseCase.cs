@@ -54,6 +54,10 @@ public sealed class QualityTimelineUseCase : IQualityTimelineUseCase
         }
 
         var scans = await _scanner.ScanFileMultiScoresAsync(filePath, missing, options, progress, cancellationToken).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return cachedSet ?? new QualityTimelineDataSet(filePath, 0, algorithm);
+        }
 
         int totalFrames = scans.TryGetValue(algorithm, out var primaryRaw) ? primaryRaw.Count : cachedSet?.TotalFrames ?? 0;
         var dataSet = cachedSet ?? new QualityTimelineDataSet(filePath, totalFrames, algorithm);
@@ -93,6 +97,10 @@ public sealed class QualityTimelineUseCase : IQualityTimelineUseCase
         }
 
         var rawScores = await _scanner.ScanFileScoresAsync(dataset.FilePath, algorithm, options, progress, cancellationToken).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
         var rankedRecords = QualityTimelineAnalyzer.NormalizeAndRank(rawScores);
 
         dataset.SetAlgorithmScores(algorithm, rankedRecords, updateTurbulence: false);

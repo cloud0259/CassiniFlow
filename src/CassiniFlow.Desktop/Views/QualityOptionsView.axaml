@@ -29,21 +29,29 @@
 
                     <Separator Background="{DynamicResource AppBorderBrush}" Margin="0,2"/>
 
-                    <!-- Limitation aux meilleures trames -->
-                    <CheckBox Content="{loc:Tr QualityOptions.LimitBestFrames}" IsChecked="{Binding LimitQualityFrames}" FontSize="12"/>
-                    <StackPanel Spacing="6" IsEnabled="{Binding LimitQualityFrames}" Margin="0,2,0,0">
-                        <StackPanel Spacing="3">
-                            <TextBlock Text="{loc:Tr QualityOptions.LimitingMode}" Classes="label"/>
-                            <ComboBox SelectedIndex="{Binding SelectedQualityLimitModeIndex}" HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="{loc:Tr QualityOptions.LimitFixed}"/>
-                                <ComboBoxItem Content="{loc:Tr QualityOptions.LimitPercent}"/>
-                            </ComboBox>
+                    <!-- Limitation aux meilleures trames (uniquement en mode Prétraitement seul) -->
+                    <StackPanel Spacing="6" IsVisible="{Binding IsWorkflowPreProcessingOnly}">
+                        <CheckBox Content="{loc:Tr QualityOptions.LimitBestFrames}" IsChecked="{Binding LimitQualityFrames}" FontSize="12"/>
+                        <StackPanel Spacing="6" IsEnabled="{Binding LimitQualityFrames}" Margin="0,2,0,0">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{loc:Tr QualityOptions.LimitingMode}" Classes="label"/>
+                                <ComboBox SelectedIndex="{Binding SelectedQualityLimitModeIndex}" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.LimitFixed}"/>
+                                    <ComboBoxItem Content="{loc:Tr QualityOptions.LimitPercent}"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="{loc:Tr QualityOptions.ValueToKeep}" Classes="label" VerticalAlignment="Center"/>
+                                <controls:NumberStepper Grid.Column="1" Value="{Binding QualityKeepValue}" Minimum="1" Maximum="999999" FormatString="0" Width="110"/>
+                            </Grid>
                         </StackPanel>
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
-                            <TextBlock Grid.Column="0" Text="{loc:Tr QualityOptions.ValueToKeep}" Classes="label" VerticalAlignment="Center"/>
-                            <controls:NumberStepper Grid.Column="1" Value="{Binding QualityKeepValue}" Minimum="1" Maximum="999999" FormatString="0" Width="110"/>
-                        </Grid>
                     </StackPanel>
+
+                    <TextBlock Text="{loc:Tr QualityOptions.RetentionManagedInStacking}"
+                               IsVisible="{Binding !IsWorkflowPreProcessingOnly}"
+                               FontSize="11"
+                               Foreground="{DynamicResource AppTextSecondary}"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </StackPanel>
         </Border>

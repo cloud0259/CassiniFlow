@@ -561,10 +561,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             bool hasAutoRotation = fileRotationDeg.Any(a => Math.Abs(a) >= 0.05);
 
             // Determine maximum number of frames to keep and adapt RAM budget dynamically to the PC's available memory (4 GB laptop up to 64 GB workstation)
-            int maxKeepTarget = (options.EnableQualityEstimation && options.EnableQualityLimiting)
-                ? (options.QualityLimitingMode == QualityLimitingType.PercentageOfFrames
-                    ? Math.Max(1, totalInputFrames * options.QualityFramesToKeep / 100)
-                    : Math.Min(totalInputFrames, Math.Max(1, options.QualityFramesToKeep)))
+            int maxKeepTarget = (options.EnableQualityEstimation && options.GetQualityRetentionRule() is { } maxRetentionRule)
+                ? maxRetentionRule.ResolveFrameCount(totalInputFrames)
                 : totalInputFrames;
 
             long totalSystemRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
@@ -756,10 +754,8 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                 }
 
                 // Extract winning frames from min-heap
-                int targetFinalCount = (options.EnableQualityEstimation && options.EnableQualityLimiting)
-                    ? (options.QualityLimitingMode == QualityLimitingType.PercentageOfFrames
-                        ? Math.Max(1, acceptedBeforeLimit * options.QualityFramesToKeep / 100)
-                        : Math.Min(acceptedBeforeLimit, Math.Max(1, options.QualityFramesToKeep)))
+                int targetFinalCount = (options.EnableQualityEstimation && options.GetQualityRetentionRule() is { } finalRetentionRule)
+                    ? finalRetentionRule.ResolveFrameCount(acceptedBeforeLimit)
                     : acceptedBeforeLimit;
 
                 var winners = new List<AstroFrame>(topKHeap.Count);
@@ -877,11 +873,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
                     scanEntries.Sort((a, b) => b.QualityScore.CompareTo(a.QualityScore));
                 }
 
-                if (options.EnableQualityLimiting)
+                if (options.GetQualityRetentionRule() is { } scanRetentionRule)
                 {
-                    int keepCount = options.QualityLimitingMode == QualityLimitingType.PercentageOfFrames
-                        ? Math.Max(1, scanEntries.Count * options.QualityFramesToKeep / 100)
-                        : Math.Min(scanEntries.Count, Math.Max(1, options.QualityFramesToKeep));
+                    int keepCount = scanRetentionRule.ResolveFrameCount(scanEntries.Count);
 
                     discardedQuality = scanEntries.Count - keepCount;
                     scanEntries = scanEntries.Take(keepCount).ToList();
@@ -1977,11 +1971,9 @@ public sealed class PipelineRunner : IRunPipelineUseCase
             {
                 accepted.Sort((a, b) => b.QualityScore.CompareTo(a.QualityScore));
             }
-            if (options.EnableQualityLimiting)
+            if (options.GetQualityRetentionRule() is { } acceptedRetentionRule)
             {
-                int keepCount = options.QualityLimitingMode == QualityLimitingType.PercentageOfFrames
-                    ? Math.Max(1, accepted.Count * options.QualityFramesToKeep / 100)
-                    : Math.Min(accepted.Count, Math.Max(1, options.QualityFramesToKeep));
+                int keepCount = acceptedRetentionRule.ResolveFrameCount(accepted.Count);
                 discardedQuality = accepted.Count - keepCount;
                 accepted = accepted.Take(keepCount).ToList();
             }

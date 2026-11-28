@@ -190,9 +190,13 @@ public partial class MainWindowViewModel : ObservableObject
         CelestialTargetClassifier.DefaultDetectSatellites = _detectNaturalSatellites;
         CelestialTargetClassifier.DefaultSatelliteSensitivity = _satelliteDetectionSensitivity;
 
+        _selectedStackRetentionUnitIndex = Math.Clamp(_userSettings.Current.StackRetentionUnit, 0, 1);
         _stackPercentage1 = Math.Clamp(_userSettings.Current.StackPercentage1, 0, 100);
         _stackPercentage2 = Math.Clamp(_userSettings.Current.StackPercentage2, 0, 100);
         _stackPercentage3 = Math.Clamp(_userSettings.Current.StackPercentage3, 0, 100);
+        _stackFrameCount1 = Math.Max(0, _userSettings.Current.StackFrameCount1);
+        _stackFrameCount2 = Math.Max(0, _userSettings.Current.StackFrameCount2);
+        _stackFrameCount3 = Math.Max(0, _userSettings.Current.StackFrameCount3);
         if (_userSettings.Current.AlignmentTileSize >= 16)
         {
             _alignmentTileSize = _userSettings.Current.AlignmentTileSize;
@@ -248,6 +252,7 @@ public partial class MainWindowViewModel : ObservableObject
         };
 
         UpdateCpuStatus();
+        SyncTimelineFromActiveRetention();
 
         if (_userSettings.Current.CheckUpdatesOnStartup && updateChecker != null)
         {
@@ -371,6 +376,7 @@ public partial class MainWindowViewModel : ObservableObject
             ConsoleLogText = Loc.Retranslate(ConsoleLogText);
         }
         UpdateCpuStatus();
+        SyncTimelineFromActiveRetention();
         NotifyStartProcessingValidation();
         if (IsUpdateBannerVisible && !string.IsNullOrEmpty(_latestUpdateVersion))
         {

@@ -34,12 +34,18 @@ public sealed class StackingOptions
     [XmlIgnore]
     public AlignmentGrid? CustomAlignmentGrid { get; set; }
 
+    [JsonIgnore]
+    [XmlIgnore]
+    public Dictionary<string, AlignmentGrid> FileAlignmentGrids { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     // Paliers d'empilement
+    public FrameRetentionUnit RetentionUnit { get; set; } = FrameRetentionUnit.Percentage;
     public List<double> StackPercentages { get; set; } = [25.0];
+    public List<int> StackFixedFrameCounts { get; set; } = [1000];
 
     [JsonIgnore]
     [XmlIgnore]
-    public List<int> StackFrameCounts { get; set; } = [200, 500];
+    public List<int> StackFrameCounts { get; set; } = [];
 
     // Restauration & Rendu
     public DrizzleScale Drizzle { get; set; } = DrizzleScale.None;
@@ -68,7 +74,10 @@ public sealed class StackingOptions
             EnablePruning = EnablePruning,
             EnableMultiScaleGrid = EnableMultiScaleGrid,
             CustomAlignmentGrid = CustomAlignmentGrid,
+            FileAlignmentGrids = new Dictionary<string, AlignmentGrid>(FileAlignmentGrids, StringComparer.OrdinalIgnoreCase),
+            RetentionUnit = RetentionUnit,
             StackPercentages = new List<double>(StackPercentages),
+            StackFixedFrameCounts = new List<int>(StackFixedFrameCounts),
             StackFrameCounts = new List<int>(StackFrameCounts),
             Drizzle = Drizzle,
             NormalizeBrightness = NormalizeBrightness,
@@ -78,5 +87,70 @@ public sealed class StackingOptions
             SharpeningBlendPercent = SharpeningBlendPercent,
             FeatheringEnabled = FeatheringEnabled
         };
+    }
+
+    /// <summary>
+    /// Construit la liste ordonnée des règles de rétention actives selon l'unité configurée.
+    /// </summary>
+    public IReadOnlyList<FrameRetentionRule> GetActiveRetentionRules()
+    {
+        if (RetentionUnit == FrameRetentionUnit.FrameCount)
+        {
+            var counts = StackFixedFrameCounts
+                .Where(c => c > 0)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+
+            if (counts.Count > 0)
+            {
+                return counts.Select(FrameRetentionRule.FromFrameCount).ToList();
+            }
+        }
+
+        var pcts = StackPercentages
+            .Where(p => p > 0 && p <= 100)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
+
+        if (pcts.Count == 0)
+        {
+            pcts = [25.0];
+        }
+
+        return pcts.Select(FrameRetentionRule.FromPercentage).ToList();
+    }
+
+    /// <summary>
+    /// Résout les paliers d'empilement pour un nombre de trames scorées donné, en dédupliquant
+    /// les paliers qui aboutissent au même nombre effectif de trames.
+    /// </summary>
+    public IReadOnlyList<ResolvedStackingTier> ResolveTiers(int scoredFrameCount)
+    {
+        if (scoredFrameCount <= 0)
+        {
+            return [];
+        }
+
+        var rules = GetActiveRetentionRules();
+        var resolved = new List<ResolvedStackingTier>(rules.Count);
+        var seenCounts = new HashSet<int>();
+
+        foreach (var rule in rules)
+        {
+            int count = rule.ResolveFrameCount(scoredFrameCount);
+            if (seenCounts.Add(count))
+            {
+                double effectivePct = rule.Unit == FrameRetentionUnit.Percentage
+                    ? rule.Value
+                    : Math.Round((count * 100.0) / scoredFrameCount, 1);
+
+                resolved.Add(new ResolvedStackingTier(rule, count, effectivePct));
+            }
+        }
+
+        resolved.Sort((a, b) => a.FramesToStack.CompareTo(b.FramesToStack));
+        return resolved;
     }
 }

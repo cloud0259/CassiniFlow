@@ -216,6 +216,21 @@ public sealed class ProcessingOptions
     public bool EnableQualityLimiting { get; set; }
     public QualityLimitingType QualityLimitingMode { get; set; } = QualityLimitingType.PercentageOfFrames;
     public int QualityFramesToKeep { get; set; } = 25;
+
+    /// <summary>
+    /// Retourne la règle de rétention active pour le prétraitement, ou null si la limitation est désactivée.
+    /// </summary>
+    public FrameRetentionRule? GetQualityRetentionRule()
+    {
+        if (!EnableQualityLimiting)
+        {
+            return null;
+        }
+
+        return QualityLimitingMode == QualityLimitingType.PercentageOfFrames
+            ? FrameRetentionRule.FromPercentage(Math.Clamp(QualityFramesToKeep, 1, 100))
+            : FrameRetentionRule.FromFrameCount(Math.Max(1, QualityFramesToKeep));
+    }
     public QualityAlgorithm QualityAlgorithm { get; set; } = QualityAlgorithm.GradientSharpness;
     public int QualityMinSubsample { get; set; } = 3;
     public int QualityMaxSubsample { get; set; } = 5;

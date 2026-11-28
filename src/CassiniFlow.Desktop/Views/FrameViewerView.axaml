@@ -91,7 +91,6 @@
                         MaxFrameCount="{Binding MaxFrameCount}"
                         SelectionStart="{Binding TimelineSelectionIn}"
                         SelectionEnd="{Binding TimelineSelectionOut}"
-                        CutoffPercent="{Binding TimelineCutoffPercent}"
                         IsChronologicalMode="{Binding IsTimelineChronological}"
                         ShowGradientSharpness="{Binding TimelineShowGradient}"
                         ShowNinox="{Binding TimelineShowNinox}"
@@ -134,12 +133,7 @@
                         <Button Content="&gt;|" Command="{Binding LastFrameCommand}" Padding="8,3" ToolTip.Tip="{loc:Tr Menu.LastFrame}"/>
                     </StackPanel>
 
-                    <!-- Seuil de sélection 'Garder' centré sans aucun élément qui déborde -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="{loc:Tr Viewer.CutoffKeepBest}" FontSize="11" Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
-                        <Slider Minimum="5" Maximum="100" Value="{Binding TimelineCutoffPercent}" Width="120" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding RetainedFramesSummaryText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppAccentColor}" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <Border Grid.Column="1" />
 
                     <!-- Espace équilibré à droite -->
                     <Border Grid.Column="2" Width="10" />

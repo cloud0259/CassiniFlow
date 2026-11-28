@@ -46,60 +46,77 @@ public partial class MainWindowViewModel
             return;
         }
 
-        MaxFrameCount = Math.Max(1, value.Frames);
-        CurrentFrameIndex = 1;
-        OutputFps = Math.Max(1, (int)Math.Round(value.Fps));
-        TargetBoxX = Math.Max(16, value.Width / 2);
-        TargetBoxY = Math.Max(16, value.Height / 2);
-
-        // Preserve user/preset crop size (e.g. 448x448 for planetary); only clamp if source video is smaller
-        if (CropWidth > value.Width)
+        _isSwitchingSourceFile = true;
+        try
         {
-            CropWidth = Math.Max(64, value.Width & ~3);
-        }
-        if (CropHeight > value.Height)
-        {
-            CropHeight = Math.Max(64, value.Height & ~3);
-        }
+            MaxFrameCount = Math.Max(1, value.Frames);
+            CurrentFrameIndex = 1;
+            OutputFps = Math.Max(1, (int)Math.Round(value.Fps));
+            TargetBoxX = Math.Max(16, value.Width / 2);
+            TargetBoxY = Math.Max(16, value.Height / 2);
 
-        UpdateAvailableFrames();
-        int selIn = value.SelectionIn > 0 ? value.SelectionIn : 1;
-        int selOut = value.SelectionOut > 0 ? value.SelectionOut : MaxFrameCount;
-        selIn = Math.Clamp(selIn, 1, MaxFrameCount);
-        selOut = Math.Clamp(selOut, selIn, MaxFrameCount);
-
-        StartFrame = selIn;
-        EndFrame = selOut;
-        TimelineSelectionIn = selIn;
-        TimelineSelectionOut = selOut;
-
-        // Adapte automatiquement la taille de tuile AP et réinitialise la grille si la résolution change
-        int frameW = EnableCropping ? CropWidth : value.Width;
-        int frameH = EnableCropping ? CropHeight : value.Height;
-        var targetType = CelestialTargetType.Unknown;
-        if (!string.IsNullOrEmpty(value.IdentifiedObjectText))
-        {
-            if (value.IdentifiedObjectText.Contains("Lune", StringComparison.OrdinalIgnoreCase) ||
-                value.IdentifiedObjectText.Contains("Soleil", StringComparison.OrdinalIgnoreCase) ||
-                value.IdentifiedObjectText.Contains("Moon", StringComparison.OrdinalIgnoreCase) ||
-                value.IdentifiedObjectText.Contains("Sun", StringComparison.OrdinalIgnoreCase))
+            // Preserve user/preset crop size (e.g. 448x448 for planetary); only clamp if source video is smaller
+            if (CropWidth > value.Width)
             {
-                targetType = CelestialTargetType.MoonOrSunSurface;
+                CropWidth = Math.Max(64, value.Width & ~3);
+            }
+            if (CropHeight > value.Height)
+            {
+                CropHeight = Math.Max(64, value.Height & ~3);
+            }
+
+            UpdateAvailableFrames();
+            int selIn = value.SelectionIn > 0 ? value.SelectionIn : 1;
+            int selOut = value.SelectionOut > 0 ? value.SelectionOut : MaxFrameCount;
+            selIn = Math.Clamp(selIn, 1, MaxFrameCount);
+            selOut = Math.Clamp(selOut, selIn, MaxFrameCount);
+
+            StartFrame = selIn;
+            EndFrame = selOut;
+            TimelineSelectionIn = selIn;
+            TimelineSelectionOut = selOut;
+
+            // Adapte automatiquement la taille de tuile AP et réinitialise la grille si la résolution change
+            int frameW = EnableCropping ? CropWidth : value.Width;
+            int frameH = EnableCropping ? CropHeight : value.Height;
+            var targetType = CelestialTargetType.Unknown;
+            if (!string.IsNullOrEmpty(value.IdentifiedObjectText))
+            {
+                if (value.IdentifiedObjectText.Contains("Lune", StringComparison.OrdinalIgnoreCase) ||
+                    value.IdentifiedObjectText.Contains("Soleil", StringComparison.OrdinalIgnoreCase) ||
+                    value.IdentifiedObjectText.Contains("Moon", StringComparison.OrdinalIgnoreCase) ||
+                    value.IdentifiedObjectText.Contains("Sun", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetType = CelestialTargetType.MoonOrSunSurface;
+                }
+                else
+                {
+                    targetType = CelestialTargetType.Planet;
+                }
+            }
+
+            AlignmentTileSize = AlignmentGridGenerator.RecommendOptimalTileSize(
+                value.PlanetDiameterPx,
+                targetType,
+                frameW,
+                frameH);
+
+            if (value.CustomAlignmentGrid is { ActiveCount: > 0 } savedGrid &&
+                savedGrid.FrameWidth == frameW &&
+                savedGrid.FrameHeight == frameH)
+            {
+                CurrentAlignmentGrid = savedGrid;
+                AlignmentStatusText = string.Format(Loc.Get("Alignment.PointsActive"), savedGrid.ActiveCount, savedGrid.TotalCount);
             }
             else
             {
-                targetType = CelestialTargetType.Planet;
+                CurrentAlignmentGrid = AlignmentGrid.Empty;
+                AlignmentStatusText = string.Empty;
             }
         }
-        AlignmentTileSize = AlignmentGridGenerator.RecommendOptimalTileSize(
-            value.PlanetDiameterPx,
-            targetType,
-            frameW,
-            frameH);
-
-        if (CurrentAlignmentGrid is not null && (CurrentAlignmentGrid.FrameWidth != frameW || CurrentAlignmentGrid.FrameHeight != frameH))
+        finally
         {
-            CurrentAlignmentGrid = AlignmentGrid.Empty;
+            _isSwitchingSourceFile = false;
         }
 
         TriggerQualityTimelineAnalysis(value.FullPath);

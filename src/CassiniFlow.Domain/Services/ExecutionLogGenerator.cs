@@ -126,11 +126,14 @@ public static class ExecutionLogGenerator
         {
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Algorithm          : {options.QualityAlgorithm}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Reorder by Quality : {options.QualityReorderFrames}");
-            sb.AppendLine(CultureInfo.InvariantCulture, $"  Limit Frames       : {options.EnableQualityLimiting}");
-            if (options.EnableQualityLimiting)
+            if (options.Stacking.WorkflowMode == StackingWorkflowMode.PreProcessingOnly)
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"  Limiting Mode      : {options.QualityLimitingMode}");
-                sb.AppendLine(CultureInfo.InvariantCulture, $"  Frames To Keep     : {options.QualityFramesToKeep}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Limit Frames       : {options.EnableQualityLimiting}");
+                if (options.EnableQualityLimiting)
+                {
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  Limiting Mode      : {options.QualityLimitingMode}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  Frames To Keep     : {options.QualityFramesToKeep}");
+                }
             }
         }
         sb.AppendLine(CultureInfo.InvariantCulture, $"  Reject Overexposed : {options.RejectOverexposedFrames} (Max pixels: {options.MaxOverexposedPixels})");
@@ -149,7 +152,11 @@ public static class ExecutionLogGenerator
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Stabilisation Mode : {options.Stacking.StabilisationMode}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Reference Mode     : {options.Stacking.ReferenceMode}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Alignment Tile Size: {options.Stacking.AlignmentTileSize} px");
-            sb.AppendLine(CultureInfo.InvariantCulture, $"  Stack Percentages  : {string.Join(", ", options.Stacking.StackPercentages.Select(t => $"{t.ToString(CultureInfo.InvariantCulture)}%"))}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  Retention Unit     : {options.Stacking.RetentionUnit}");
+            string tiersSummary = options.Stacking.RetentionUnit == FrameRetentionUnit.FrameCount
+                ? string.Join(", ", options.Stacking.StackFixedFrameCounts.Select(c => $"{c} frames"))
+                : string.Join(", ", options.Stacking.StackPercentages.Select(t => $"{t.ToString(CultureInfo.InvariantCulture)}%"));
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  Stack Tiers        : {tiersSummary}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Drizzle Mode       : {options.Stacking.Drizzle}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  ADC RGB Alignment  : {options.Stacking.CorrectAtmosphericDispersion}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"  Sharpening Active  : {options.Stacking.SharpeningEnabled} ({options.Stacking.SharpeningBlendPercent}%)");
